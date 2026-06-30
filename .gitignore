@@ -1,0 +1,12 @@
+node_modules/
+.vinext/
+.next/
+next-env.d.ts
+dist/
+.wrangler/
+out/
+.dev.vars
+.env*.local
+*.log
+.DS_Store
+.thumbnail

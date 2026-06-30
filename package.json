@@ -1,0 +1,39 @@
+{
+  "name": "kaijiro-landing",
+  "version": "0.1.0",
+  "type": "module",
+  "private": true,
+  "browserslist": ["defaults", "not dead", "Safari >= 14"],
+  "scripts": {
+    "dev": "vinext dev",
+    "build": "vinext build",
+    "start": "vinext start",
+    "deploy": "vinext deploy",
+    "typecheck": "tsc --noEmit",
+    "lint": "biome check --fix ."
+  },
+  "dependencies": {
+    "@elevenlabs/react": "^1.9.0",
+    "react": "^19.2.0",
+    "react-dom": "^19.2.0",
+    "vinext": "^0.1.8"
+  },
+  "devDependencies": {
+    "@biomejs/biome": "^1.9.4",
+    "@cloudflare/vite-plugin": "^1.25.0",
+    "@cloudflare/workers-types": "^4.20250214.0",
+    "@types/node": "^22.10.0",
+    "@types/react": "^19.2.0",
+    "@types/react-dom": "^19.2.0",
+    "@vitejs/plugin-react": "^6.0.0",
+    "@vitejs/plugin-rsc": "^0.5.26",
+    "autoprefixer": "^10.4.20",
+    "postcss": "^8.4.49",
+    "react-server-dom-webpack": "^19.2.6",
+    "tailwindcss": "^3.4.17",
+    "typescript": "^5.7.0",
+    "vite": "npm:rolldown-vite@latest",
+    "vite-tsconfig-paths": "^6.1.1",
+    "wrangler": "^4.65.0"
+  }
+}
