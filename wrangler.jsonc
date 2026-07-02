@@ -13,6 +13,10 @@
     {
       "binding": "RATE_LIMIT_KV",
       "id": "63226420204e48b7bc152b561d5f05de"
+    },
+    {
+      "binding": "LEADS_KV",
+      "id": "cfc515ef0b784a4396df923908792bb7"
     }
   ],
   "vars": {

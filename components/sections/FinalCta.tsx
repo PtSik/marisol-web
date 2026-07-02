@@ -1,11 +1,17 @@
+"use client";
+
+import { CallRequestForm } from "@/components/CallRequestForm";
 import { Reveal } from "@/components/motion/Reveal";
 import { SALES_EMAIL_HREF } from "@/lib/site";
+import { useState } from "react";
 
 export function FinalCta() {
+  const [open, setOpen] = useState(false);
+
   return (
     <section
       aria-label="Get started"
-      className="mx-auto max-w-content px-[22px] pb-[clamp(40px,7vw,80px)]"
+      className="mx-auto max-w-content px-[22px] pt-[clamp(32px,6vw,72px)] pb-[clamp(40px,7vw,80px)]"
     >
       <div className="relative overflow-hidden rounded-[30px] px-6 py-[clamp(44px,8vw,88px)] text-center [transform:translateZ(0)] [clip-path:inset(0_round_30px)]">
         <div style={{ position: "absolute", inset: 0, background: "#1B2E2B" }} />
@@ -31,17 +37,27 @@ export function FinalCta() {
             Let every call get answered.
           </h2>
           <p className="mx-auto mt-4 max-w-[34ch] text-[clamp(15px,2.2vw,18px)] leading-[1.5] text-cream/[0.86]">
-            Have questions about pricing or setup? Email our sales team — we'll get back to you
-            fast.
+            Have questions about pricing or setup? Book a quick call or send us a question — we'll
+            get back to you fast.
           </p>
-          <div className="mx-auto mt-7 flex w-fit flex-col items-stretch gap-3 sm:w-auto sm:flex-row sm:justify-center">
-            <a
-              href={SALES_EMAIL_HREF}
-              className="inline-flex min-h-[52px] items-center justify-center gap-[9px] rounded-xl bg-cream px-7 py-[15px] text-base font-medium text-ink no-underline"
-            >
-              Email our sales team
-            </a>
-          </div>
+          {open ? (
+            <div className="mx-auto mt-7 max-w-[640px]">
+              <CallRequestForm onCancel={() => setOpen(false)} />
+            </div>
+          ) : (
+            <div className="mx-auto mt-7 flex w-fit flex-col items-center gap-3">
+              <button
+                type="button"
+                onClick={() => setOpen(true)}
+                className="inline-flex min-h-[52px] items-center justify-center gap-[9px] rounded-xl bg-cream px-7 py-[15px] text-base font-medium text-ink"
+              >
+                Book a 15-min call
+              </button>
+              <a href={SALES_EMAIL_HREF} className="text-[13.5px] text-cream/70 underline">
+                or email our sales team
+              </a>
+            </div>
+          )}
         </Reveal>
       </div>
     </section>
