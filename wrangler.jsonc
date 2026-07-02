@@ -8,5 +8,14 @@
   "assets": {
     "not_found_handling": "none",
     "binding": "ASSETS"
+  },
+  "kv_namespaces": [
+    {
+      "binding": "RATE_LIMIT_KV",
+      "id": "63226420204e48b7bc152b561d5f05de"
+    }
+  ],
+  "vars": {
+    "VOICE_AGENT_API_URL": "https://voice-agent-api.patrykgniewek9.workers.dev"
   }
 }

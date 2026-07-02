@@ -28,6 +28,7 @@ function DemoStage() {
   const [seconds, setSeconds] = useState(0);
   const [error, setError] = useState<string | null>(null);
   const endTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const transcriptRef = useRef<HTMLDivElement | null>(null);
 
   const conversation = useConversation({
     onConnect: () => setError(null),
@@ -54,6 +55,10 @@ function DemoStage() {
     [],
   );
 
+  useEffect(() => {
+    transcriptRef.current?.scrollTo({ top: transcriptRef.current.scrollHeight, behavior: "smooth" });
+  }, [lines]);
+
   const start = useCallback(async () => {
     const agent = getDemoAgent(persona);
     setError(null);
@@ -61,11 +66,11 @@ function DemoStage() {
     setSeconds(0);
     try {
       await navigator.mediaDevices?.getUserMedia({ audio: true });
-      const { token, maxDurationSeconds } = await fetchConversationToken(agent);
+      const { token, maxDurationSeconds, dynamicVariables } = await fetchConversationToken(agent);
       conversation.startSession({
         conversationToken: token,
         connectionType: "webrtc",
-        dynamicVariables: { shop_id: agent.shopId },
+        dynamicVariables,
       });
       if (endTimer.current) clearTimeout(endTimer.current);
       endTimer.current = setTimeout(() => conversation.endSession(), maxDurationSeconds * 1000);
@@ -114,7 +119,7 @@ function DemoStage() {
 
   return (
     <div className="grid grid-cols-1 items-stretch gap-[18px] md:grid-cols-2">
-      <div className="relative flex min-h-[380px] flex-col overflow-hidden rounded-[26px] shadow-[0_30px_70px_-45px_rgba(36,27,20,0.6)]">
+      <div className="relative flex min-h-[380px] flex-col overflow-hidden rounded-[26px] shadow-[0_30px_70px_-45px_rgba(36,27,20,0.6)] md:h-[560px]">
         <ParallaxLayer factor={0.18} style={{ position: "absolute", inset: "-8%" }}>
           <div
             style={{
@@ -152,8 +157,8 @@ function DemoStage() {
           }}
         />
 
-        <div className="relative z-[3] flex items-start justify-between p-4">
-          <div className="flex items-center gap-[7px] rounded-full bg-ink/30 px-3 py-[7px] text-xs text-cream backdrop-blur-md">
+        <div className="relative z-[3] flex items-start justify-between p-3 md:p-4">
+          <div className="flex items-center gap-[7px] rounded-full bg-ink/30 px-3 py-1.5 text-xs text-cream backdrop-blur-md md:py-[7px]">
             <span
               className="h-2 w-2 rounded-full"
               style={{ background: statusDot, boxShadow: `0 0 0 4px ${statusDot}33` }}
@@ -168,7 +173,7 @@ function DemoStage() {
                 type="button"
                 aria-pressed={persona === p}
                 onClick={() => switchPersona(p)}
-                className={`min-h-[44px] whitespace-nowrap rounded-[9px] px-[13px] py-[10px] text-xs font-medium transition-all ${
+                className={`min-h-9 whitespace-nowrap rounded-[9px] px-[13px] py-2 text-xs font-medium transition-all md:min-h-[44px] md:py-[10px] ${
                   persona === p ? "bg-ink text-cream" : "bg-transparent text-muted"
                 }`}
               >
@@ -178,8 +183,8 @@ function DemoStage() {
           </fieldset>
         </div>
 
-        <div className="relative z-[2] flex flex-1 flex-col items-center justify-center gap-[22px] px-4 pb-5 pt-2">
-          <div className="relative flex h-32 w-32 items-center justify-center">
+        <div className="relative z-[2] flex flex-1 flex-col items-center justify-center gap-3 px-4 pb-3 pt-1 md:gap-[22px] md:pb-5 md:pt-2">
+          <div className="relative flex h-20 w-20 items-center justify-center md:h-32 md:w-32">
             <div
               className="absolute h-full w-full rounded-full border-[1.5px] border-white/70"
               style={{ animation: ringAnim }}
@@ -189,15 +194,13 @@ function DemoStage() {
               style={{ animation: busy ? "ringOut 2.4s ease-out infinite 1.2s" : "none" }}
             />
             <div
-              className="flex h-24 w-24 items-center justify-center rounded-full bg-cream/90 shadow-[inset_0_0_24px_rgba(255,255,255,0.6),0_12px_30px_-10px_rgba(36,27,20,0.5)] transition-transform duration-300"
+              className="flex h-14 w-14 items-center justify-center rounded-full bg-cream/90 shadow-[inset_0_0_24px_rgba(255,255,255,0.6),0_12px_30px_-10px_rgba(36,27,20,0.5)] transition-transform duration-300 md:h-24 md:w-24"
               style={{
                 transform: `scale(${orbScale})`,
                 animation: active && isSpeaking ? "orbBreathe 1.4s ease-in-out infinite" : "none",
               }}
             >
               <svg
-                width="34"
-                height="34"
                 viewBox="0 0 24 24"
                 fill="none"
                 stroke="currentColor"
@@ -205,7 +208,7 @@ function DemoStage() {
                 strokeLinecap="round"
                 strokeLinejoin="round"
                 aria-hidden="true"
-                className="text-ink"
+                className="h-5 w-5 text-ink md:h-[34px] md:w-[34px]"
               >
                 <path d="M12 1a3 3 0 0 0-3 3v8a3 3 0 0 0 6 0V4a3 3 0 0 0-3-3z" />
                 <path d="M19 10v2a7 7 0 0 1-14 0v-2" />
@@ -215,7 +218,7 @@ function DemoStage() {
           </div>
           <div
             aria-hidden="true"
-            className="flex h-[30px] items-center gap-[5px] transition-opacity duration-300"
+            className="flex h-5 items-center gap-[5px] transition-opacity duration-300 md:h-[30px]"
             style={{ opacity: waveOpacity }}
           >
             {[0, 120, 240, 360, 180, 300, 60].map((delay) => (
@@ -226,18 +229,18 @@ function DemoStage() {
               />
             ))}
           </div>
-          <div className="font-display text-[30px] tracking-[-0.02em] tabular-nums text-ink">
+          <div className="font-display text-xl tracking-[-0.02em] tabular-nums text-ink md:text-[30px]">
             {fmtTime(seconds)}
           </div>
         </div>
 
-        <div className="relative z-[3] flex flex-col items-center gap-[10px] px-4 pb-[18px]">
-          <div className="flex flex-wrap items-center justify-center gap-[10px]">
+        <div className="relative z-[3] flex flex-col items-center gap-2 px-4 pb-4 md:gap-[10px] md:pb-[18px]">
+          <div className="flex flex-wrap items-center justify-center gap-2 md:gap-[10px]">
             <button
               type="button"
               onClick={start}
               disabled={busy}
-              className="inline-flex min-h-[54px] min-w-[200px] items-center justify-center gap-[9px] rounded-[14px] bg-ink px-[30px] py-[15px] text-base font-medium text-cream shadow-[0_14px_30px_-12px_rgba(36,27,20,0.7)] disabled:opacity-90"
+              className="inline-flex min-h-11 min-w-[200px] items-center justify-center gap-2 rounded-xl bg-ink px-6 py-3 text-sm font-medium text-cream shadow-[0_14px_30px_-12px_rgba(36,27,20,0.7)] disabled:opacity-90 md:min-h-[54px] md:gap-[9px] md:rounded-[14px] md:px-[30px] md:py-[15px] md:text-base"
             >
               <span className="h-[9px] w-[9px] rounded-full" style={{ background: statusDot }} />
               {primaryLabel}
@@ -247,19 +250,19 @@ function DemoStage() {
                 type="button"
                 onClick={end}
                 aria-label="End call"
-                className="inline-flex min-h-[54px] items-center justify-center rounded-[14px] border border-ink/20 bg-ink/[0.16] px-[18px] text-sm font-medium text-ink"
+                className="inline-flex min-h-11 items-center justify-center rounded-xl border border-ink/20 bg-ink/[0.16] px-[18px] text-sm font-medium text-ink md:min-h-[54px] md:rounded-[14px]"
               >
                 End
               </button>
             )}
           </div>
-          <div className="max-w-[30ch] text-center text-[11.5px] leading-[1.4] text-ink/[0.62]">
+          <div className="max-w-[30ch] text-center text-[10.5px] leading-[1.35] text-ink/[0.62] md:text-[11.5px] md:leading-[1.4]">
             {error ?? "Live in-browser voice — mic permission asked on tap"}
           </div>
         </div>
       </div>
 
-      <div className="flex min-h-[380px] flex-col rounded-[26px] bg-white p-[18px] shadow-[0_30px_70px_-55px_rgba(36,27,20,0.5)]">
+      <div className="flex min-h-[380px] flex-col rounded-[26px] bg-white p-[18px] shadow-[0_30px_70px_-55px_rgba(36,27,20,0.5)] md:h-[560px]">
         <div className="mb-[6px] flex items-center justify-between border-b border-cream-200 px-[6px] pb-[14px] pt-1">
           <span className="text-xs font-semibold uppercase tracking-[0.14em] text-muted-2">
             Transcript
@@ -267,8 +270,9 @@ function DemoStage() {
           <span className="text-xs text-muted-3">{agent.shopLabel}</span>
         </div>
         <div
+          ref={transcriptRef}
           aria-live="polite"
-          className="flex flex-1 flex-col gap-[10px] overflow-y-auto px-1 py-2"
+          className="flex min-h-0 flex-1 flex-col gap-[10px] overflow-y-auto px-1 py-2"
         >
           {lines.length === 0 ? (
             <div className="m-auto flex max-w-[26ch] flex-col items-center gap-[10px] text-center text-muted-3">

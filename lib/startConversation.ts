@@ -3,6 +3,7 @@ import type { DemoAgent } from "@/lib/demoAgents";
 export interface ConversationToken {
   token: string;
   maxDurationSeconds: number;
+  dynamicVariables: Record<string, string>;
 }
 
 export async function fetchConversationToken(agent: DemoAgent): Promise<ConversationToken> {
