@@ -16,7 +16,7 @@ export function Hero() {
       <div className="mx-auto mt-[30px] flex w-fit flex-col items-stretch gap-3 sm:w-auto sm:flex-row sm:justify-center">
         <a
           href="#demo"
-          className="inline-flex min-h-[52px] items-center justify-center gap-[9px] rounded-xl bg-ink px-[26px] py-[15px] text-base font-medium text-cream no-underline shadow-[0_12px_30px_-14px_rgba(36,27,20,0.6)]"
+          className="inline-flex min-h-[52px] items-center justify-center gap-[9px] rounded-xl border border-transparent bg-ink px-[26px] py-[15px] text-base font-medium text-cream no-underline shadow-[0_12px_30px_-14px_rgba(36,27,20,0.6)]"
         >
           <span
             aria-hidden="true"

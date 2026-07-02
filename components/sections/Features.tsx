@@ -5,10 +5,7 @@ const FEATURES = [
     title: "Answers 24/7",
     desc: "Picks up on the first ring, any hour — so a missed call never becomes a lost customer.",
     icon: (
-      <>
-        <circle cx="12" cy="12" r="10" />
-        <polyline points="12 6 12 12 16 14" />
-      </>
+      <path d="M18.178 8c5.096 0 5.096 8 0 8-5.095 0-7.133-8-12.739-8-4.585 0-4.585 8 0 8 5.606 0 7.644-8 12.74-8z" />
     ),
   },
   {
@@ -16,28 +13,35 @@ const FEATURES = [
     desc: "Finds open slots, books the right staff, and moves appointments — no double-bookings, ever.",
     icon: (
       <>
-        <rect x="3" y="4" width="18" height="18" rx="2" />
-        <line x1="16" y1="2" x2="16" y2="6" />
-        <line x1="8" y1="2" x2="8" y2="6" />
-        <line x1="3" y1="10" x2="21" y2="10" />
-        <path d="m9 16 2 2 4-4" />
+        <path d="M21 7.5V6a2 2 0 0 0-2-2H5a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h3.5" />
+        <path d="M16 2v4" />
+        <path d="M8 2v4" />
+        <path d="M3 10h5" />
+        <path d="M17.5 17.5 16 16.25V14" />
+        <circle cx="16" cy="16" r="6" />
       </>
     ),
   },
   {
     title: "Sends SMS confirmations",
     desc: "Every booking gets a text with the details and a code to cancel or reschedule. No-shows drop.",
-    icon: <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z" />,
+    icon: (
+      <>
+        <path d="M21 11.5a8.38 8.38 0 0 1-.9 3.8 8.5 8.5 0 0 1-7.6 4.7 8.38 8.38 0 0 1-3.8-.9L3 21l1.9-5.7a8.38 8.38 0 0 1-.9-3.8 8.5 8.5 0 0 1 4.7-7.6 8.38 8.38 0 0 1 3.8-.9h.5a8.48 8.48 0 0 1 8 8v.5z" />
+        <path d="m9 12 2 2 4-4" />
+      </>
+    ),
   },
   {
     title: "Knows your hours & services",
     desc: "Trained on your menu, pricing, and schedule, so answers are accurate — never made up.",
     icon: (
       <>
-        <path d="M20 7h-9" />
-        <path d="M14 17H5" />
-        <circle cx="17" cy="17" r="3" />
-        <circle cx="7" cy="7" r="3" />
+        <path d="m3 17 2 2 4-4" />
+        <path d="m3 7 2 2 4-4" />
+        <path d="M13 6h8" />
+        <path d="M13 12h8" />
+        <path d="M13 18h8" />
       </>
     ),
   },

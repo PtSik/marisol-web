@@ -11,7 +11,7 @@ const ITEMS = [
   },
   {
     title: "We tune the voice & greeting",
-    desc: "It sounds like your shop and connects to your calendar before you go live.",
+    desc: "It sounds like your shop and connects to your calendar.",
   },
 ];
 
@@ -21,12 +21,6 @@ export function DoneForYou() {
       aria-label="Done for you"
       className="mx-auto max-w-content px-[22px] py-[clamp(48px,7vw,88px)]"
     >
-      <Reveal className="mb-[clamp(20px,3vw,28px)] text-center">
-        <span className="inline-block rounded-full bg-cream-200 px-[13px] py-[7px] text-[11.5px] font-semibold uppercase tracking-[0.16em] text-muted-2">
-          Done for you
-        </span>
-      </Reveal>
-
       <div className="relative overflow-hidden rounded-[26px] bg-[#1F3A35] px-[clamp(24px,4vw,46px)] py-[clamp(34px,5vw,52px)]">
         <div
           style={{
@@ -55,19 +49,25 @@ export function DoneForYou() {
           }}
         />
 
-        <Reveal className="relative z-[2] mb-[clamp(24px,3vw,36px)] max-w-[42ch]">
+        <Reveal className="relative z-[2] mb-[clamp(20px,3vw,28px)] text-center">
+          <span className="inline-block rounded-full bg-[#9CD0C4]/[0.16] px-[13px] py-[7px] text-[11.5px] font-semibold uppercase tracking-[0.16em] text-[#9CD0C4]">
+            Done for you
+          </span>
+        </Reveal>
+
+        <Reveal className="relative z-[2] mx-auto mb-[clamp(24px,3vw,36px)] max-w-[42ch] text-center">
           <h2 className="font-display text-[clamp(26px,4.4vw,42px)] font-light leading-[1.1] tracking-[-0.03em] text-cream">
-            We set the whole thing up.
+            <span className="whitespace-nowrap">We set the whole thing up.</span>
             <br />
             <span className="text-[#9CD0C4]">You don't lift a finger.</span>
           </h2>
           <p className="mt-[14px] text-[15px] leading-[1.55] text-cream/80">
-            Send us your details once and our team handles the rest — usually live within two days.
+            Send us your details once and our team handles the rest.
             No software to install, no scripts to write.
           </p>
         </Reveal>
 
-        <ul className="relative z-[2] flex flex-wrap gap-[clamp(16px,3vw,26px)]">
+        <ul className="relative z-[2] flex flex-wrap gap-x-[clamp(16px,3vw,26px)] gap-y-6 sm:gap-y-[clamp(16px,3vw,26px)]">
           {ITEMS.map((item, i) => (
             <Reveal
               as="li"
