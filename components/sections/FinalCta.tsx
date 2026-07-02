@@ -1,5 +1,5 @@
 import { Reveal } from "@/components/motion/Reveal";
-import { TEAM_PHONE, teamTelHref } from "@/lib/site";
+import { SALES_EMAIL_HREF } from "@/lib/site";
 
 export function FinalCta() {
   return (
@@ -31,21 +31,15 @@ export function FinalCta() {
             Let every call get answered.
           </h2>
           <p className="mx-auto mt-4 max-w-[34ch] text-[clamp(15px,2.2vw,18px)] leading-[1.5] text-cream/[0.86]">
-            Hear it live in your browser, or call our team with any questions — we'll get you set
-            up.
+            Have questions about pricing or setup? Email our sales team — we'll get back to you
+            fast.
           </p>
           <div className="mx-auto mt-7 flex w-fit flex-col items-stretch gap-3 sm:w-auto sm:flex-row sm:justify-center">
             <a
-              href="#demo"
+              href={SALES_EMAIL_HREF}
               className="inline-flex min-h-[52px] items-center justify-center gap-[9px] rounded-xl bg-cream px-7 py-[15px] text-base font-medium text-ink no-underline"
             >
-              Talk to the receptionist
-            </a>
-            <a
-              href={teamTelHref}
-              className="inline-flex min-h-[52px] items-center justify-center gap-[9px] rounded-xl border border-cream/40 bg-cream/[0.12] px-[26px] py-[15px] text-base font-medium text-cream no-underline"
-            >
-              {TEAM_PHONE}
+              Email our sales team
             </a>
           </div>
         </Reveal>
