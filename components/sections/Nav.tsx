@@ -13,10 +13,10 @@ export function Nav() {
       <div className="flex w-full items-center justify-between gap-5 rounded-[18px] border border-ink/10 bg-cream/80 px-5 py-3 backdrop-blur-md">
         <a
           href="#top"
-          className="flex items-center gap-[7px] font-display text-[22px] tracking-tight no-underline"
+          className="flex items-center gap-[7px] font-display text-[19px] tracking-tight no-underline"
         >
           <LogoMark className="h-5 w-5 rounded-[3.5px]" />
-          Kaijiro
+          AI Receptionist
         </a>
 
         <div className="hidden items-center gap-8 text-sm text-muted md:flex">

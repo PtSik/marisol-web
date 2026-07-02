@@ -8,7 +8,7 @@ export function Footer() {
         <div className="max-w-[34ch]">
           <div className="mb-[10px] flex items-center gap-[7px] font-display text-2xl tracking-[-0.03em]">
             <LogoMark className="h-[22px] w-[22px] rounded-[4px]" />
-            Kaijiro
+            Kaijiro-labs
           </div>
           <p className="m-0 text-[13.5px] leading-[1.55] text-muted-2">
             The AI front desk for barbershops, spas, salons, grooming studios and many more.
@@ -58,7 +58,7 @@ export function Footer() {
 
       <div className="border-t border-cream-200">
         <div className="mx-auto flex max-w-content flex-wrap items-center justify-between gap-[10px] px-[22px] py-[18px] text-[12.5px] text-muted-4">
-          <span>© 2026 Kaijiro. All rights reserved.</span>
+          <span>© 2026 Kaijiro-labs. All rights reserved.</span>
         </div>
       </div>
     </footer>

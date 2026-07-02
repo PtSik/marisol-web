@@ -22,8 +22,8 @@ export default function Page() {
         <Features />
         <DoneForYou />
         <Pricing />
-        <FinalCta />
         <Faq />
+        <FinalCta />
       </main>
       <Footer />
     </>

@@ -55,8 +55,12 @@ function DemoStage() {
     [],
   );
 
+  // biome-ignore lint/correctness/useExhaustiveDependencies: scroll must re-run when lines change
   useEffect(() => {
-    transcriptRef.current?.scrollTo({ top: transcriptRef.current.scrollHeight, behavior: "smooth" });
+    transcriptRef.current?.scrollTo({
+      top: transcriptRef.current.scrollHeight,
+      behavior: "smooth",
+    });
   }, [lines]);
 
   const start = useCallback(async () => {

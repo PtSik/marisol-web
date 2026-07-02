@@ -62,8 +62,8 @@ export function DoneForYou() {
             <span className="text-[#9CD0C4]">You don't lift a finger.</span>
           </h2>
           <p className="mt-[14px] text-[15px] leading-[1.55] text-cream/80">
-            Send us your details once and our team handles the rest.
-            No software to install, no scripts to write.
+            Send us your details once and our team handles the rest. No software to install, no
+            scripts to write.
           </p>
         </Reveal>
 
