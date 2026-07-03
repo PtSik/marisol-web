@@ -14,6 +14,7 @@ interface TokenEnv {
   ELEVENLABS_API_KEY?: string;
   ELEVENLABS_WEBHOOK_SECRET?: string;
   VOICE_AGENT_API_URL?: string;
+  VOICE_AGENT_API?: Fetcher;
   RATE_LIMIT_KV?: KVNamespace;
 }
 
@@ -49,16 +50,22 @@ async function fetchDynamicVariables(
   agent: DemoAgent,
   apiUrl: string,
   secret: string,
+  service: Fetcher | undefined,
 ): Promise<Record<string, string>> {
   const body = JSON.stringify({ caller_id: "", called_number: agent.calledNumber });
-  const res = await fetch(`${apiUrl}/webhooks/personalization`, {
+  const url = `${apiUrl}/webhooks/personalization`;
+  const init: RequestInit = {
     method: "POST",
     headers: {
       "Content-Type": "application/json",
       "ElevenLabs-Signature": await signWebhook(secret, body),
     },
     body,
-  });
+  };
+  let res = service ? await service.fetch(url, init).catch(() => null) : null;
+  if (!res || !res.ok) {
+    res = await fetch(url, init);
+  }
   if (!res.ok) {
     throw new Error(`personalization request failed: ${res.status}`);
   }
@@ -69,8 +76,13 @@ async function fetchDynamicVariables(
 }
 
 export async function GET(request: Request) {
-  const { ELEVENLABS_API_KEY, ELEVENLABS_WEBHOOK_SECRET, VOICE_AGENT_API_URL, RATE_LIMIT_KV } =
-    env as unknown as TokenEnv;
+  const {
+    ELEVENLABS_API_KEY,
+    ELEVENLABS_WEBHOOK_SECRET,
+    VOICE_AGENT_API_URL,
+    VOICE_AGENT_API,
+    RATE_LIMIT_KV,
+  } = env as unknown as TokenEnv;
 
   const agentId = new URL(request.url).searchParams.get("agent_id");
   const agent = DEMO_AGENTS.find((a) => a.agentId === agentId);
@@ -92,7 +104,12 @@ export async function GET(request: Request) {
       `https://api.elevenlabs.io/v1/convai/conversation/token?agent_id=${encodeURIComponent(agent.agentId)}`,
       { headers: { "xi-api-key": ELEVENLABS_API_KEY } },
     ),
-    fetchDynamicVariables(agent, VOICE_AGENT_API_URL, ELEVENLABS_WEBHOOK_SECRET).catch(() => null),
+    fetchDynamicVariables(
+      agent,
+      VOICE_AGENT_API_URL,
+      ELEVENLABS_WEBHOOK_SECRET,
+      VOICE_AGENT_API,
+    ).catch(() => null),
   ]);
   if (!tokenRes.ok || !dynamicVariables) {
     return Response.json({ error: "failed to mint token" }, { status: 502 });

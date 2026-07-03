@@ -19,6 +19,12 @@
       "id": "cfc515ef0b784a4396df923908792bb7"
     }
   ],
+  "services": [
+    {
+      "binding": "VOICE_AGENT_API",
+      "service": "voice-agent-api"
+    }
+  ],
   "vars": {
     "VOICE_AGENT_API_URL": "https://voice-agent-api.patrykgniewek9.workers.dev"
   }
