@@ -3,6 +3,7 @@
 import { ParallaxLayer } from "@/components/motion/ParallaxLayer";
 import { DEFAULT_PERSONA, type DemoPersona, getDemoAgent } from "@/lib/demoAgents";
 import { fetchConversationToken } from "@/lib/startConversation";
+import { track } from "@/lib/track";
 import { ConversationProvider, useConversation } from "@elevenlabs/react";
 import { useCallback, useEffect, useRef, useState } from "react";
 
@@ -27,11 +28,19 @@ function DemoStage() {
   const [lines, setLines] = useState<Line[]>([]);
   const [seconds, setSeconds] = useState(0);
   const [error, setError] = useState<string | null>(null);
+  const [ended, setEnded] = useState(false);
   const endTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const transcriptRef = useRef<HTMLDivElement | null>(null);
 
   const conversation = useConversation({
-    onConnect: () => setError(null),
+    onConnect: () => {
+      setError(null);
+      setEnded(false);
+    },
+    onDisconnect: () => {
+      setEnded(true);
+      track("demo_completed", persona);
+    },
     onError: () => setError("Something went wrong — please try again."),
     onMessage: ({ message, source }: { message: string; source: "user" | "ai" }) =>
       setLines((prev) => [...prev, { source, text: message }]),
@@ -70,6 +79,11 @@ function DemoStage() {
     setSeconds(0);
     try {
       await navigator.mediaDevices?.getUserMedia({ audio: true });
+    } catch {
+      setError("Microphone access is blocked — allow the mic in your browser and try again.");
+      return;
+    }
+    try {
       const { token, maxDurationSeconds, dynamicVariables } = await fetchConversationToken(agent);
       conversation.startSession({
         conversationToken: token,
@@ -78,8 +92,9 @@ function DemoStage() {
       });
       if (endTimer.current) clearTimeout(endTimer.current);
       endTimer.current = setTimeout(() => conversation.endSession(), maxDurationSeconds * 1000);
+      track("demo_started", persona);
     } catch {
-      setError("The live demo isn't connected yet — check back soon.");
+      setError("The live demo isn't connected right now — please try again in a moment.");
     }
   }, [persona, conversation]);
 
@@ -94,6 +109,7 @@ function DemoStage() {
     setPersona(p);
     setLines([]);
     setSeconds(0);
+    setEnded(false);
   };
 
   const agent = getDemoAgent(persona);
@@ -260,9 +276,23 @@ function DemoStage() {
               </button>
             )}
           </div>
-          <div className="max-w-[30ch] text-center text-[10.5px] leading-[1.35] text-ink/[0.62] md:text-[11.5px] md:leading-[1.4]">
-            {error ?? "Live in-browser voice — mic permission asked on tap"}
-          </div>
+          {ended && !busy && !error ? (
+            <div className="flex flex-col items-center gap-1 text-center">
+              <span className="text-[12.5px] font-medium text-ink md:text-[13.5px]">
+                Want your phone to sound like this?
+              </span>
+              <a
+                href="/onboarding"
+                className="text-[12.5px] font-semibold text-ink underline underline-offset-2 md:text-[13.5px]"
+              >
+                Get started →
+              </a>
+            </div>
+          ) : (
+            <div className="max-w-[30ch] text-center text-[10.5px] leading-[1.35] text-ink/[0.62] md:text-[11.5px] md:leading-[1.4]">
+              {error ?? "Live in-browser voice — mic permission asked on tap"}
+            </div>
+          )}
         </div>
       </div>
 
@@ -298,6 +328,19 @@ function DemoStage() {
                 Tap <strong className="text-muted-2">Talk</strong> and the conversation appears
                 here, line by line.
               </span>
+              <div className="mt-6 flex flex-col items-center gap-[6px]">
+                <span className="text-[11px] font-semibold uppercase tracking-[0.1em] text-muted-4">
+                  Try asking
+                </span>
+                {agent.examplePrompts.map((prompt) => (
+                  <span
+                    key={prompt}
+                    className="rounded-full bg-cream-100 px-[13px] py-[7px] text-[12.5px] leading-[1.4] text-muted"
+                  >
+                    “{prompt}”
+                  </span>
+                ))}
+              </div>
             </div>
           ) : (
             lines.map((line, i) => {

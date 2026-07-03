@@ -21,6 +21,27 @@ const FAQS = [
     q: "What does the customer get afterward?",
     a: "A confirmation text with the date, time, staff, and service — plus a short code they can use to reschedule or cancel by replying or calling back.",
   },
+  {
+    q: "How long does setup take?",
+    a: "You share your hours, services and staff right after checkout — about three minutes of form. We configure everything and you're typically live within a couple of days; the only thing you do is forward your number.",
+  },
+  {
+    q: "Is there a contract or notice period?",
+    a: "No contract. It's a month-to-month (or annual) subscription you can cancel anytime from the billing portal — no notice period, no cancellation fee, and you keep your number.",
+  },
+  {
+    q: "What if it doesn't work out?",
+    a: (
+      <>
+        Every plan comes with a 14-day money-back guarantee — if it's not for you, we refund your
+        first payment in full, no questions asked. Details in our{" "}
+        <a href="/terms" className="font-medium text-teal">
+          terms
+        </a>
+        .
+      </>
+    ),
+  },
 ];
 
 export function Faq() {

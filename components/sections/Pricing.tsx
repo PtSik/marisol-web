@@ -67,17 +67,6 @@ export function Pricing() {
     return () => window.removeEventListener("resize", sync);
   }, []);
 
-  const cardInteraction = (i: number) => ({
-    onClick: () => setActivePrice(i),
-    onKeyDown: (e: React.KeyboardEvent) => {
-      if (e.target !== e.currentTarget) return;
-      if (e.key === "Enter" || e.key === " ") {
-        e.preventDefault();
-        setActivePrice(i);
-      }
-    },
-  });
-
   return (
     <section
       id="pricing"
@@ -120,10 +109,7 @@ export function Pricing() {
         data-active={activePrice}
         className="price-grid grid grid-cols-1 items-stretch gap-4 md:grid-cols-[1.3fr_1fr]"
       >
-        <div
-          {...cardInteraction(0)}
-          className="price-card relative flex flex-col rounded-[24px] bg-ink px-[26px] pb-7 pt-[30px] text-cream shadow-[0_30px_60px_-34px_rgba(36,27,20,0.7)]"
-        >
+        <div className="price-card relative flex flex-col rounded-[24px] bg-ink px-[26px] pb-7 pt-[30px] text-cream shadow-[0_30px_60px_-34px_rgba(36,27,20,0.7)]">
           <div className="flex items-center justify-between gap-3">
             <div className="text-[11.5px] font-semibold uppercase tracking-[0.14em] text-cream/[0.62]">
               Individual
@@ -172,12 +158,12 @@ export function Pricing() {
           >
             Get started
           </a>
+          <p className="mb-0 mt-3 text-center text-[12px] leading-[1.5] text-cream/60">
+            14-day money-back guarantee · one saved appointment a day pays for it
+          </p>
         </div>
 
-        <div
-          {...cardInteraction(1)}
-          className="price-card flex flex-col rounded-[24px] bg-cream-200 px-[26px] pb-7 pt-[30px] text-ink"
-        >
+        <div className="price-card flex flex-col rounded-[24px] bg-cream-200 px-[26px] pb-7 pt-[30px] text-ink">
           <div className="text-[11.5px] font-semibold uppercase tracking-[0.14em] text-muted-4">
             Multi-location
           </div>

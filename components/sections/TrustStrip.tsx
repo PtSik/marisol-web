@@ -1,5 +1,11 @@
 import { Reveal } from "@/components/motion/Reveal";
 
+// const BENEFITS = [
+//   { stat: "24/7", desc: "every call answered" },
+//   { stat: "Instant", desc: "no hold, no voicemail" },
+//   { stat: "Booked", desc: "straight into your calendar" },
+// ];
+
 const BRANDS = [
   { name: "Sharp & Co.", className: "" },
   { name: "LUMA SPA", className: "font-sans font-semibold tracking-[0.02em]" },
@@ -31,6 +37,20 @@ export function TrustStrip() {
             ))}
           </div>
         </div>
+
+        {/* <dl className="m-0 flex w-full flex-col items-center justify-center gap-3 border-t border-cream-200 pt-[18px] sm:flex-row sm:gap-[clamp(28px,6vw,72px)]">
+          {BENEFITS.map((b) => (
+            <div key={b.stat} className="flex items-baseline gap-2">
+              <dt className="sr-only">{b.desc}</dt>
+              <dd className="m-0 flex items-baseline gap-2">
+                <span className="font-display text-[clamp(17px,2.4vw,22px)] tracking-[-0.02em] text-ink">
+                  {b.stat}
+                </span>
+                <span className="text-[13px] text-muted">{b.desc}</span>
+              </dd>
+            </div>
+          ))}
+        </dl> */}
       </Reveal>
     </section>
   );

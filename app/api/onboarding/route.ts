@@ -1,6 +1,17 @@
 import { env } from "cloudflare:workers";
-import { DAYS, EMAIL_RE, type OnboardingData, PHONE_RE, VERTICAL_IDS } from "@/lib/onboarding";
+import { type CheckoutLead, getLead, putLead } from "@/lib/leads";
+import { notifyTeam } from "@/lib/notify";
+import {
+  type BusinessBasics,
+  DAYS,
+  EMAIL_RE,
+  PHONE_RE,
+  type SetupDetails,
+  VERTICAL_IDS,
+} from "@/lib/onboarding";
 import { BILLING_OPTIONS, type Billing } from "@/lib/plans";
+import { overRateLimit } from "@/lib/rateLimit";
+import { SESSION_ID_RE, type StripeCheckoutSession, getCheckoutSession } from "@/lib/stripe";
 
 export const dynamic = "force-dynamic";
 
@@ -9,8 +20,10 @@ interface OnboardingEnv {
   STRIPE_PRICE_MONTHLY?: string;
   STRIPE_PRICE_ANNUAL?: string;
   LEADS_KV?: KVNamespace;
+  RATE_LIMIT_KV?: KVNamespace;
   RESEND_API_KEY?: string;
   LEAD_NOTIFY_EMAIL?: string;
+  RESEND_FROM?: string;
 }
 
 interface CallRequest {
@@ -22,11 +35,19 @@ interface CallRequest {
 }
 
 interface OnboardingRequest {
-  intent: "checkout" | "call";
-  billing: Billing;
-  data: OnboardingData;
+  intent: "checkout" | "call" | "setup";
+  billing?: Billing;
+  basics?: BusinessBasics;
   call?: CallRequest;
+  sessionId?: string;
+  setup?: SetupDetails;
 }
+
+const RATE_LIMITS: Record<OnboardingRequest["intent"], number> = {
+  checkout: 10,
+  call: 5,
+  setup: 20,
+};
 
 const TIME_RE = /^\d{2}:\d{2}$/;
 
@@ -34,125 +55,120 @@ function isShortString(value: unknown, max = 120): value is string {
   return typeof value === "string" && value.length <= max;
 }
 
-function validate(body: OnboardingRequest): string | null {
-  const { intent, billing, data, call } = body;
-  if (intent !== "checkout" && intent !== "call") return "invalid intent";
+function validateCall(call: unknown): string | null {
+  if (typeof call !== "object" || call === null) return "invalid call";
+  const c = call as CallRequest;
+  if (!isShortString(c.name) || !c.name.trim()) return "invalid name";
+  if (!isShortString(c.email) || !EMAIL_RE.test(c.email)) return "invalid email";
+  if (!isShortString(c.phone) || !PHONE_RE.test(c.phone)) return "invalid phone";
+  if (!isShortString(c.preferredTime, 200)) return "invalid preferredTime";
+  if (typeof c.question !== "string" || c.question.length > 2000) return "invalid question";
+  return null;
+}
 
-  if (intent === "call") {
-    if (typeof call !== "object" || call === null) return "invalid call";
-    if (!isShortString(call.name) || !call.name.trim()) return "invalid name";
-    if (!isShortString(call.email) || !EMAIL_RE.test(call.email)) return "invalid email";
-    if (!isShortString(call.phone) || !PHONE_RE.test(call.phone)) return "invalid phone";
-    if (!isShortString(call.preferredTime, 200)) return "invalid preferredTime";
-    if (typeof call.question !== "string" || call.question.length > 2000) return "invalid question";
-    return null;
+function validateBasics(basics: unknown): string | null {
+  if (typeof basics !== "object" || basics === null) return "invalid basics";
+  const b = basics as BusinessBasics;
+  if (!isShortString(b.email) || !EMAIL_RE.test(b.email)) return "invalid email";
+  if (!VERTICAL_IDS.includes(b.vertical)) return "invalid vertical";
+  if (!isShortString(b.businessName) || !b.businessName.trim()) return "invalid businessName";
+  if (!isShortString(b.ownerName) || !b.ownerName.trim()) return "invalid ownerName";
+  for (const field of ["businessPhone", "ownerMobile"] as const) {
+    if (!isShortString(b[field]) || !PHONE_RE.test(b[field])) return `invalid ${field}`;
   }
+  if (!isShortString(b.timezone, 60)) return "invalid timezone";
+  return null;
+}
 
-  if (!BILLING_OPTIONS.includes(billing)) return "invalid billing";
-  if (typeof data !== "object" || data === null) return "invalid data";
-  if (!isShortString(data.email) || !EMAIL_RE.test(data.email)) return "invalid email";
-  if (!VERTICAL_IDS.includes(data.vertical)) return "invalid vertical";
-  if (!isShortString(data.businessName) || !data.businessName.trim()) return "invalid businessName";
-  if (!isShortString(data.ownerName) || !data.ownerName.trim()) return "invalid ownerName";
-  for (const field of ["businessPhone", "ownerMobile", "forwardNumber"] as const) {
-    if (!isShortString(data[field]) || !PHONE_RE.test(data[field])) return `invalid ${field}`;
-  }
-  if (!isShortString(data.timezone, 60)) return "invalid timezone";
-  if (data.calendar !== "google_calendar" && data.calendar !== "none") return "invalid calendar";
-  if (typeof data.notes !== "string" || data.notes.length > 2000) return "invalid notes";
+function validateSetup(setup: unknown): string | null {
+  if (typeof setup !== "object" || setup === null) return "invalid setup";
+  const s = setup as SetupDetails;
 
-  if (typeof data.hours !== "object" || data.hours === null) return "invalid hours";
+  if (!isShortString(s.forwardNumber) || !PHONE_RE.test(s.forwardNumber))
+    return "invalid forwardNumber";
+  if (s.calendar !== "google_calendar" && s.calendar !== "none") return "invalid calendar";
+  if (typeof s.notes !== "string" || s.notes.length > 2000) return "invalid notes";
+
+  if (typeof s.hours !== "object" || s.hours === null) return "invalid hours";
   for (const day of DAYS) {
-    const h = data.hours[day.id];
+    const h = s.hours[day.id];
     if (typeof h?.closed !== "boolean" || !TIME_RE.test(h.open) || !TIME_RE.test(h.close))
       return "invalid hours";
     if (!h.closed && h.open >= h.close) return "invalid hours";
   }
 
-  if (!Array.isArray(data.services) || data.services.length === 0 || data.services.length > 30)
+  if (!Array.isArray(s.services) || s.services.length === 0 || s.services.length > 30)
     return "invalid services";
-  const hasService = data.services.some(
-    (s) => isShortString(s?.name) && s.name.trim() && Number(s?.durationMin) > 0,
+  const hasService = s.services.some(
+    (svc) => isShortString(svc?.name) && svc.name.trim() && Number(svc?.durationMin) > 0,
   );
   if (
     !hasService ||
-    !data.services.every(
-      (s) =>
-        isShortString(s?.name) && isShortString(s?.durationMin, 5) && isShortString(s?.price, 10),
+    !s.services.every(
+      (svc) =>
+        isShortString(svc?.name) &&
+        isShortString(svc?.durationMin, 5) &&
+        isShortString(svc?.price, 10),
     )
   )
     return "invalid services";
 
   if (
-    !Array.isArray(data.staff) ||
-    data.staff.length > 30 ||
-    !data.staff.some((s) => isShortString(s) && s.trim()) ||
-    !data.staff.every((s) => isShortString(s))
+    !Array.isArray(s.staff) ||
+    s.staff.length > 30 ||
+    !s.staff.some((m) => isShortString(m) && m.trim()) ||
+    !s.staff.every((m) => isShortString(m))
   )
     return "invalid staff";
 
   return null;
 }
 
-async function notifyTeam(
-  { RESEND_API_KEY, LEAD_NOTIFY_EMAIL }: OnboardingEnv,
-  subject: string,
-  lead: Record<string, unknown>,
-): Promise<void> {
-  if (!RESEND_API_KEY || !LEAD_NOTIFY_EMAIL) return;
-  await fetch("https://api.resend.com/emails", {
-    method: "POST",
-    headers: {
-      Authorization: `Bearer ${RESEND_API_KEY}`,
-      "Content-Type": "application/json",
+function reconstructLead(leadId: string, session: StripeCheckoutSession): CheckoutLead {
+  const meta = session.metadata ?? {};
+  const vertical = VERTICAL_IDS.includes(meta.vertical as never)
+    ? (meta.vertical as CheckoutLead["basics"]["vertical"])
+    : "barbershop";
+  return {
+    id: leadId,
+    createdAt: new Date().toISOString(),
+    intent: "checkout",
+    billing: meta.billing === "annual" ? "annual" : "monthly",
+    basics: {
+      vertical,
+      businessName: meta.business_name ?? "",
+      ownerName: meta.owner_name ?? "",
+      email: session.customer_details?.email ?? session.customer_email ?? "",
+      businessPhone: meta.business_phone ?? "",
+      ownerMobile: "",
+      timezone: "",
     },
-    body: JSON.stringify({
-      from: "Kaijiro Leads <onboarding@resend.dev>",
-      to: [LEAD_NOTIFY_EMAIL],
-      subject,
-      text: JSON.stringify(lead, null, 2),
-    }),
-  }).catch(() => {});
+    status: "created",
+  };
 }
 
-export async function POST(request: Request) {
-  const cfEnv = env as unknown as OnboardingEnv;
-
-  let body: OnboardingRequest;
-  try {
-    body = (await request.json()) as OnboardingRequest;
-  } catch {
-    return Response.json({ error: "invalid JSON" }, { status: 400 });
-  }
-
-  const validationError = validate(body);
-  if (validationError) {
-    return Response.json({ error: validationError }, { status: 400 });
-  }
-
-  const base = { id: crypto.randomUUID(), createdAt: new Date().toISOString() };
-  const [lead, subject] =
-    body.intent === "call"
-      ? [
-          { ...base, intent: body.intent, call: body.call },
-          `New call request: ${body.call?.name ?? ""}`,
-        ]
-      : [
-          { ...base, intent: body.intent, billing: body.billing, data: body.data },
-          `New onboarding lead: ${body.data.businessName}`,
-        ];
+async function handleCheckout(
+  cfEnv: OnboardingEnv,
+  request: Request,
+  billing: Billing,
+  basics: BusinessBasics,
+): Promise<Response> {
+  const lead: CheckoutLead = {
+    id: crypto.randomUUID(),
+    createdAt: new Date().toISOString(),
+    intent: "checkout",
+    billing,
+    basics,
+    status: "created",
+  };
 
   await Promise.all([
-    cfEnv.LEADS_KV?.put(`lead:${lead.id}`, JSON.stringify(lead)).catch(() => {}),
-    notifyTeam(cfEnv, subject, lead),
+    putLead(cfEnv.LEADS_KV, lead),
+    notifyTeam(cfEnv, `New onboarding lead: ${basics.businessName}`, lead),
   ]);
 
-  if (body.intent === "call") {
-    return Response.json({ ok: true });
-  }
-
   const { STRIPE_SECRET_KEY, STRIPE_PRICE_MONTHLY, STRIPE_PRICE_ANNUAL } = cfEnv;
-  const priceId = body.billing === "annual" ? STRIPE_PRICE_ANNUAL : STRIPE_PRICE_MONTHLY;
+  const priceId = billing === "annual" ? STRIPE_PRICE_ANNUAL : STRIPE_PRICE_MONTHLY;
   if (!STRIPE_SECRET_KEY || !priceId) {
     return Response.json({ error: "checkout not configured" }, { status: 501 });
   }
@@ -162,15 +178,15 @@ export async function POST(request: Request) {
     mode: "subscription",
     "line_items[0][price]": priceId,
     "line_items[0][quantity]": "1",
-    customer_email: body.data.email,
+    customer_email: basics.email,
     success_url: `${origin}/onboarding/thanks?session_id={CHECKOUT_SESSION_ID}`,
-    cancel_url: `${origin}/onboarding?billing=${body.billing}&cancelled=1`,
+    cancel_url: `${origin}/onboarding?billing=${billing}&cancelled=1`,
     "metadata[lead_id]": lead.id,
-    "metadata[vertical]": body.data.vertical,
-    "metadata[business_name]": body.data.businessName.slice(0, 500),
-    "metadata[owner_name]": body.data.ownerName.slice(0, 500),
-    "metadata[business_phone]": body.data.businessPhone,
-    "metadata[forward_number]": body.data.forwardNumber,
+    "metadata[billing]": billing,
+    "metadata[vertical]": basics.vertical,
+    "metadata[business_name]": basics.businessName.slice(0, 500),
+    "metadata[owner_name]": basics.ownerName.slice(0, 500),
+    "metadata[business_phone]": basics.businessPhone,
     "subscription_data[metadata][lead_id]": lead.id,
   });
 
@@ -186,9 +202,111 @@ export async function POST(request: Request) {
     return Response.json({ error: "failed to create checkout session" }, { status: 502 });
   }
 
-  const session = (await res.json()) as { url?: string };
+  const session = (await res.json()) as { id?: string; url?: string };
   if (!session.url) {
     return Response.json({ error: "failed to create checkout session" }, { status: 502 });
   }
+
+  if (session.id) {
+    await putLead(cfEnv.LEADS_KV, { ...lead, stripeSessionId: session.id });
+  }
   return Response.json({ url: session.url });
+}
+
+async function handleSetup(
+  cfEnv: OnboardingEnv,
+  sessionId: string,
+  setup: SetupDetails,
+): Promise<Response> {
+  if (!cfEnv.STRIPE_SECRET_KEY) {
+    return Response.json({ error: "checkout not configured" }, { status: 501 });
+  }
+
+  const session = await getCheckoutSession(cfEnv.STRIPE_SECRET_KEY, sessionId);
+  if (!session) {
+    return Response.json({ error: "unknown session" }, { status: 400 });
+  }
+  if (session.payment_status !== "paid") {
+    return Response.json({ error: "session not paid" }, { status: 402 });
+  }
+  const leadId = session.metadata?.lead_id;
+  if (!leadId) {
+    return Response.json({ error: "unknown session" }, { status: 400 });
+  }
+
+  const existing = await getLead(cfEnv.LEADS_KV, leadId);
+  const lead = existing ?? reconstructLead(leadId, session);
+  const alreadyComplete = lead.status === "setup_complete";
+
+  lead.setup = setup;
+  lead.stripeSessionId = session.id;
+  if (typeof session.customer === "string") lead.stripeCustomerId = session.customer;
+  if (typeof session.subscription === "string") lead.stripeSubscriptionId = session.subscription;
+  if (lead.status === "created") lead.paidAt = lead.paidAt ?? new Date().toISOString();
+  if (!alreadyComplete) {
+    lead.status = "setup_complete";
+    lead.setupCompletedAt = new Date().toISOString();
+  }
+
+  await Promise.all([
+    putLead(cfEnv.LEADS_KV, lead),
+    alreadyComplete
+      ? Promise.resolve()
+      : notifyTeam(cfEnv, `Setup complete — ready to provision: ${lead.basics.businessName}`, lead),
+  ]);
+
+  return Response.json({ ok: true });
+}
+
+export async function POST(request: Request) {
+  const cfEnv = env as unknown as OnboardingEnv;
+
+  let body: OnboardingRequest;
+  try {
+    body = (await request.json()) as OnboardingRequest;
+  } catch {
+    return Response.json({ error: "invalid JSON" }, { status: 400 });
+  }
+
+  const { intent } = body;
+  if (intent !== "checkout" && intent !== "call" && intent !== "setup") {
+    return Response.json({ error: "invalid intent" }, { status: 400 });
+  }
+
+  const ip = request.headers.get("CF-Connecting-IP") ?? "";
+  if (await overRateLimit(cfEnv.RATE_LIMIT_KV, ip && `ob:${intent}:${ip}`, RATE_LIMITS[intent])) {
+    return Response.json({ error: "too many requests" }, { status: 429 });
+  }
+
+  if (intent === "call") {
+    const error = validateCall(body.call);
+    if (error) return Response.json({ error }, { status: 400 });
+    const lead = {
+      id: crypto.randomUUID(),
+      createdAt: new Date().toISOString(),
+      intent,
+      call: body.call,
+    };
+    await Promise.all([
+      cfEnv.LEADS_KV?.put(`lead:${lead.id}`, JSON.stringify(lead)).catch(() => {}),
+      notifyTeam(cfEnv, `New call request: ${body.call?.name ?? ""}`, lead),
+    ]);
+    return Response.json({ ok: true });
+  }
+
+  if (intent === "checkout") {
+    if (!BILLING_OPTIONS.includes(body.billing as Billing)) {
+      return Response.json({ error: "invalid billing" }, { status: 400 });
+    }
+    const error = validateBasics(body.basics);
+    if (error) return Response.json({ error }, { status: 400 });
+    return handleCheckout(cfEnv, request, body.billing as Billing, body.basics as BusinessBasics);
+  }
+
+  if (!isShortString(body.sessionId, 300) || !SESSION_ID_RE.test(body.sessionId)) {
+    return Response.json({ error: "invalid sessionId" }, { status: 400 });
+  }
+  const error = validateSetup(body.setup);
+  if (error) return Response.json({ error }, { status: 400 });
+  return handleSetup(cfEnv, body.sessionId, body.setup as SetupDetails);
 }

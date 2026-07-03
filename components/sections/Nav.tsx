@@ -1,4 +1,7 @@
+"use client";
+
 import { LogoMark } from "@/components/Logo";
+import { useEffect, useRef } from "react";
 
 const LINKS = [
   { href: "#demo", label: "Live demo" },
@@ -8,6 +11,18 @@ const LINKS = [
 ];
 
 export function Nav() {
+  const menuRef = useRef<HTMLDetailsElement>(null);
+  const closeMenu = () => menuRef.current?.removeAttribute("open");
+
+  useEffect(() => {
+    const onPointerDown = (e: PointerEvent) => {
+      const menu = menuRef.current;
+      if (menu?.open && !menu.contains(e.target as Node)) menu.removeAttribute("open");
+    };
+    document.addEventListener("pointerdown", onPointerDown);
+    return () => document.removeEventListener("pointerdown", onPointerDown);
+  }, []);
+
   return (
     <nav id="top" className="sticky top-0 z-50 mx-auto max-w-shell px-[22px] pt-[14px]">
       <div className="flex w-full items-center justify-between gap-2 rounded-[18px] border border-ink/10 bg-cream/80 px-4 py-3 backdrop-blur-md sm:gap-5 sm:px-5">
@@ -28,7 +43,7 @@ export function Nav() {
         </div>
 
         <div className="flex items-center gap-2">
-          <details className="relative order-2 md:hidden">
+          <details ref={menuRef} className="relative order-2 md:hidden">
             <summary
               aria-label="Open menu"
               className="flex h-10 w-10 cursor-pointer list-none items-center justify-center rounded-xl bg-cream-200 sm:h-11 sm:w-11 [&::-webkit-details-marker]:hidden"
@@ -54,6 +69,7 @@ export function Nav() {
                 <a
                   key={l.href}
                   href={l.href}
+                  onClick={closeMenu}
                   className="flex min-h-[44px] items-center rounded-[10px] px-[14px] py-3 text-[15px] text-ink no-underline"
                 >
                   {l.label}

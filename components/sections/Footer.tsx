@@ -1,5 +1,5 @@
 import { LogoMark } from "@/components/Logo";
-import { DEMO_PHONE, telHref } from "@/lib/site";
+import { CUSTOMER_PORTAL_URL, DEMO_PHONE, telHref } from "@/lib/site";
 
 export function Footer() {
   return (
@@ -43,15 +43,20 @@ export function Footer() {
             <span className="mb-[2px] text-[11.5px] uppercase tracking-[0.12em] text-muted-4">
               Company
             </span>
-            <a href="#top" className="no-underline">
-              About
-            </a>
-            <a href="#faq" className="no-underline">
+            <a href="/privacy" className="no-underline">
               Privacy
+            </a>
+            <a href="/terms" className="no-underline">
+              Terms
             </a>
             <a href={telHref} className="no-underline">
               Contact
             </a>
+            {CUSTOMER_PORTAL_URL && (
+              <a href={CUSTOMER_PORTAL_URL} className="no-underline">
+                Manage subscription
+              </a>
+            )}
           </nav>
         </div>
       </div>

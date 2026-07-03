@@ -19,6 +19,12 @@
       "id": "cfc515ef0b784a4396df923908792bb7"
     }
   ],
+  "analytics_engine_datasets": [
+    {
+      "binding": "FUNNEL_AE",
+      "dataset": "kaijiro_funnel"
+    }
+  ],
   "services": [
     {
       "binding": "VOICE_AGENT_API",
@@ -26,6 +32,9 @@
     }
   ],
   "vars": {
-    "VOICE_AGENT_API_URL": "https://voice-agent-api.patrykgniewek9.workers.dev"
+    "VOICE_AGENT_API_URL": "https://voice-agent-api.patrykgniewek9.workers.dev",
+    "STRIPE_PRICE_MONTHLY": "price_1Tp7xrKMA6xjMEIA3IjSQBPA",
+    "STRIPE_PRICE_ANNUAL": "price_1Tp7y0KMA6xjMEIAbfQIsVGP",
+    "RESEND_FROM": "Kaijiro Leads <onboarding@resend.dev>"
   }
 }

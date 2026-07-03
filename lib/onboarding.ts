@@ -1,5 +1,5 @@
 export const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-export const PHONE_RE = /^[+()\-.\s\d]{7,20}$/;
+export const PHONE_RE = /^(?=(?:\D*\d){7})[+()\-.\s\d]{7,20}$/;
 
 export const VERTICALS = [
   {
@@ -69,7 +69,7 @@ export const TIMEZONES = [
   { id: "America/Puerto_Rico", label: "Atlantic (AST) — San Juan, Puerto Rico" },
 ];
 
-export interface OnboardingData {
+export interface BusinessBasics {
   vertical: Vertical;
   businessName: string;
   ownerName: string;
@@ -77,6 +77,9 @@ export interface OnboardingData {
   businessPhone: string;
   ownerMobile: string;
   timezone: string;
+}
+
+export interface SetupDetails {
   hours: WeekHours;
   services: ServiceEntry[];
   staff: string[];
@@ -98,7 +101,7 @@ export function defaultHours(): WeekHours {
   };
 }
 
-export function defaultData(vertical: Vertical = "barbershop"): OnboardingData {
+export function defaultBasics(vertical: Vertical = "barbershop"): BusinessBasics {
   return {
     vertical,
     businessName: "",
@@ -107,6 +110,11 @@ export function defaultData(vertical: Vertical = "barbershop"): OnboardingData {
     businessPhone: "",
     ownerMobile: "",
     timezone: "America/New_York",
+  };
+}
+
+export function defaultSetup(vertical: Vertical = "barbershop"): SetupDetails {
+  return {
     hours: defaultHours(),
     services: SERVICE_PRESETS[vertical].map((s) => ({ ...s })),
     staff: [""],
@@ -114,4 +122,15 @@ export function defaultData(vertical: Vertical = "barbershop"): OnboardingData {
     forwardNumber: "",
     notes: "",
   };
+}
+
+export function isBusinessBasics(value: unknown): value is BusinessBasics {
+  if (typeof value !== "object" || value === null) return false;
+  const v = value as Record<string, unknown>;
+  return (
+    VERTICAL_IDS.includes(v.vertical as Vertical) &&
+    ["businessName", "ownerName", "email", "businessPhone", "ownerMobile", "timezone"].every(
+      (key) => typeof v[key] === "string",
+    )
+  );
 }
