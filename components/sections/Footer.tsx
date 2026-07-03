@@ -6,7 +6,7 @@ export function Footer() {
     <footer className="border-t border-cream-200 bg-cream-100">
       <div className="mx-auto flex max-w-content flex-col gap-10 px-[22px] py-[clamp(34px,5vw,56px)] md:flex-row md:items-start md:justify-between">
         <div className="max-w-[34ch]">
-          <div className="mb-[10px] flex items-center gap-[7px] font-display text-2xl tracking-[-0.03em]">
+          <div className="mb-[10px] flex items-center gap-[7px] font-display text-xl tracking-[-0.03em] sm:text-2xl">
             <LogoMark className="h-[22px] w-[22px] rounded-[4px]" />
             Kaijiro-labs
           </div>

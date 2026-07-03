@@ -10,12 +10,12 @@ const LINKS = [
 export function Nav() {
   return (
     <nav id="top" className="sticky top-0 z-50 mx-auto max-w-shell px-[22px] pt-[14px]">
-      <div className="flex w-full items-center justify-between gap-5 rounded-[18px] border border-ink/10 bg-cream/80 px-5 py-3 backdrop-blur-md">
+      <div className="flex w-full items-center justify-between gap-2 rounded-[18px] border border-ink/10 bg-cream/80 px-4 py-3 backdrop-blur-md sm:gap-5 sm:px-5">
         <a
           href="#top"
-          className="flex items-center gap-[7px] font-display text-[19px] tracking-tight no-underline"
+          className="flex items-center gap-[7px] whitespace-nowrap font-display text-[17px] font-medium tracking-tight no-underline sm:text-[19px] sm:font-normal"
         >
-          <LogoMark className="h-5 w-5 rounded-[3.5px]" />
+          <LogoMark className="hidden h-5 w-5 shrink-0 rounded-[3.5px] sm:block" />
           AI Receptionist
         </a>
 
@@ -31,7 +31,7 @@ export function Nav() {
           <details className="relative order-2 md:hidden">
             <summary
               aria-label="Open menu"
-              className="flex h-11 w-11 cursor-pointer list-none items-center justify-center rounded-xl bg-cream-200 [&::-webkit-details-marker]:hidden"
+              className="flex h-10 w-10 cursor-pointer list-none items-center justify-center rounded-xl bg-cream-200 sm:h-11 sm:w-11 [&::-webkit-details-marker]:hidden"
             >
               <svg
                 width="20"
@@ -64,7 +64,7 @@ export function Nav() {
 
           <a
             href="#demo"
-            className="order-1 inline-flex min-h-[44px] items-center justify-center rounded-xl bg-ink px-[18px] py-[11px] text-sm font-medium text-cream no-underline"
+            className="order-1 inline-flex min-h-[40px] items-center justify-center whitespace-nowrap rounded-xl bg-ink px-[14px] py-[8px] text-[13px] font-medium text-cream no-underline sm:min-h-[44px] sm:px-[18px] sm:py-[11px] sm:text-sm"
           >
             Try it live
           </a>

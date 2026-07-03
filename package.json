@@ -5,7 +5,7 @@
   "private": true,
   "browserslist": ["defaults", "not dead", "Safari >= 14"],
   "scripts": {
-    "dev": "vinext dev",
+    "dev": "vinext dev -H 0.0.0.0",
     "build": "vinext build",
     "start": "vinext start",
     "deploy": "vinext deploy",
