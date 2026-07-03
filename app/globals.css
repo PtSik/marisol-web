@@ -325,8 +325,8 @@ body {
     position: absolute;
     left: 50%;
     top: 50%;
-    width: 78%;
-    max-width: 292px;
+    width: 84%;
+    max-width: 312px;
     transform-origin: center center;
     transition: transform 0.6s cubic-bezier(0.16, 1, 0.3, 1), opacity 0.5s ease;
     will-change: transform, opacity;

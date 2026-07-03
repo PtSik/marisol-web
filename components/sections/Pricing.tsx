@@ -44,7 +44,23 @@ export function Pricing() {
   const [annual, setAnnual] = useState(false);
   const [activePrice, setActivePrice] = useState(0);
   const gridRef = useRef<HTMLDivElement>(null);
+  const touchStart = useRef<{ x: number; y: number } | null>(null);
   const billing = annual ? "annual" : "monthly";
+
+  const onTouchStart = (e: React.TouchEvent) => {
+    touchStart.current = { x: e.touches[0].clientX, y: e.touches[0].clientY };
+  };
+
+  const onTouchEnd = (e: React.TouchEvent) => {
+    const start = touchStart.current;
+    touchStart.current = null;
+    if (!start) return;
+    const dx = e.changedTouches[0].clientX - start.x;
+    const dy = e.changedTouches[0].clientY - start.y;
+    if (Math.abs(dx) > 40 && Math.abs(dx) > Math.abs(dy)) {
+      setActivePrice(dx < 0 ? 1 : 0);
+    }
+  };
 
   useEffect(() => {
     const grid = gridRef.current;
@@ -107,9 +123,15 @@ export function Pricing() {
       <div
         ref={gridRef}
         data-active={activePrice}
+        onTouchStart={onTouchStart}
+        onTouchEnd={onTouchEnd}
         className="price-grid grid grid-cols-1 items-stretch gap-4 md:grid-cols-[1.3fr_1fr]"
       >
-        <div className="price-card relative flex flex-col rounded-[24px] bg-ink px-[26px] pb-7 pt-[30px] text-cream shadow-[0_30px_60px_-34px_rgba(36,27,20,0.7)]">
+        {/* biome-ignore lint/a11y/useKeyWithClickEvents: pointer-only shortcut; keyboard users switch cards via the plan tabs */}
+        <div
+          onClick={() => setActivePrice(0)}
+          className="price-card relative flex flex-col rounded-[24px] bg-ink px-[26px] pb-7 pt-[20px] text-cream shadow-[0_30px_60px_-34px_rgba(36,27,20,0.7)]"
+        >
           <div className="flex items-center justify-between gap-3">
             <div className="text-[11.5px] font-semibold uppercase tracking-[0.14em] text-cream/[0.62]">
               Individual
@@ -152,18 +174,22 @@ export function Pricing() {
           </p>
           <div className="my-[18px] mt-5 border-t border-cream/[0.14]" />
           <FeatureList feats={PLAN_FEATURES} check="#7FD18F" itemCls="text-cream/[0.92]" />
+          <p className="mb-[10px] mt-4 text-center text-[12px] leading-[1.5] text-cream/60">
+            14-day money-back guarantee
+          </p>
           <a
             href={`/onboarding?billing=${billing}`}
             className="inline-flex min-h-[50px] items-center justify-center gap-2 rounded-[13px] bg-cream px-5 py-[14px] text-[15px] font-medium text-ink no-underline"
           >
             Get started
           </a>
-          <p className="mb-0 mt-3 text-center text-[12px] leading-[1.5] text-cream/60">
-            14-day money-back guarantee · one saved appointment a day pays for it
-          </p>
         </div>
 
-        <div className="price-card flex flex-col rounded-[24px] bg-cream-200 px-[26px] pb-7 pt-[30px] text-ink">
+        {/* biome-ignore lint/a11y/useKeyWithClickEvents: pointer-only shortcut; keyboard users switch cards via the plan tabs */}
+        <div
+          onClick={() => setActivePrice(1)}
+          className="price-card flex flex-col rounded-[24px] bg-cream-200 px-[26px] pb-7 pt-[20px] text-ink"
+        >
           <div className="text-[11.5px] font-semibold uppercase tracking-[0.14em] text-muted-4">
             Multi-location
           </div>
