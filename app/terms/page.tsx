@@ -29,6 +29,15 @@ export default function TermsPage() {
         renew automatically until cancelled.
       </p>
 
+      <h2>Fair use</h2>
+      <p>
+        Plans with unlimited answered calls are meant for the natural call volume of the business
+        locations covered by your subscription. If sustained usage is far beyond what those
+        locations plausibly generate — or calls are automated, bulk or artificial in nature — we
+        will reach out to find a plan that fits before making any change. We never interrupt the
+        service mid-month over volume.
+      </p>
+
       <h2>14-day money-back guarantee</h2>
       <p>
         If Marisol is not right for you, tell us within 14 days of your first payment and we will
