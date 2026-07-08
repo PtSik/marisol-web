@@ -30,8 +30,8 @@ export function Nav() {
           href="#top"
           className="flex items-center gap-[7px] whitespace-nowrap font-display text-[17px] font-medium tracking-tight no-underline sm:text-[19px] sm:font-normal"
         >
-          <LogoMark className="hidden h-5 w-5 shrink-0 rounded-[3.5px] sm:block" />
-          AI Receptionist
+          <LogoMark className="h-5 w-5 shrink-0 rounded-[3.5px]" />
+          Marisol
         </a>
 
         <div className="hidden items-center gap-8 text-sm text-muted md:flex">

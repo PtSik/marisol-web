@@ -2,9 +2,9 @@ import { SITE_URL } from "@/lib/site";
 import type { ReactNode } from "react";
 import "./globals.css";
 
-const TITLE = "Kaijiro — AI Receptionist";
+const TITLE = "Marisol — AI Receptionist";
 const DESCRIPTION =
-  "An AI receptionist for your business that answers every call and books appointments 24/7.";
+  "An AI receptionist that answers every call in English or Spanish and books appointments 24/7.";
 
 export const metadata = {
   title: TITLE,
@@ -15,9 +15,9 @@ export default function RootLayout({ children }: { children: ReactNode }) {
   return (
     <html lang="en">
       <head>
-        <link rel="icon" href="/logo.png" type="image/png" />
+        <link rel="icon" href="/logo.svg" type="image/svg+xml" />
         <meta property="og:type" content="website" />
-        <meta property="og:site_name" content="Kaijiro" />
+        <meta property="og:site_name" content="Marisol" />
         <meta property="og:title" content={TITLE} />
         <meta property="og:description" content={DESCRIPTION} />
         <meta property="og:url" content={SITE_URL} />

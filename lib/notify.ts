@@ -17,7 +17,7 @@ export async function notifyTeam(
       "Content-Type": "application/json",
     },
     body: JSON.stringify({
-      from: RESEND_FROM ?? "Kaijiro Leads <onboarding@resend.dev>",
+      from: RESEND_FROM ?? "Marisol Leads <leads@getmarisol.com>",
       to: [LEAD_NOTIFY_EMAIL],
       subject,
       text: JSON.stringify(payload, null, 2),

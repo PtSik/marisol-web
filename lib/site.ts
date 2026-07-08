@@ -2,11 +2,11 @@ export const DEMO_PHONE = process.env.NEXT_PUBLIC_DEMO_PHONE ?? "+1 (833) 659-69
 
 export const telHref = `tel:${DEMO_PHONE.replace(/[^0-9+]/g, "")}`;
 
-export const SALES_EMAIL = process.env.NEXT_PUBLIC_SALES_EMAIL ?? "sales@kaijiro-voice.ai";
+export const SALES_EMAIL = process.env.NEXT_PUBLIC_SALES_EMAIL ?? "sales@getmarisol.com";
 
-export const SALES_EMAIL_HREF = `mailto:${SALES_EMAIL}?subject=${encodeURIComponent("Question about Kaijiro")}`;
+export const SALES_EMAIL_HREF = `mailto:${SALES_EMAIL}?subject=${encodeURIComponent("Question about Marisol")}`;
 
-export const SITE_URL = "https://kaijiro-landing.patrykgniewek9.workers.dev";
+export const SITE_URL = "https://callmarisol.com";
 
 // No-code Stripe Customer Portal login link — filled in once enabled in the dashboard;
 // portal links render only when non-empty.

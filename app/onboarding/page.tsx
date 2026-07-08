@@ -2,7 +2,7 @@ import { LogoMark } from "@/components/Logo";
 import { OnboardingWizard } from "@/components/onboarding/OnboardingWizard";
 
 export const metadata = {
-  title: "Get started — Kaijiro",
+  title: "Get started — Marisol",
   description: "Tell us about your shop and we set up your AI receptionist for you.",
 };
 
@@ -16,7 +16,7 @@ export default function OnboardingPage() {
             className="flex items-center gap-[7px] font-display text-[22px] tracking-tight no-underline"
           >
             <LogoMark className="h-5 w-5 rounded-[3.5px]" />
-            Kaijiro
+            Marisol
           </a>
           <a href="/" className="text-sm text-muted no-underline">
             ← Back to site

@@ -15,7 +15,7 @@ const FAQS = [
   },
   {
     q: "Do I keep my current phone number?",
-    a: "Yes. You forward your existing line to Kaijiro, so the number on your door, cards, and Google listing stays exactly the same.",
+    a: "Yes. You forward your existing line to Marisol, so the number on your door, cards, and Google listing stays exactly the same.",
   },
   {
     q: "How does it avoid double-booking?",

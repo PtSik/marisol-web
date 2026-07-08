@@ -2,16 +2,17 @@ import { LegalShell } from "@/components/LegalShell";
 import { SALES_EMAIL } from "@/lib/site";
 
 export const metadata = {
-  title: "Privacy Policy — Kaijiro",
-  description: "How Kaijiro collects, uses and protects your data.",
+  title: "Privacy Policy — Marisol",
+  description: "How Marisol collects, uses and protects your data.",
 };
 
 export default function PrivacyPage() {
   return (
     <LegalShell title="Privacy Policy" updated="July 3, 2026">
       <p>
-        This policy explains what data Kaijiro-labs ("Kaijiro", "we") collects when you use the
-        Kaijiro website and the Kaijiro AI receptionist service, and how we handle it.
+        This policy explains what data Kaijiro Labs ("Marisol", "we") collects when you use the
+        Marisol website and the Marisol AI receptionist service, and how we handle it. Marisol is a
+        Kaijiro Labs product.
       </p>
 
       <h2>What we collect</h2>

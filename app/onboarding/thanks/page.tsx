@@ -11,7 +11,7 @@ import type { ReactNode } from "react";
 export const dynamic = "force-dynamic";
 
 export const metadata = {
-  title: "You're in — Kaijiro",
+  title: "You're in — Marisol",
   description: "Payment received — finish your setup and your AI receptionist goes live.",
 };
 
@@ -45,7 +45,7 @@ function Shell({ children }: { children: ReactNode }) {
             className="flex items-center gap-[7px] font-display text-[22px] tracking-tight no-underline"
           >
             <LogoMark className="h-5 w-5 rounded-[3.5px]" />
-            Kaijiro
+            Marisol
           </a>
         </div>
       </nav>

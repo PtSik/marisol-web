@@ -2,21 +2,21 @@ import { LegalShell } from "@/components/LegalShell";
 import { SALES_EMAIL } from "@/lib/site";
 
 export const metadata = {
-  title: "Terms of Service — Kaijiro",
-  description: "The terms that govern your Kaijiro subscription.",
+  title: "Terms of Service — Marisol",
+  description: "The terms that govern your Marisol subscription.",
 };
 
 export default function TermsPage() {
   return (
     <LegalShell title="Terms of Service" updated="July 3, 2026">
       <p>
-        These terms govern your use of the Kaijiro AI receptionist service provided by Kaijiro-labs
-        ("Kaijiro", "we"). By subscribing, you agree to them.
+        These terms govern your use of the Marisol AI receptionist service provided by Kaijiro Labs
+        ("Marisol", "we"). By subscribing, you agree to them.
       </p>
 
       <h2>The service</h2>
       <p>
-        Kaijiro answers your business phone line with a conversational AI receptionist that can take
+        Marisol answers your business phone line with a conversational AI receptionist that can take
         bookings, answer questions and hand off to a human when needed. We set the service up for
         you based on the details you provide during onboarding, and you stay responsible for keeping
         those details accurate.
@@ -24,14 +24,14 @@ export default function TermsPage() {
 
       <h2>Billing</h2>
       <p>
-        Kaijiro is a subscription billed through Stripe, monthly or annually depending on the plan
+        Marisol is a subscription billed through Stripe, monthly or annually depending on the plan
         you choose at checkout. Prices are shown on the pricing page before you pay. Subscriptions
         renew automatically until cancelled.
       </p>
 
       <h2>14-day money-back guarantee</h2>
       <p>
-        If Kaijiro is not right for you, tell us within 14 days of your first payment and we will
+        If Marisol is not right for you, tell us within 14 days of your first payment and we will
         refund it in full — no questions asked. Email{" "}
         <a href={`mailto:${SALES_EMAIL}`} className="text-teal">
           {SALES_EMAIL}

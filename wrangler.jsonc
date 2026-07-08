@@ -9,6 +9,10 @@
     "not_found_handling": "none",
     "binding": "ASSETS"
   },
+  "routes": [
+    { "pattern": "callmarisol.com", "custom_domain": true },
+    { "pattern": "www.callmarisol.com", "custom_domain": true }
+  ],
   "kv_namespaces": [
     {
       "binding": "RATE_LIMIT_KV",

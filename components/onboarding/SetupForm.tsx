@@ -16,7 +16,7 @@ export function SetupForm({ sessionId, vertical }: { sessionId: string; vertical
 
   useEffect(() => {
     try {
-      sessionStorage.removeItem("kaijiro-onboarding");
+      sessionStorage.removeItem("marisol-onboarding");
     } catch {
       /* storage blocked — non-fatal */
     }

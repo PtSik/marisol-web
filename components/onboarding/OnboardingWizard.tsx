@@ -17,7 +17,7 @@ import { type Billing, PLAN_LABELS, PLAN_OPTIONS, PRICE, type Plan } from "@/lib
 import { track } from "@/lib/track";
 import { useEffect, useRef, useState } from "react";
 
-const STORAGE_KEY = "kaijiro-onboarding";
+const STORAGE_KEY = "marisol-onboarding";
 
 function validateBasics(basics: BusinessBasics): FieldErrors {
   const errors: FieldErrors = {};
