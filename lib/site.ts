@@ -10,4 +10,5 @@ export const SITE_URL = "https://kaijiro-landing.patrykgniewek9.workers.dev";
 
 // No-code Stripe Customer Portal login link — filled in once enabled in the dashboard;
 // portal links render only when non-empty.
-export const CUSTOMER_PORTAL_URL = "";
+export const CUSTOMER_PORTAL_URL =
+  "https://billing.stripe.com/p/login/test_5kQdR3e8E7sP1Uf8lt3Nm00";

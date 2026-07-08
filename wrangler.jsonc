@@ -33,10 +33,10 @@
   ],
   "vars": {
     "VOICE_AGENT_API_URL": "https://voice-agent-api.patrykgniewek9.workers.dev",
-    "STRIPE_PRICE_MONTHLY": "price_1Tp7xrKMA6xjMEIA3IjSQBPA",
-    "STRIPE_PRICE_ANNUAL": "price_1Tp7y0KMA6xjMEIAbfQIsVGP",
-    "STRIPE_PRICE_PREMIUM_MONTHLY": "price_1TqseiKMA6xjMEIAHOCAWRof",
-    "STRIPE_PRICE_PREMIUM_ANNUAL": "price_1TqsejKMA6xjMEIAhmz8Wyqk",
+    "STRIPE_PRICE_MONTHLY": "price_1Tqus88DgPA5sdCxToqnW4yr",
+    "STRIPE_PRICE_ANNUAL": "price_1Tqus88DgPA5sdCxoTvn8d3D",
+    "STRIPE_PRICE_PREMIUM_MONTHLY": "price_1Tqus98DgPA5sdCxZGSZxkvH",
+    "STRIPE_PRICE_PREMIUM_ANNUAL": "price_1Tqus98DgPA5sdCxgF7RXmgx",
     "RESEND_FROM": "Kaijiro Leads <onboarding@resend.dev>"
   }
 }
