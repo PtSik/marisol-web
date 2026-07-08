@@ -6,6 +6,10 @@ const FAQS = [
     a: "No — callers hear a natural, warm voice with normal pauses. Most don't realize it's automated until it tells them, which it does at the start of every call.",
   },
   {
+    q: "Does it speak Spanish?",
+    a: "Sí — fully bilingual. It greets callers in English and switches to Spanish the moment a caller speaks it, through the whole conversation and the booking. No menus, no “press 2 for Spanish” — callers just talk.",
+  },
+  {
     q: "What happens if it can't help?",
     a: "It hands off gracefully. For anything outside booking — a complaint, a special request — it takes a message or transfers the call to you, based on rules you set.",
   },

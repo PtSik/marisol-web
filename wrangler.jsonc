@@ -35,6 +35,8 @@
     "VOICE_AGENT_API_URL": "https://voice-agent-api.patrykgniewek9.workers.dev",
     "STRIPE_PRICE_MONTHLY": "price_1Tp7xrKMA6xjMEIA3IjSQBPA",
     "STRIPE_PRICE_ANNUAL": "price_1Tp7y0KMA6xjMEIAbfQIsVGP",
+    "STRIPE_PRICE_PREMIUM_MONTHLY": "price_1TqseiKMA6xjMEIAHOCAWRof",
+    "STRIPE_PRICE_PREMIUM_ANNUAL": "price_1TqsejKMA6xjMEIAhmz8Wyqk",
     "RESEND_FROM": "Kaijiro Leads <onboarding@resend.dev>"
   }
 }

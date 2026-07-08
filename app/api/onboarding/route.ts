@@ -9,7 +9,7 @@ import {
   type SetupDetails,
   VERTICAL_IDS,
 } from "@/lib/onboarding";
-import { BILLING_OPTIONS, type Billing } from "@/lib/plans";
+import { BILLING_OPTIONS, type Billing, PLAN_OPTIONS, type Plan } from "@/lib/plans";
 import { overRateLimit } from "@/lib/rateLimit";
 import { SESSION_ID_RE, type StripeCheckoutSession, getCheckoutSession } from "@/lib/stripe";
 
@@ -19,6 +19,8 @@ interface OnboardingEnv {
   STRIPE_SECRET_KEY?: string;
   STRIPE_PRICE_MONTHLY?: string;
   STRIPE_PRICE_ANNUAL?: string;
+  STRIPE_PRICE_PREMIUM_MONTHLY?: string;
+  STRIPE_PRICE_PREMIUM_ANNUAL?: string;
   LEADS_KV?: KVNamespace;
   RATE_LIMIT_KV?: KVNamespace;
   RESEND_API_KEY?: string;
@@ -36,6 +38,7 @@ interface CallRequest {
 
 interface OnboardingRequest {
   intent: "checkout" | "call" | "setup";
+  plan?: Plan;
   billing?: Billing;
   basics?: BusinessBasics;
   call?: CallRequest;
@@ -133,6 +136,7 @@ function reconstructLead(leadId: string, session: StripeCheckoutSession): Checko
     id: leadId,
     createdAt: new Date().toISOString(),
     intent: "checkout",
+    plan: meta.plan === "premium" ? "premium" : "base",
     billing: meta.billing === "annual" ? "annual" : "monthly",
     basics: {
       vertical,
@@ -150,6 +154,7 @@ function reconstructLead(leadId: string, session: StripeCheckoutSession): Checko
 async function handleCheckout(
   cfEnv: OnboardingEnv,
   request: Request,
+  plan: Plan,
   billing: Billing,
   basics: BusinessBasics,
 ): Promise<Response> {
@@ -157,6 +162,7 @@ async function handleCheckout(
     id: crypto.randomUUID(),
     createdAt: new Date().toISOString(),
     intent: "checkout",
+    plan,
     billing,
     basics,
     status: "created",
@@ -167,8 +173,15 @@ async function handleCheckout(
     notifyTeam(cfEnv, `New onboarding lead: ${basics.businessName}`, lead),
   ]);
 
-  const { STRIPE_SECRET_KEY, STRIPE_PRICE_MONTHLY, STRIPE_PRICE_ANNUAL } = cfEnv;
-  const priceId = billing === "annual" ? STRIPE_PRICE_ANNUAL : STRIPE_PRICE_MONTHLY;
+  const priceIds: Record<Plan, Record<Billing, string | undefined>> = {
+    base: { monthly: cfEnv.STRIPE_PRICE_MONTHLY, annual: cfEnv.STRIPE_PRICE_ANNUAL },
+    premium: {
+      monthly: cfEnv.STRIPE_PRICE_PREMIUM_MONTHLY,
+      annual: cfEnv.STRIPE_PRICE_PREMIUM_ANNUAL,
+    },
+  };
+  const { STRIPE_SECRET_KEY } = cfEnv;
+  const priceId = priceIds[plan][billing];
   if (!STRIPE_SECRET_KEY || !priceId) {
     return Response.json({ error: "checkout not configured" }, { status: 501 });
   }
@@ -180,8 +193,9 @@ async function handleCheckout(
     "line_items[0][quantity]": "1",
     customer_email: basics.email,
     success_url: `${origin}/onboarding/thanks?session_id={CHECKOUT_SESSION_ID}`,
-    cancel_url: `${origin}/onboarding?billing=${billing}&cancelled=1`,
+    cancel_url: `${origin}/onboarding?plan=${plan}&billing=${billing}&cancelled=1`,
     "metadata[lead_id]": lead.id,
+    "metadata[plan]": plan,
     "metadata[billing]": billing,
     "metadata[vertical]": basics.vertical,
     "metadata[business_name]": basics.businessName.slice(0, 500),
@@ -295,12 +309,22 @@ export async function POST(request: Request) {
   }
 
   if (intent === "checkout") {
+    const plan: Plan = body.plan ?? "base";
+    if (!PLAN_OPTIONS.includes(plan)) {
+      return Response.json({ error: "invalid plan" }, { status: 400 });
+    }
     if (!BILLING_OPTIONS.includes(body.billing as Billing)) {
       return Response.json({ error: "invalid billing" }, { status: 400 });
     }
     const error = validateBasics(body.basics);
     if (error) return Response.json({ error }, { status: 400 });
-    return handleCheckout(cfEnv, request, body.billing as Billing, body.basics as BusinessBasics);
+    return handleCheckout(
+      cfEnv,
+      request,
+      plan,
+      body.billing as Billing,
+      body.basics as BusinessBasics,
+    );
   }
 
   if (!isShortString(body.sessionId, 300) || !SESSION_ID_RE.test(body.sessionId)) {

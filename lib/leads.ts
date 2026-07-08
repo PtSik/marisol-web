@@ -1,5 +1,5 @@
 import type { BusinessBasics, SetupDetails } from "@/lib/onboarding";
-import type { Billing } from "@/lib/plans";
+import type { Billing, Plan } from "@/lib/plans";
 
 export type LeadStatus = "created" | "paid" | "setup_complete";
 
@@ -7,6 +7,8 @@ export interface CheckoutLead {
   id: string;
   createdAt: string;
   intent: "checkout";
+  /* optional: leads created before the premium tier have no plan */
+  plan?: Plan;
   billing: Billing;
   basics: BusinessBasics;
   status: LeadStatus;

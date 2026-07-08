@@ -312,45 +312,6 @@ body {
     display: flex;
   }
 }
-@media (max-width: 767px) {
-  .price-grid {
-    display: block;
-    position: relative;
-    width: min(100%, 460px);
-    margin: 0 auto;
-    min-height: 520px;
-    transition: height 0.55s cubic-bezier(0.16, 1, 0.3, 1);
-  }
-  .price-card {
-    position: absolute;
-    left: 50%;
-    top: 50%;
-    width: 84%;
-    max-width: 312px;
-    transform-origin: center center;
-    transition: transform 0.6s cubic-bezier(0.16, 1, 0.3, 1), opacity 0.5s ease;
-    will-change: transform, opacity;
-    cursor: pointer;
-    box-shadow: 0 22px 44px -26px rgba(36, 27, 20, 0.5);
-  }
-  .price-grid[data-active="0"] .price-card:nth-child(1),
-  .price-grid[data-active="1"] .price-card:nth-child(2) {
-    transform: translate(-50%, -50%) scale(1);
-    opacity: 1;
-    z-index: 3;
-  }
-  .price-grid[data-active="0"] .price-card:nth-child(2) {
-    transform: translate(calc(-50% + 118px), -50%) scale(0.88);
-    opacity: 0.9;
-    z-index: 1;
-  }
-  .price-grid[data-active="1"] .price-card:nth-child(1) {
-    transform: translate(calc(-50% - 118px), -50%) scale(0.88);
-    opacity: 0.9;
-    z-index: 1;
-  }
-}
-
 @media (prefers-reduced-motion: reduce) {
   *,
   *::before,

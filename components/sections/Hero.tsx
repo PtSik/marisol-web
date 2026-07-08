@@ -9,8 +9,8 @@ export function Hero() {
         Never miss <span className="text-teal">a call</span> again.
       </h1>
       <p className="mx-auto mt-[22px] max-w-[43ch] text-[clamp(16px,2.2vw,20px)] leading-[1.55] text-muted">
-        A warm AI receptionist that answers every call, books the appointment, and texts the
-        confirmation — day or night.
+        A warm AI receptionist that answers every call in English or Spanish, books the appointment,
+        and texts the confirmation — day or night.
       </p>
 
       <div className="mx-auto mt-[30px] flex w-fit flex-col items-stretch gap-3 sm:w-auto sm:flex-row sm:justify-center">

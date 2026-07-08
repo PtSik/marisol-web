@@ -18,7 +18,10 @@ export const DEMO_AGENTS: DemoAgent[] = [
     agentId: "agent_8301ks8brwmbedw8nv1sgnwwcdfw",
     shopId: "4d5815c1-c77a-43cc-8df4-1b0b7be6c896",
     calledNumber: "+18336596941",
-    examplePrompts: ["Can I book a haircut with anyone tomorrow?"],
+    examplePrompts: [
+      "Can I book a haircut with anyone tomorrow?",
+      "Hola, ¿puedo reservar un corte para mañana?",
+    ],
   },
   {
     persona: "grooming",
@@ -27,7 +30,10 @@ export const DEMO_AGENTS: DemoAgent[] = [
     agentId: "agent_2501ktmhtm2wf8789jqdtkbj7jdr",
     shopId: "da61e1fa-787a-4069-b3a6-246bd95144da",
     calledNumber: "+18788678115",
-    examplePrompts: ["Can I get a full groom for a small dog this week?"],
+    examplePrompts: [
+      "Can I get a full groom for a small dog this week?",
+      "Hola, ¿tienen turno para bañar a mi perro esta semana?",
+    ],
   },
 ];
 

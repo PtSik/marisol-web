@@ -13,7 +13,7 @@ import {
   defaultBasics,
   isBusinessBasics,
 } from "@/lib/onboarding";
-import { type Billing, PRICE } from "@/lib/plans";
+import { type Billing, PLAN_LABELS, PLAN_OPTIONS, PRICE, type Plan } from "@/lib/plans";
 import { track } from "@/lib/track";
 import { useEffect, useRef, useState } from "react";
 
@@ -31,6 +31,7 @@ function validateBasics(basics: BusinessBasics): FieldErrors {
 
 export function OnboardingWizard() {
   const [basics, setBasics] = useState<BusinessBasics>(() => defaultBasics());
+  const [plan, setPlan] = useState<Plan>("base");
   const [billing, setBilling] = useState<Billing>("monthly");
   const [errors, setErrors] = useState<FieldErrors>({});
   const [cancelled, setCancelled] = useState(false);
@@ -40,13 +41,17 @@ export function OnboardingWizard() {
 
   useEffect(() => {
     const params = new URLSearchParams(window.location.search);
+    if (params.get("plan") === "premium") setPlan("premium");
     if (params.get("billing") === "annual") setBilling("annual");
     if (params.get("cancelled") === "1") setCancelled(true);
     try {
       const saved = sessionStorage.getItem(STORAGE_KEY);
-      const parsed = saved ? (JSON.parse(saved) as { basics?: unknown; billing?: Billing }) : null;
+      const parsed = saved
+        ? (JSON.parse(saved) as { basics?: unknown; billing?: Billing; plan?: Plan })
+        : null;
       if (parsed && isBusinessBasics(parsed.basics)) {
         setBasics(parsed.basics);
+        if (params.get("plan") == null && parsed.plan === "premium") setPlan("premium");
         if (params.get("billing") == null && parsed.billing === "annual") setBilling("annual");
       } else {
         const tz = Intl.DateTimeFormat().resolvedOptions().timeZone;
@@ -62,11 +67,11 @@ export function OnboardingWizard() {
   useEffect(() => {
     if (!hydrated.current) return;
     try {
-      sessionStorage.setItem(STORAGE_KEY, JSON.stringify({ basics, billing }));
+      sessionStorage.setItem(STORAGE_KEY, JSON.stringify({ basics, billing, plan }));
     } catch {
       /* storage full/blocked — non-fatal */
     }
-  }, [basics, billing]);
+  }, [basics, billing, plan]);
 
   const patch = (partial: Partial<BusinessBasics>) => setBasics((b) => ({ ...b, ...partial }));
 
@@ -80,13 +85,13 @@ export function OnboardingWizard() {
       const res = await fetch("/api/onboarding", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ intent: "checkout", billing, basics }),
+        body: JSON.stringify({ intent: "checkout", plan, billing, basics }),
       });
       const body = (await res.json()) as { url?: string; error?: string };
       if (!res.ok || !body.url) {
         throw new Error(body.error ?? "checkout failed");
       }
-      track("checkout_redirect", billing);
+      track("checkout_redirect", `${plan}:${billing}`);
       window.location.href = body.url;
     } catch {
       setSubmitError("Something went wrong starting checkout. Please try again.");
@@ -237,6 +242,28 @@ export function OnboardingWizard() {
           </Field>
 
           <fieldset className="m-0 border-0 p-0 text-center">
+            <legend className="sr-only">Plan</legend>
+            <div className="inline-flex items-center gap-1 rounded-[14px] bg-cream-200 p-1 shadow-[inset_0_1px_2px_rgba(36,27,20,0.06)]">
+              {PLAN_OPTIONS.map((p) => {
+                const isActive = p === plan;
+                return (
+                  <button
+                    key={p}
+                    type="button"
+                    aria-pressed={isActive}
+                    onClick={() => setPlan(p)}
+                    className={`min-h-[38px] rounded-[10px] px-4 py-[9px] text-[13px] font-medium transition-all ${
+                      isActive ? "bg-ink text-cream" : "bg-transparent text-muted"
+                    }`}
+                  >
+                    {PLAN_LABELS[p]} — ${PRICE[p].monthly}/mo
+                  </button>
+                );
+              })}
+            </div>
+          </fieldset>
+
+          <fieldset className="m-0 border-0 p-0 text-center">
             <legend className="sr-only">Billing period</legend>
             <div className="inline-flex items-center gap-1 rounded-[14px] bg-cream-200 p-1 shadow-[inset_0_1px_2px_rgba(36,27,20,0.06)]">
               {(["monthly", "annual"] as const).map((period) => {
@@ -258,8 +285,8 @@ export function OnboardingWizard() {
             </div>
             <p className="mt-2 text-[13px] text-muted-2">
               {billing === "annual"
-                ? `$${PRICE.annual}/mo billed yearly — 1 month free`
-                : `$${PRICE.monthly}/mo, cancel anytime`}
+                ? `$${PRICE[plan].annual}/mo billed yearly — 1 month free`
+                : `$${PRICE[plan].monthly}/mo, cancel anytime`}
             </p>
           </fieldset>
 
@@ -283,7 +310,9 @@ export function OnboardingWizard() {
             disabled={submitting}
             className="inline-flex min-h-[50px] items-center justify-center gap-2 rounded-[13px] bg-ink px-7 py-[14px] text-[15px] font-medium text-cream disabled:opacity-60"
           >
-            {submitting ? "Redirecting to Stripe…" : `Continue to payment — $${PRICE[billing]}/mo`}
+            {submitting
+              ? "Redirecting to Stripe…"
+              : `Continue to payment — $${PRICE[plan][billing]}/mo`}
           </button>
         </div>
 
