@@ -1,6 +1,7 @@
 import { env } from "cloudflare:workers";
 import { LogoMark } from "@/components/Logo";
 import { SetupForm } from "@/components/onboarding/SetupForm";
+import { SetupCompleteHeading, ThanksHeading } from "@/components/onboarding/ThanksHeading";
 import { getLead } from "@/lib/leads";
 import { VERTICAL_IDS, type Vertical } from "@/lib/onboarding";
 import { CUSTOMER_PORTAL_URL, SALES_EMAIL_HREF } from "@/lib/site";
@@ -34,26 +35,6 @@ const NEXT_STEPS = [
   },
 ];
 
-function CheckIcon() {
-  return (
-    <span className="inline-flex h-[54px] w-[54px] items-center justify-center rounded-full bg-[#2C7A4B]/10">
-      <svg
-        width="26"
-        height="26"
-        viewBox="0 0 24 24"
-        fill="none"
-        stroke="#2C7A4B"
-        strokeWidth="2.4"
-        strokeLinecap="round"
-        strokeLinejoin="round"
-        aria-hidden="true"
-      >
-        <polyline points="20 6 9 17 4 12" />
-      </svg>
-    </span>
-  );
-}
-
 function Shell({ children }: { children: ReactNode }) {
   return (
     <>
@@ -72,20 +53,6 @@ function Shell({ children }: { children: ReactNode }) {
         {children}
       </main>
     </>
-  );
-}
-
-function Heading({ title, lead }: { title: ReactNode; lead: string }) {
-  return (
-    <div className="text-center">
-      <CheckIcon />
-      <h1 className="mx-auto mt-5 max-w-[20ch] font-display text-[clamp(28px,5vw,44px)] font-light leading-[1.08] tracking-[-0.03em]">
-        {title}
-      </h1>
-      <p className="mx-auto mt-[14px] max-w-[44ch] text-[15.5px] leading-[1.55] text-muted">
-        {lead}
-      </p>
-    </div>
   );
 }
 
@@ -171,7 +138,7 @@ export default async function ThanksPage({
   if (!STRIPE_SECRET_KEY) {
     return (
       <Shell>
-        <Heading
+        <ThanksHeading
           title={
             <>
               You're in. <span className="text-teal">We're on it.</span>
@@ -216,14 +183,7 @@ export default async function ThanksPage({
   if (lead?.status === "setup_complete") {
     return (
       <Shell>
-        <Heading
-          title={
-            <>
-              Setup complete. <span className="text-teal">We take it from here.</span>
-            </>
-          }
-          lead="Your receptionist is being configured with everything you shared — forwarding instructions land in your inbox shortly."
-        />
+        <SetupCompleteHeading />
         <NextSteps />
         <ContactLine portal />
       </Shell>
@@ -237,14 +197,6 @@ export default async function ThanksPage({
 
   return (
     <Shell>
-      <Heading
-        title={
-          <>
-            Payment received. <span className="text-teal">Finish your setup.</span>
-          </>
-        }
-        lead="Add your hours, services and staff below — your receptionist is configured from exactly this. Takes about three minutes."
-      />
       <SetupForm sessionId={session_id} vertical={vertical} />
       <NextSteps />
       <ContactLine portal />
