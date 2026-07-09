@@ -296,7 +296,7 @@ function DemoStage() {
         </div>
       </div>
 
-      <div className="flex min-h-[380px] flex-col rounded-[26px] bg-white p-[18px] shadow-[0_30px_70px_-55px_rgba(36,27,20,0.5)] md:h-[560px]">
+      <div className="flex h-[380px] flex-col rounded-[26px] bg-white p-[18px] shadow-[0_30px_70px_-55px_rgba(36,27,20,0.5)] md:h-[560px]">
         <div className="mb-[6px] flex items-center justify-between border-b border-cream-200 px-[6px] pb-[14px] pt-1">
           <span className="text-xs font-semibold uppercase tracking-[0.14em] text-muted-2">
             Transcript
