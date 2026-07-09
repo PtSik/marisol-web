@@ -267,6 +267,56 @@ export function SetupFields({
         </div>
       </fieldset>
 
+      <fieldset className="m-0 border-0 p-0">
+        <legend className="mb-[10px] text-[13.5px] font-medium text-ink">
+          Which calls should Marisol answer?
+        </legend>
+        <div className="flex flex-col gap-2">
+          {(
+            [
+              {
+                id: "conditional",
+                label: "Only when you can't answer",
+                desc: "You still pick up when you're free — Marisol catches the rest, so no missed or busy call goes unanswered.",
+                recommended: true,
+              },
+              {
+                id: "all",
+                label: "Every call",
+                desc: "Marisol answers all calls for you. Best if you're solo or usually hands-on with clients.",
+                recommended: false,
+              },
+            ] as const
+          ).map((opt) => (
+            <label
+              key={opt.id}
+              className={`flex cursor-pointer items-start gap-3 rounded-[14px] border px-4 py-3 ${
+                setup.forwardMode === opt.id
+                  ? "border-ink bg-white/80"
+                  : "border-ink/15 bg-white/50"
+              }`}
+            >
+              <input
+                type="radio"
+                name="ob-forward-mode"
+                checked={setup.forwardMode === opt.id}
+                onChange={() => patch({ forwardMode: opt.id })}
+                className="mt-[3px] h-[16px] w-[16px] accent-[#4F8C80]"
+              />
+              <span>
+                <span className="block text-[14.5px] font-medium">
+                  {opt.label}
+                  {opt.recommended && (
+                    <span className="ml-2 text-[12.5px] font-medium text-teal">Recommended</span>
+                  )}
+                </span>
+                <span className="block text-[13px] text-muted">{opt.desc}</span>
+              </span>
+            </label>
+          ))}
+        </div>
+      </fieldset>
+
       <Field
         label="Number to forward"
         htmlFor="ob-forward"

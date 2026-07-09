@@ -5,6 +5,7 @@ import {
   type BusinessBasics,
   DAYS,
   EMAIL_RE,
+  FORWARD_MODES,
   PHONE_RE,
   type SetupDetails,
   VERTICAL_IDS,
@@ -89,6 +90,7 @@ function validateSetup(setup: unknown): string | null {
 
   if (!isShortString(s.forwardNumber) || !PHONE_RE.test(s.forwardNumber))
     return "invalid forwardNumber";
+  if (!FORWARD_MODES.includes(s.forwardMode)) return "invalid forwardMode";
   if (s.calendar !== "google_calendar" && s.calendar !== "none") return "invalid calendar";
   if (typeof s.notes !== "string" || s.notes.length > 2000) return "invalid notes";
 

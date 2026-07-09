@@ -79,12 +79,16 @@ export interface BusinessBasics {
   timezone: string;
 }
 
+export const FORWARD_MODES = ["conditional", "all"] as const;
+export type ForwardMode = (typeof FORWARD_MODES)[number];
+
 export interface SetupDetails {
   hours: WeekHours;
   services: ServiceEntry[];
   staff: string[];
   calendar: "google_calendar" | "none";
   forwardNumber: string;
+  forwardMode: ForwardMode;
   notes: string;
 }
 
@@ -120,6 +124,7 @@ export function defaultSetup(vertical: Vertical = "barbershop"): SetupDetails {
     staff: [""],
     calendar: "google_calendar",
     forwardNumber: "",
+    forwardMode: "conditional",
     notes: "",
   };
 }
