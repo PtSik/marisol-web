@@ -5,8 +5,7 @@ export const dynamic = "force-dynamic";
 
 const MAX_DURATION_SECONDS = 180;
 
-// Disabled during development — re-enable before public launch
-const RATE_LIMIT_ENABLED = false;
+const RATE_LIMIT_ENABLED = true;
 const RATE_LIMIT = 4;
 const WINDOW_SECONDS = 3600;
 

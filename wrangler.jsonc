@@ -37,10 +37,10 @@
   ],
   "vars": {
     "VOICE_AGENT_API_URL": "https://voice-agent-api.patrykgniewek9.workers.dev",
-    "STRIPE_PRICE_MONTHLY": "price_1Tqus88DgPA5sdCxToqnW4yr",
-    "STRIPE_PRICE_ANNUAL": "price_1Tqus88DgPA5sdCxoTvn8d3D",
-    "STRIPE_PRICE_PREMIUM_MONTHLY": "price_1Tqus98DgPA5sdCxZGSZxkvH",
-    "STRIPE_PRICE_PREMIUM_ANNUAL": "price_1Tqus98DgPA5sdCxgF7RXmgx",
+    "STRIPE_PRICE_MONTHLY": "price_1TrFSf8DgPA5sdCxArxKy9Ok",
+    "STRIPE_PRICE_ANNUAL": "price_1TrFSg8DgPA5sdCxyTCNgwlx",
+    "STRIPE_PRICE_PREMIUM_MONTHLY": "price_1TrFSg8DgPA5sdCxmnrDsTXD",
+    "STRIPE_PRICE_PREMIUM_ANNUAL": "price_1TrFSh8DgPA5sdCxEKh9SPqJ",
     "RESEND_FROM": "Marisol Leads <leads@getmarisol.com>"
   }
 }
