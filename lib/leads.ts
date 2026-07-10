@@ -1,7 +1,7 @@
 import type { BusinessBasics, SetupDetails } from "@/lib/onboarding";
 import type { Billing, Plan } from "@/lib/plans";
 
-export type LeadStatus = "created" | "paid" | "setup_complete";
+export type LeadStatus = "created" | "paid" | "setup_complete" | "provisioned" | "cancelled";
 
 export interface CheckoutLead {
   id: string;
@@ -18,6 +18,11 @@ export interface CheckoutLead {
   paidAt?: string;
   setup?: SetupDetails;
   setupCompletedAt?: string;
+  shopId?: string;
+  assignedNumber?: string;
+  provisionedAt?: string;
+  provisionError?: string;
+  deprovisionedAt?: string;
 }
 
 export const leadKey = (id: string) => `lead:${id}`;

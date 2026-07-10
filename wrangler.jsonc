@@ -41,6 +41,9 @@
     "STRIPE_PRICE_ANNUAL": "price_1TrFSg8DgPA5sdCxyTCNgwlx",
     "STRIPE_PRICE_PREMIUM_MONTHLY": "price_1TrFSg8DgPA5sdCxmnrDsTXD",
     "STRIPE_PRICE_PREMIUM_ANNUAL": "price_1TrFSh8DgPA5sdCxEKh9SPqJ",
-    "RESEND_FROM": "Marisol Leads <leads@getmarisol.com>"
+    "RESEND_FROM": "Marisol Leads <leads@getmarisol.com>",
+    "CLIENT_EMAIL_FROM": "Marisol <hello@getmarisol.com>",
+    "GROOMING_AGENT_ID": "agent_2501ktmhtm2wf8789jqdtkbj7jdr",
+    "GCAL_SHARE_EMAIL": "bookings@marisol-voice.iam.gserviceaccount.com"
   }
 }

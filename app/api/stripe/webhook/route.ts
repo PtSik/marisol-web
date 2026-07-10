@@ -1,6 +1,7 @@
 import { env } from "cloudflare:workers";
 import { getLead, putLead } from "@/lib/leads";
 import { notifyTeam } from "@/lib/notify";
+import { deprovisionLead } from "@/lib/provisioning";
 import type { StripeCheckoutSession } from "@/lib/stripe";
 
 export const dynamic = "force-dynamic";
@@ -11,13 +12,18 @@ interface WebhookEnv {
   RESEND_API_KEY?: string;
   LEAD_NOTIFY_EMAIL?: string;
   RESEND_FROM?: string;
+  VOICE_AGENT_API?: Fetcher;
+  VOICE_AGENT_API_URL?: string;
+  ADMIN_API_KEY?: string;
+  TWILIO_ACCOUNT_SID?: string;
+  TWILIO_AUTH_TOKEN?: string;
 }
 
 const TOLERANCE_SECONDS = 300;
 
 interface StripeEvent {
   type?: string;
-  data?: { object?: StripeCheckoutSession };
+  data?: { object?: Record<string, unknown> };
 }
 
 function parseSignatureHeader(header: string | null): { timestamp: number; v1: string[] } | null {
@@ -84,11 +90,33 @@ export async function POST(request: Request) {
   } catch {
     return Response.json({ error: "invalid payload" }, { status: 400 });
   }
+  if (event.type === "customer.subscription.deleted") {
+    const sub = event.data?.object as { metadata?: { lead_id?: string } } | undefined;
+    const subLeadId = sub?.metadata?.lead_id;
+    if (!subLeadId) return Response.json({ received: true });
+    const lead = await getLead(cfEnv.LEADS_KV, subLeadId);
+    if (!lead || lead.status === "cancelled") return Response.json({ received: true });
+
+    const result = await deprovisionLead(cfEnv, lead);
+    lead.status = "cancelled";
+    lead.deprovisionedAt = new Date().toISOString();
+    await Promise.all([
+      putLead(cfEnv.LEADS_KV, lead),
+      notifyTeam(cfEnv, `🚫 Cancelled — deprovisioned ${lead.basics.businessName}`, {
+        shopId: lead.shopId,
+        number: lead.assignedNumber,
+        releasedNumber: result.releasedNumber,
+        suspendedShop: result.suspendedShop,
+      }),
+    ]);
+    return Response.json({ received: true });
+  }
+
   if (event.type !== "checkout.session.completed") {
     return Response.json({ received: true });
   }
 
-  const session = event.data?.object;
+  const session = event.data?.object as StripeCheckoutSession | undefined;
   const leadId = session?.metadata?.lead_id;
   if (!session || !leadId) {
     return Response.json({ received: true });

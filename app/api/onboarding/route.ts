@@ -11,6 +11,7 @@ import {
   VERTICAL_IDS,
 } from "@/lib/onboarding";
 import { BILLING_OPTIONS, type Billing, PLAN_OPTIONS, type Plan } from "@/lib/plans";
+import { provisionLead } from "@/lib/provisioning";
 import { overRateLimit } from "@/lib/rateLimit";
 import { SESSION_ID_RE, type StripeCheckoutSession, getCheckoutSession } from "@/lib/stripe";
 
@@ -27,6 +28,14 @@ interface OnboardingEnv {
   RESEND_API_KEY?: string;
   LEAD_NOTIFY_EMAIL?: string;
   RESEND_FROM?: string;
+  CLIENT_EMAIL_FROM?: string;
+  GCAL_SHARE_EMAIL?: string;
+  VOICE_AGENT_API?: Fetcher;
+  VOICE_AGENT_API_URL?: string;
+  ADMIN_API_KEY?: string;
+  GROOMING_AGENT_ID?: string;
+  TWILIO_ACCOUNT_SID?: string;
+  TWILIO_AUTH_TOKEN?: string;
 }
 
 interface CallRequest {
@@ -252,26 +261,44 @@ async function handleSetup(
 
   const existing = await getLead(cfEnv.LEADS_KV, leadId);
   const lead = existing ?? reconstructLead(leadId, session);
-  const alreadyComplete = lead.status === "setup_complete";
+
+  if (lead.status === "provisioned") {
+    lead.setup = setup;
+    await putLead(cfEnv.LEADS_KV, lead);
+    return Response.json({ ok: true, provisioned: true });
+  }
 
   lead.setup = setup;
   lead.stripeSessionId = session.id;
   if (typeof session.customer === "string") lead.stripeCustomerId = session.customer;
   if (typeof session.subscription === "string") lead.stripeSubscriptionId = session.subscription;
   if (lead.status === "created") lead.paidAt = lead.paidAt ?? new Date().toISOString();
-  if (!alreadyComplete) {
-    lead.status = "setup_complete";
-    lead.setupCompletedAt = new Date().toISOString();
+  lead.status = "setup_complete";
+  lead.setupCompletedAt = lead.setupCompletedAt ?? new Date().toISOString();
+
+  await putLead(cfEnv.LEADS_KV, lead);
+
+  const result = await provisionLead(cfEnv, lead);
+  if (result.ok) {
+    lead.status = "provisioned";
+    lead.shopId = result.shopId;
+    lead.assignedNumber = result.number;
+    lead.provisionedAt = new Date().toISOString();
+    lead.provisionError = undefined;
+    await Promise.all([
+      putLead(cfEnv.LEADS_KV, lead),
+      notifyTeam(cfEnv, `✅ Provisioned ${lead.basics.businessName} → ${result.number}`, {
+        shopId: result.shopId,
+        number: result.number,
+        email: lead.basics.email,
+      }),
+    ]);
+  } else {
+    lead.provisionError = result.reason;
+    await putLead(cfEnv.LEADS_KV, lead);
   }
 
-  await Promise.all([
-    putLead(cfEnv.LEADS_KV, lead),
-    alreadyComplete
-      ? Promise.resolve()
-      : notifyTeam(cfEnv, `Setup complete — ready to provision: ${lead.basics.businessName}`, lead),
-  ]);
-
-  return Response.json({ ok: true });
+  return Response.json({ ok: true, provisioned: result.ok });
 }
 
 export async function POST(request: Request) {
