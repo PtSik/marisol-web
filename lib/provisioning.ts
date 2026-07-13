@@ -86,24 +86,32 @@ export function buildShopPayload(
   return payload;
 }
 
-async function createShop(
+export async function voiceAgentFetch(
   env: ProvisioningEnv,
-  payload: Record<string, unknown>,
-): Promise<{ id: string } | null> {
+  path: string,
+  init: RequestInit = {},
+): Promise<Response | null> {
   if (!env.VOICE_AGENT_API_URL || !env.ADMIN_API_KEY) return null;
-  const url = `${env.VOICE_AGENT_API_URL}/admin/shops`;
-  const init: RequestInit = {
-    method: "POST",
+  const url = `${env.VOICE_AGENT_API_URL}${path}`;
+  const withAuth: RequestInit = {
+    ...init,
     headers: {
       "Content-Type": "application/json",
       Authorization: `Bearer ${env.ADMIN_API_KEY}`,
     },
-    body: JSON.stringify(payload),
   };
-  const res = env.VOICE_AGENT_API
-    ? await env.VOICE_AGENT_API.fetch(url, init)
-    : await fetch(url, init);
-  if (!res.ok) return null;
+  return env.VOICE_AGENT_API ? env.VOICE_AGENT_API.fetch(url, withAuth) : fetch(url, withAuth);
+}
+
+async function createShop(
+  env: ProvisioningEnv,
+  payload: Record<string, unknown>,
+): Promise<{ id: string } | null> {
+  const res = await voiceAgentFetch(env, "/admin/shops", {
+    method: "POST",
+    body: JSON.stringify(payload),
+  });
+  if (!res?.ok) return null;
   const data = (await res.json().catch(() => null)) as { shop?: { id?: string } } | null;
   return data?.shop?.id ? { id: data.shop.id } : null;
 }
@@ -113,20 +121,11 @@ async function patchShop(
   shopId: string,
   update: Record<string, unknown>,
 ): Promise<boolean> {
-  if (!env.VOICE_AGENT_API_URL || !env.ADMIN_API_KEY) return false;
-  const url = `${env.VOICE_AGENT_API_URL}/admin/shops/${shopId}`;
-  const init: RequestInit = {
+  const res = await voiceAgentFetch(env, `/admin/shops/${shopId}`, {
     method: "PATCH",
-    headers: {
-      "Content-Type": "application/json",
-      Authorization: `Bearer ${env.ADMIN_API_KEY}`,
-    },
     body: JSON.stringify(update),
-  };
-  const res = env.VOICE_AGENT_API
-    ? await env.VOICE_AGENT_API.fetch(url, init)
-    : await fetch(url, init);
-  return res.ok;
+  });
+  return res?.ok ?? false;
 }
 
 async function hmacV0(secret: string, message: string): Promise<string> {

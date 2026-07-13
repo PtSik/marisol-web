@@ -25,6 +25,15 @@ export interface CheckoutLead {
   deprovisionedAt?: string;
 }
 
+export interface CallLead {
+  id: string;
+  createdAt: string;
+  intent: "call";
+  call: { name: string; email: string; phone: string; preferredTime?: string; question?: string };
+}
+
+export type StoredLead = CheckoutLead | CallLead;
+
 export const leadKey = (id: string) => `lead:${id}`;
 
 export async function getLead(
@@ -41,4 +50,22 @@ export async function getLead(
 
 export async function putLead(kv: KVNamespace | undefined, lead: CheckoutLead): Promise<void> {
   await kv?.put(leadKey(lead.id), JSON.stringify(lead)).catch(() => {});
+}
+
+export async function listLeads(kv: KVNamespace | undefined): Promise<StoredLead[]> {
+  if (!kv) return [];
+  try {
+    const leads: StoredLead[] = [];
+    let cursor: string | undefined;
+    do {
+      const page = await kv.list({ prefix: "lead:", cursor });
+      const values = await Promise.all(page.keys.map((k) => kv.get<StoredLead>(k.name, "json")));
+      for (const lead of values) if (lead) leads.push(lead);
+      cursor = page.list_complete ? undefined : page.cursor;
+    } while (cursor);
+    leads.sort((a, b) => (b.createdAt ?? "").localeCompare(a.createdAt ?? ""));
+    return leads;
+  } catch {
+    return [];
+  }
 }

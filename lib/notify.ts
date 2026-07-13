@@ -1,5 +1,5 @@
 import type { CheckoutLead } from "@/lib/leads";
-import type { ForwardMode } from "@/lib/onboarding";
+import type { DayId, ForwardMode, ServiceEntry, WeekHours } from "@/lib/onboarding";
 import { CUSTOMER_PORTAL_URL } from "@/lib/site";
 
 export interface NotifyEnv {
@@ -27,19 +27,153 @@ async function sendEmail(
   }).catch(() => {});
 }
 
+function esc(value: unknown): string {
+  return String(value).replace(
+    /[&<>"']/g,
+    (ch) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" })[ch] as string,
+  );
+}
+
+function section(title: string, rows: [string, unknown][]): string {
+  const body = rows
+    .filter(([, v]) => v !== undefined && v !== null && v !== "")
+    .map(
+      ([k, v]) =>
+        `<tr><td style="padding:3px 14px 3px 0;color:#6F6457;font-size:13px;white-space:nowrap;vertical-align:top">${esc(k)}</td><td style="padding:3px 0;font-size:14px">${esc(typeof v === "object" ? JSON.stringify(v) : v)}</td></tr>`,
+    )
+    .join("");
+  if (!body) return "";
+  return `<div style="background:#F6EFE6;border-radius:12px;padding:14px 18px;margin:10px 0"><p style="margin:0 0 6px;font-size:12px;color:#6F6457;text-transform:uppercase;letter-spacing:.04em">${esc(title)}</p><table style="border-collapse:collapse">${body}</table></div>`;
+}
+
+const DAY_ORDER: DayId[] = ["mon", "tue", "wed", "thu", "fri", "sat", "sun"];
+
+function formatHours(hours: WeekHours): string {
+  return DAY_ORDER.map((d) => {
+    const h = hours[d];
+    const label = d[0].toUpperCase() + d.slice(1);
+    return `${label} ${h.closed ? "closed" : `${h.open}–${h.close}`}`;
+  }).join(" · ");
+}
+
+function formatServices(services: ServiceEntry[]): string {
+  return services
+    .filter((s) => s.name.trim())
+    .map((s) => {
+      const extra = [
+        s.durationMin.trim() && `${s.durationMin} min`,
+        s.price.trim() && `$${s.price}`,
+      ]
+        .filter(Boolean)
+        .join(", ");
+      return extra ? `${s.name} (${extra})` : s.name;
+    })
+    .join("; ");
+}
+
+function isCheckoutLead(payload: unknown): payload is CheckoutLead {
+  return (
+    typeof payload === "object" && payload !== null && "basics" in payload && "status" in payload
+  );
+}
+
+function leadCard(lead: CheckoutLead): string {
+  const { basics, setup } = lead;
+  return [
+    section("Business", [
+      ["Name", basics.businessName],
+      ["Vertical", basics.vertical],
+      ["Owner", basics.ownerName],
+      ["Email", basics.email],
+      ["Business phone", basics.businessPhone],
+      ["Owner mobile", basics.ownerMobile],
+      ["Timezone", basics.timezone],
+    ]),
+    section("Plan", [
+      ["Plan", lead.plan ?? "base"],
+      ["Billing", lead.billing],
+      ["Status", lead.status],
+      ["Paid at", lead.paidAt],
+    ]),
+    setup
+      ? section("Setup", [
+          ["Hours", formatHours(setup.hours)],
+          ["Services", formatServices(setup.services)],
+          ["Staff", setup.staff.filter((m) => m.trim()).join(", ")],
+          ["Calendar", setup.calendar],
+          ["Forwarding", `${setup.forwardMode} · ${setup.forwardNumber}`],
+          ["Notes", setup.notes],
+        ])
+      : "",
+    lead.shopId || lead.assignedNumber || lead.provisionError
+      ? section("Provisioning", [
+          ["Marisol number", lead.assignedNumber],
+          ["Shop ID", lead.shopId],
+          ["Provisioned at", lead.provisionedAt],
+          ["Error", lead.provisionError],
+        ])
+      : "",
+  ].join("");
+}
+
+interface CallLeadPayload {
+  intent: "call";
+  createdAt?: string;
+  call: {
+    name?: string;
+    email?: string;
+    phone?: string;
+    preferredTime?: string;
+    question?: string;
+  };
+}
+
+function isCallLead(payload: unknown): payload is CallLeadPayload {
+  return (
+    typeof payload === "object" &&
+    payload !== null &&
+    (payload as { intent?: unknown }).intent === "call" &&
+    "call" in payload
+  );
+}
+
+function renderPayload(payload: unknown): string {
+  if (typeof payload === "string") return `<p style="font-size:15px">${esc(payload)}</p>`;
+  if (isCallLead(payload)) {
+    const c = payload.call;
+    return section("Call request", [
+      ["Name", c.name],
+      ["Email", c.email],
+      ["Phone", c.phone],
+      ["Preferred time", c.preferredTime],
+      ["Question", c.question],
+      ["Received", payload.createdAt],
+    ]);
+  }
+  if (isCheckoutLead(payload)) return leadCard(payload);
+  if (typeof payload === "object" && payload !== null) {
+    if ("reason" in payload && "lead" in payload && isCheckoutLead(payload.lead)) {
+      const { reason, lead } = payload as { reason: unknown; lead: CheckoutLead };
+      return `<div style="background:#FBEAE8;border:1px solid #E5B4AE;border-radius:12px;padding:12px 18px;margin:10px 0;color:#8C2B22;font-size:14px"><strong>Provisioning failed:</strong> ${esc(reason)}</div>${leadCard(lead)}`;
+    }
+    return section("Details", Object.entries(payload as Record<string, unknown>));
+  }
+  return `<p style="font-size:15px">${esc(payload)}</p>`;
+}
+
 export async function notifyTeam(
   { RESEND_API_KEY, LEAD_NOTIFY_EMAIL, RESEND_FROM }: NotifyEnv,
   subject: string,
   payload: unknown,
 ): Promise<void> {
   if (!RESEND_API_KEY || !LEAD_NOTIFY_EMAIL) return;
-  const text = typeof payload === "string" ? payload : JSON.stringify(payload, null, 2);
+  const html = `<div style="font-family:Inter,Helvetica,Arial,sans-serif;max-width:560px;margin:0 auto;color:#241B14;line-height:1.55"><p style="font-size:16px;font-weight:600;margin:0 0 4px">${esc(subject)}</p>${renderPayload(payload)}</div>`;
   await sendEmail(
     RESEND_API_KEY,
     RESEND_FROM ?? "Marisol Leads <leads@getmarisol.com>",
     LEAD_NOTIFY_EMAIL,
     subject,
-    { text },
+    { html },
   );
 }
 
