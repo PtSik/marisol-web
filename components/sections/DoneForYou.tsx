@@ -11,7 +11,7 @@ const ITEMS = [
   },
   {
     title: "We tune the voice & greeting",
-    desc: "It sounds like your shop and connects to your calendar.",
+    desc: "Pick from 99+ natural voices to match your shop — and we connect it to your calendar.",
   },
 ];
 

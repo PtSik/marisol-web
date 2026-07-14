@@ -3,11 +3,15 @@ import { Reveal } from "@/components/motion/Reveal";
 const FAQS = [
   {
     q: "Does it sound robotic?",
-    a: "No — callers hear a natural, warm voice with normal pauses. Most don't realize it's automated until it tells them, which it does at the start of every call.",
+    a: "No — callers hear a natural, warm voice with normal pauses. Most don't even realize it's automated.",
   },
   {
     q: "Does it speak Spanish?",
     a: "Sí — fully bilingual. It greets callers in English and switches to Spanish the moment a caller speaks it, through the whole conversation and the booking. No menus, no “press 2 for Spanish” — callers just talk.",
+  },
+  {
+    q: "Can I choose the voice?",
+    a: "Yes — pick from a library of 99+ natural voices, male or female, in English and Spanish. Tell us the vibe you want during setup and we'll match it; you can switch voices later just by asking.",
   },
   {
     q: "What happens if it can't help?",

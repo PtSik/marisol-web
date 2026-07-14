@@ -25,6 +25,9 @@ export function LiveDemo() {
         <p className="mx-auto mt-[14px] max-w-[42ch] text-[15.5px] leading-[1.55] text-muted">
           Tap talk and listen in as the receptionist books an appointment. No sign-up.
         </p>
+        <p className="mx-auto mt-2 max-w-[42ch] text-[13.5px] leading-[1.55] text-muted-2">
+          ¿Prefieres español? Just start speaking it — the receptionist switches instantly.
+        </p>
       </div>
       <DemoWidget />
     </section>

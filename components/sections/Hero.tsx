@@ -5,7 +5,10 @@ import { telHref } from "@/lib/site";
 export function Hero() {
   return (
     <header className="mx-auto max-w-content px-[22px] pb-16 pt-[clamp(40px,9vw,84px)] text-center">
-      <h1 className="mx-auto max-w-[14ch] font-display text-[clamp(40px,9.2vw,82px)] font-light leading-[1.02] tracking-[-0.035em]">
+      <span className="inline-block rounded-full bg-cream-200 px-[13px] py-[7px] text-[11.5px] font-semibold uppercase tracking-[0.16em] text-muted-2">
+        English + Español · switches mid-call
+      </span>
+      <h1 className="mx-auto mt-[18px] max-w-[14ch] font-display text-[clamp(40px,9.2vw,82px)] font-light leading-[1.02] tracking-[-0.035em]">
         Never miss <span className="text-teal">a call</span> again.
       </h1>
       <p className="mx-auto mt-[22px] max-w-[43ch] text-[clamp(16px,2.2vw,20px)] leading-[1.55] text-muted">
