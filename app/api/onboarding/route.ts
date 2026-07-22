@@ -127,13 +127,21 @@ function validateSetup(setup: unknown): string | null {
   )
     return "invalid services";
 
-  if (
-    !Array.isArray(s.staff) ||
-    s.staff.length > 30 ||
-    !s.staff.some((m) => isShortString(m) && m.trim()) ||
-    !s.staff.every((m) => isShortString(m))
-  )
+  if (typeof s.staffCustomHours !== "boolean") return "invalid staff";
+  if (!Array.isArray(s.staff) || s.staff.length === 0 || s.staff.length > 30)
     return "invalid staff";
+  if (!s.staff.some((m) => isShortString(m?.name) && m.name.trim())) return "invalid staff";
+  for (const m of s.staff) {
+    if (!isShortString(m?.name) || !isShortString(m?.id, 40)) return "invalid staff";
+    if (m.hours === null || m.hours === undefined) continue;
+    if (typeof m.hours !== "object") return "invalid staff";
+    for (const day of DAYS) {
+      const h = m.hours[day.id];
+      if (typeof h?.closed !== "boolean" || !TIME_RE.test(h.open) || !TIME_RE.test(h.close))
+        return "invalid staff";
+      if (!h.closed && h.open >= h.close) return "invalid staff";
+    }
+  }
 
   return null;
 }

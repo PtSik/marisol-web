@@ -1,6 +1,6 @@
 import type { CheckoutLead } from "@/lib/leads";
 import { sendClientWelcome, sendProvisionAlert } from "@/lib/notify";
-import type { DayId, ServiceEntry, WeekHours } from "@/lib/onboarding";
+import type { DayId, ServiceEntry, SetupDetails, WeekHours } from "@/lib/onboarding";
 import { buyLocalNumber, lookupNumberSid, releaseTwilioNumber, usAreaCode } from "@/lib/twilio";
 
 export interface ProvisioningEnv {
@@ -59,6 +59,28 @@ export function toShopServices(services: ServiceEntry[]): string[] {
     });
 }
 
+// staff_json carries a stable id per member so voice-agent can key per-staff config on it
+// instead of the name. `hours` is only sent when the owner opted into split schedules —
+// omitting it means "inherit the shop's hours" on the voice-agent side.
+export function toShopStaff(setup: SetupDetails): Array<Record<string, unknown>> {
+  const shopHours = JSON.stringify(toShopHours(setup.hours));
+  return setup.staff
+    .map((member, i) =>
+      typeof member === "string" ? { id: `stf_legacy-${i}`, name: member, hours: null } : member,
+    )
+    .filter((m) => m.name.trim())
+    .map((m) => {
+      const entry: Record<string, unknown> = { id: m.id, name: m.name.trim() };
+      if (setup.staffCustomHours && m.hours) {
+        const own = toShopHours(m.hours);
+        // Hours matching the shop's are left off so the agent isn't told about a
+        // schedule that changes nothing.
+        if (JSON.stringify(own) !== shopHours) entry.hours = own;
+      }
+      return entry;
+    });
+}
+
 export function buildShopPayload(
   lead: CheckoutLead,
   twilioNumber: string,
@@ -75,7 +97,7 @@ export function buildShopPayload(
     timezone: basics.timezone,
     hours_json: JSON.stringify(toShopHours(setup.hours)),
     services_json: JSON.stringify(toShopServices(setup.services)),
-    staff_json: JSON.stringify(setup.staff.filter((m) => m.trim())),
+    staff_json: JSON.stringify(toShopStaff(setup)),
     integration: "none",
     status: "active",
     reminders_enabled: lead.plan === "premium",

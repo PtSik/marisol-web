@@ -1,5 +1,5 @@
 import type { CheckoutLead } from "@/lib/leads";
-import type { DayId, ForwardMode, ServiceEntry, WeekHours } from "@/lib/onboarding";
+import type { DayId, ForwardMode, ServiceEntry, SetupDetails, WeekHours } from "@/lib/onboarding";
 import { CUSTOMER_PORTAL_URL } from "@/lib/site";
 
 export interface NotifyEnv {
@@ -56,6 +56,17 @@ function formatHours(hours: WeekHours): string {
   }).join(" · ");
 }
 
+function formatStaff(setup: SetupDetails): string {
+  return setup.staff
+    .filter((m) => m.name.trim())
+    .map((m) =>
+      setup.staffCustomHours && m.hours
+        ? `${m.name.trim()} (${formatHours(m.hours)})`
+        : m.name.trim(),
+    )
+    .join(", ");
+}
+
 function formatServices(services: ServiceEntry[]): string {
   return services
     .filter((s) => s.name.trim())
@@ -99,7 +110,7 @@ function leadCard(lead: CheckoutLead): string {
       ? section("Setup", [
           ["Hours", formatHours(setup.hours)],
           ["Services", formatServices(setup.services)],
-          ["Staff", setup.staff.filter((m) => m.trim()).join(", ")],
+          ["Staff", formatStaff(setup)],
           ["Calendar", setup.calendar],
           ["Forwarding", `${setup.forwardMode} · ${setup.forwardNumber}`],
           ["Notes", setup.notes],

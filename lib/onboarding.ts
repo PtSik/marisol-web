@@ -82,10 +82,18 @@ export interface BusinessBasics {
 export const FORWARD_MODES = ["conditional", "all"] as const;
 export type ForwardMode = (typeof FORWARD_MODES)[number];
 
+export interface StaffEntry {
+  // Stable across name edits — voice-agent keys per-staff config (hours, later calendars) on it.
+  id: string;
+  name: string;
+  hours: WeekHours | null;
+}
+
 export interface SetupDetails {
   hours: WeekHours;
   services: ServiceEntry[];
-  staff: string[];
+  staff: StaffEntry[];
+  staffCustomHours: boolean;
   calendar: "google_calendar" | "none";
   forwardNumber: string;
   forwardMode: ForwardMode;
@@ -105,6 +113,10 @@ export function defaultHours(): WeekHours {
   };
 }
 
+export function newStaffEntry(): StaffEntry {
+  return { id: `stf_${crypto.randomUUID().slice(0, 8)}`, name: "", hours: null };
+}
+
 export function defaultBasics(vertical: Vertical = "barbershop"): BusinessBasics {
   return {
     vertical,
@@ -121,7 +133,8 @@ export function defaultSetup(vertical: Vertical = "barbershop"): SetupDetails {
   return {
     hours: defaultHours(),
     services: SERVICE_PRESETS[vertical].map((s) => ({ ...s })),
-    staff: [""],
+    staff: [newStaffEntry()],
+    staffCustomHours: false,
     calendar: "google_calendar",
     forwardNumber: "",
     forwardMode: "conditional",

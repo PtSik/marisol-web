@@ -2,24 +2,109 @@
 
 import { Field, type FieldErrors } from "@/components/onboarding/Field";
 import { inputCls } from "@/components/onboarding/fieldStyles";
-import { DAYS, PHONE_RE, type SetupDetails, type Vertical } from "@/lib/onboarding";
+import {
+  DAYS,
+  PHONE_RE,
+  type SetupDetails,
+  type Vertical,
+  type WeekHours,
+  newStaffEntry,
+} from "@/lib/onboarding";
+
+function cloneHours(hours: WeekHours): WeekHours {
+  return Object.fromEntries(
+    DAYS.map((day) => [day.id, { ...hours[day.id] }]),
+  ) as unknown as WeekHours;
+}
+
+function hoursError(hours: WeekHours): boolean {
+  return DAYS.some((day) => {
+    const h = hours[day.id];
+    return !h.closed && h.open >= h.close;
+  });
+}
 
 export function validateSetup(setup: SetupDetails): FieldErrors {
   const errors: FieldErrors = {};
-  for (const day of DAYS) {
-    const h = setup.hours[day.id];
-    if (!h.closed && h.open >= h.close) {
-      errors.hours = "Opening time must be before closing time on every open day.";
-      break;
-    }
-  }
+  if (hoursError(setup.hours))
+    errors.hours = "Opening time must be before closing time on every open day.";
   const validServices = setup.services.filter((s) => s.name.trim() && Number(s.durationMin) > 0);
   if (validServices.length === 0)
     errors.services = "Add at least one service with a name and duration.";
-  if (!setup.staff.some((s) => s.trim())) errors.staff = "Add at least one staff member.";
+  if (!setup.staff.some((s) => s.name.trim())) errors.staff = "Add at least one staff member.";
+  else if (
+    setup.staffCustomHours &&
+    setup.staff.some((s) => s.name.trim() && s.hours && hoursError(s.hours))
+  ) {
+    errors.staff = "Start time must be before end time on every day a staff member works.";
+  }
   if (!PHONE_RE.test(setup.forwardNumber))
     errors.forwardNumber = "Enter the number your customers currently call.";
   return errors;
+}
+
+function HoursRows({
+  hours,
+  idPrefix,
+  labelSuffix,
+  onChange,
+}: {
+  hours: WeekHours;
+  idPrefix: string;
+  labelSuffix: string;
+  onChange: (hours: WeekHours) => void;
+}) {
+  return (
+    <div className="flex flex-col gap-2">
+      {DAYS.map((day) => {
+        const h = hours[day.id];
+        const setDay = (dh: Partial<typeof h>) => onChange({ ...hours, [day.id]: { ...h, ...dh } });
+        return (
+          <div
+            key={day.id}
+            className="flex flex-wrap items-center gap-x-3 gap-y-2 rounded-[12px] bg-white/60 px-[14px] py-[10px]"
+          >
+            <label className="flex min-w-[122px] items-center gap-[9px] text-[14px] font-medium">
+              <input
+                type="checkbox"
+                checked={!h.closed}
+                onChange={(e) => setDay({ closed: !e.target.checked })}
+                className="h-[18px] w-[18px] accent-[#4F8C80]"
+              />
+              {day.label}
+            </label>
+            {h.closed ? (
+              <span className="text-[13.5px] text-muted-2">Closed</span>
+            ) : (
+              <span className="flex items-center gap-2 text-[14px]">
+                <label className="sr-only" htmlFor={`${idPrefix}-open-${day.id}`}>
+                  {day.label} opening time{labelSuffix}
+                </label>
+                <input
+                  id={`${idPrefix}-open-${day.id}`}
+                  type="time"
+                  value={h.open}
+                  onChange={(e) => setDay({ open: e.target.value })}
+                  className="min-h-[40px] rounded-[9px] border border-ink/15 bg-white px-2 py-1 text-[14px]"
+                />
+                <span className="text-muted-2">–</span>
+                <label className="sr-only" htmlFor={`${idPrefix}-close-${day.id}`}>
+                  {day.label} closing time{labelSuffix}
+                </label>
+                <input
+                  id={`${idPrefix}-close-${day.id}`}
+                  type="time"
+                  value={h.close}
+                  onChange={(e) => setDay({ close: e.target.value })}
+                  className="min-h-[40px] rounded-[9px] border border-ink/15 bg-white px-2 py-1 text-[14px]"
+                />
+              </span>
+            )}
+          </div>
+        );
+      })}
+    </div>
+  );
 }
 
 export function SetupFields({
@@ -37,56 +122,12 @@ export function SetupFields({
     <div className="flex flex-col gap-7">
       <fieldset className="m-0 border-0 p-0">
         <legend className="mb-[10px] text-[13.5px] font-medium text-ink">Opening hours</legend>
-        <div className="flex flex-col gap-2">
-          {DAYS.map((day) => {
-            const h = setup.hours[day.id];
-            const setDay = (dh: Partial<typeof h>) =>
-              patch({ hours: { ...setup.hours, [day.id]: { ...h, ...dh } } });
-            return (
-              <div
-                key={day.id}
-                className="flex flex-wrap items-center gap-x-3 gap-y-2 rounded-[12px] bg-white/60 px-[14px] py-[10px]"
-              >
-                <label className="flex min-w-[122px] items-center gap-[9px] text-[14px] font-medium">
-                  <input
-                    type="checkbox"
-                    checked={!h.closed}
-                    onChange={(e) => setDay({ closed: !e.target.checked })}
-                    className="h-[18px] w-[18px] accent-[#4F8C80]"
-                  />
-                  {day.label}
-                </label>
-                {h.closed ? (
-                  <span className="text-[13.5px] text-muted-2">Closed</span>
-                ) : (
-                  <span className="flex items-center gap-2 text-[14px]">
-                    <label className="sr-only" htmlFor={`ob-open-${day.id}`}>
-                      {day.label} opening time
-                    </label>
-                    <input
-                      id={`ob-open-${day.id}`}
-                      type="time"
-                      value={h.open}
-                      onChange={(e) => setDay({ open: e.target.value })}
-                      className="min-h-[40px] rounded-[9px] border border-ink/15 bg-white px-2 py-1 text-[14px]"
-                    />
-                    <span className="text-muted-2">–</span>
-                    <label className="sr-only" htmlFor={`ob-close-${day.id}`}>
-                      {day.label} closing time
-                    </label>
-                    <input
-                      id={`ob-close-${day.id}`}
-                      type="time"
-                      value={h.close}
-                      onChange={(e) => setDay({ close: e.target.value })}
-                      className="min-h-[40px] rounded-[9px] border border-ink/15 bg-white px-2 py-1 text-[14px]"
-                    />
-                  </span>
-                )}
-              </div>
-            );
-          })}
-        </div>
+        <HoursRows
+          hours={setup.hours}
+          idPrefix="ob"
+          labelSuffix=""
+          onChange={(hours) => patch({ hours })}
+        />
         {errors.hours && (
           <p role="alert" className="mt-2 text-[12.5px] font-medium text-[#B4452C]">
             {errors.hours}
@@ -185,38 +226,81 @@ export function SetupFields({
         <p className="mb-[10px] text-[12.5px] text-muted-2">
           Who takes appointments? Callers can ask for someone by name.
         </p>
+        <label className="mb-3 flex items-center gap-[9px] text-[14px] font-medium">
+          <input
+            type="checkbox"
+            checked={setup.staffCustomHours}
+            onChange={(e) =>
+              patch({
+                staffCustomHours: e.target.checked,
+                staff: setup.staff.map((m) => ({
+                  ...m,
+                  hours: e.target.checked ? (m.hours ?? cloneHours(setup.hours)) : m.hours,
+                })),
+              })
+            }
+            className="h-[18px] w-[18px] accent-[#4F8C80]"
+          />
+          Do your staff work different schedules?
+        </label>
         <div className="flex flex-col gap-2">
-          {setup.staff.map((name, i) => (
-            // biome-ignore lint/suspicious/noArrayIndexKey: rows are positional and editable
-            <div key={i} className="flex items-center gap-2">
-              <label className="sr-only" htmlFor={`ob-staff-${i}`}>
-                Staff member {i + 1} name
-              </label>
-              <input
-                id={`ob-staff-${i}`}
-                className={`${inputCls} max-w-[320px]`}
-                value={name}
-                onChange={(e) =>
-                  patch({ staff: setup.staff.map((s, j) => (j === i ? e.target.value : s)) })
-                }
-                placeholder={i === 0 ? "Alex" : "Another name"}
-              />
-              {setup.staff.length > 1 && (
-                <button
-                  type="button"
-                  aria-label={`Remove staff member ${name || i + 1}`}
-                  onClick={() => patch({ staff: setup.staff.filter((_, j) => j !== i) })}
-                  className="flex h-11 w-11 items-center justify-center rounded-[10px] text-muted-2 hover:bg-cream-200"
-                >
-                  ✕
-                </button>
-              )}
-            </div>
-          ))}
+          {setup.staff.map((member, i) => {
+            const setMember = (partial: Partial<typeof member>) =>
+              patch({ staff: setup.staff.map((m, j) => (j === i ? { ...m, ...partial } : m)) });
+            return (
+              <div key={member.id} className="flex flex-col gap-2">
+                <div className="flex items-center gap-2">
+                  <label className="sr-only" htmlFor={`ob-staff-${member.id}`}>
+                    Staff member {i + 1} name
+                  </label>
+                  <input
+                    id={`ob-staff-${member.id}`}
+                    className={`${inputCls} max-w-[320px]`}
+                    value={member.name}
+                    onChange={(e) => setMember({ name: e.target.value })}
+                    placeholder={i === 0 ? "Alex" : "Another name"}
+                  />
+                  {setup.staff.length > 1 && (
+                    <button
+                      type="button"
+                      aria-label={`Remove staff member ${member.name || i + 1}`}
+                      onClick={() => patch({ staff: setup.staff.filter((_, j) => j !== i) })}
+                      className="flex h-11 w-11 items-center justify-center rounded-[10px] text-muted-2 hover:bg-cream-200"
+                    >
+                      ✕
+                    </button>
+                  )}
+                </div>
+                {setup.staffCustomHours && (
+                  <div className="ml-1 border-l-2 border-ink/10 pl-3">
+                    <p className="mb-[6px] text-[12.5px] text-muted-2">
+                      {member.name.trim() || `Staff member ${i + 1}`} — working hours
+                    </p>
+                    <HoursRows
+                      hours={member.hours ?? cloneHours(setup.hours)}
+                      idPrefix={`ob-staff-${member.id}`}
+                      labelSuffix={` for ${member.name.trim() || `staff member ${i + 1}`}`}
+                      onChange={(hours) => setMember({ hours })}
+                    />
+                  </div>
+                )}
+              </div>
+            );
+          })}
         </div>
         <button
           type="button"
-          onClick={() => patch({ staff: [...setup.staff, ""] })}
+          onClick={() =>
+            patch({
+              staff: [
+                ...setup.staff,
+                {
+                  ...newStaffEntry(),
+                  hours: setup.staffCustomHours ? cloneHours(setup.hours) : null,
+                },
+              ],
+            })
+          }
           className="mt-3 text-[14px] font-medium text-teal"
         >
           + Add staff member
