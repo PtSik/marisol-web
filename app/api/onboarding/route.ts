@@ -287,11 +287,7 @@ async function handleSetup(
     lead.provisionError = undefined;
     await Promise.all([
       putLead(cfEnv.LEADS_KV, lead),
-      notifyTeam(cfEnv, `✅ Provisioned ${lead.basics.businessName} → ${result.number}`, {
-        shopId: result.shopId,
-        number: result.number,
-        email: lead.basics.email,
-      }),
+      notifyTeam(cfEnv, `✅ Provisioned ${lead.basics.businessName} → ${result.number}`, lead),
     ]);
   } else {
     lead.provisionError = result.reason;

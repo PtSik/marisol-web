@@ -165,9 +165,9 @@ export async function provisionLead(
   env: ProvisioningEnv,
   lead: CheckoutLead,
 ): Promise<ProvisionResult> {
-  const areaCode = usAreaCode(lead.basics.businessPhone);
+  const areaCode = usAreaCode(lead.setup?.forwardNumber ?? lead.basics.businessPhone);
   if (!areaCode) {
-    await sendProvisionAlert(env, lead, "cannot determine US area code from business phone");
+    await sendProvisionAlert(env, lead, "cannot determine US area code from forwarding number");
     return { ok: false, reason: "invalid area code" };
   }
 
