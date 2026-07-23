@@ -1,5 +1,5 @@
 import type { CheckoutLead } from "@/lib/leads";
-import { sendClientWelcome, sendProvisionAlert } from "@/lib/notify";
+import { notifyTeam, sendClientWelcome, sendProvisionAlert } from "@/lib/notify";
 import type { DayId, ServiceEntry, SetupDetails, WeekHours } from "@/lib/onboarding";
 import {
   buyLocalNumber,
@@ -223,13 +223,22 @@ export async function provisionLead(
       await sendProvisionAlert(env, lead, "admin POST /shops failed");
       return { ok: false, reason: "admin POST /shops failed" };
     }
-    await sendClientWelcome(env, {
+    const welcomed = await sendClientWelcome(env, {
       email: lead.basics.email,
       businessName: lead.basics.businessName,
       ownerName: lead.basics.ownerName,
       twilioNumber: bought.number,
       forwardMode: lead.setup?.forwardMode ?? "conditional",
     });
+    // The shop is live either way, so this is an alert rather than a rollback — the client just
+    // never learned their number.
+    if (!welcomed) {
+      await notifyTeam(env, `📪 Welcome email failed: ${lead.basics.businessName}`, {
+        email: lead.basics.email,
+        number: bought.number,
+        shopId: shop.id,
+      });
+    }
     return { ok: true, shopId: shop.id, number: bought.number };
   } catch (err) {
     await releaseTwilioNumber(env, bought.sid);

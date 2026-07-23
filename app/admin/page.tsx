@@ -235,7 +235,7 @@ const CALENDAR_NOTICE: Record<string, string> = {
   "already-sent": "That client already got the calendar invite.",
   missing: "No shop for that lead — provision it first.",
   failed: "Couldn't build the connect link — check ADMIN_API_KEY and the voice-agent URL.",
-  denied: "Session expired — sign in again.",
+  "send-failed": "Resend rejected the email — nothing was sent, try again.",
 };
 
 export default async function AdminPage({
@@ -291,7 +291,13 @@ export default async function AdminPage({
           </p>
         )}
         {calendar && CALENDAR_NOTICE[calendar] && (
-          <p className="mt-3 rounded-[12px] border border-teal/30 bg-teal/10 px-4 py-2.5 text-sm text-teal">
+          <p
+            className={`mt-3 rounded-[12px] border px-4 py-2.5 text-sm ${
+              calendar === "sent"
+                ? "border-teal/30 bg-teal/10 text-teal"
+                : "border-[#B97E24]/30 bg-[#B97E24]/10 text-[#8A5D17]"
+            }`}
+          >
             {CALENDAR_NOTICE[calendar]}
           </p>
         )}

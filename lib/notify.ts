@@ -17,15 +17,16 @@ async function sendEmail(
   to: string,
   subject: string,
   body: { text?: string; html?: string },
-): Promise<void> {
-  await fetch("https://api.resend.com/emails", {
+): Promise<boolean> {
+  const res = await fetch("https://api.resend.com/emails", {
     method: "POST",
     headers: {
       Authorization: `Bearer ${apiKey}`,
       "Content-Type": "application/json",
     },
     body: JSON.stringify({ from, to: [to], subject, ...body }),
-  }).catch(() => {});
+  }).catch(() => null);
+  return res?.ok ?? false;
 }
 
 function esc(value: unknown): string {
@@ -241,9 +242,9 @@ function portalFooter(): string {
     : "";
 }
 
-export async function sendClientWelcome(env: NotifyEnv, w: ClientWelcome): Promise<void> {
+export async function sendClientWelcome(env: NotifyEnv, w: ClientWelcome): Promise<boolean> {
   const { RESEND_API_KEY } = env;
-  if (!RESEND_API_KEY) return;
+  if (!RESEND_API_KEY) return false;
 
   const html = `<div style="font-family:Inter,Helvetica,Arial,sans-serif;max-width:560px;margin:0 auto;color:#241B14;line-height:1.55">
   <p style="font-size:16px">Hi ${esc(firstNameOf(w.ownerName))},</p>
@@ -260,7 +261,7 @@ export async function sendClientWelcome(env: NotifyEnv, w: ClientWelcome): Promi
   <p style="font-size:15px;margin:24px 0 0">Questions? Just reply — we're here to help.</p>
 </div>`;
 
-  await sendEmail(
+  return sendEmail(
     RESEND_API_KEY,
     clientFrom(env),
     w.email,
@@ -276,9 +277,11 @@ export interface CalendarInvite {
   calendarConnectUrl: string;
 }
 
-export async function sendCalendarInvite(env: NotifyEnv, c: CalendarInvite): Promise<void> {
+// Returns whether Resend accepted the mail — the admin action records the send only on success,
+// so a failure leaves the button in place instead of silently swallowing the client's invite.
+export async function sendCalendarInvite(env: NotifyEnv, c: CalendarInvite): Promise<boolean> {
   const { RESEND_API_KEY } = env;
-  if (!RESEND_API_KEY) return;
+  if (!RESEND_API_KEY) return false;
 
   const html = `<div style="font-family:Inter,Helvetica,Arial,sans-serif;max-width:560px;margin:0 auto;color:#241B14;line-height:1.55">
   <p style="font-size:16px">Hi ${esc(firstNameOf(c.ownerName))},</p>
@@ -289,7 +292,7 @@ export async function sendCalendarInvite(env: NotifyEnv, c: CalendarInvite): Pro
   <p style="font-size:15px;margin:24px 0 0">Something not working? Just reply — we'll set it up with you.</p>
 </div>`;
 
-  await sendEmail(
+  return sendEmail(
     RESEND_API_KEY,
     clientFrom(env),
     c.email,

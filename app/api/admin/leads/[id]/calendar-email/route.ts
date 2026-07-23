@@ -31,7 +31,7 @@ export async function POST(
   const cfEnv = env as unknown as CalendarEmailEnv;
   const jar = await cookies();
   if (!(await isAdminCookieValid(jar.get(ADMIN_COOKIE)?.value, cfEnv.ADMIN_DASH_KEY))) {
-    return back(request, "denied");
+    return Response.redirect(new URL("/admin?error=1", request.url).toString(), 303);
   }
 
   const { id } = await params;
@@ -42,12 +42,13 @@ export async function POST(
   const calendarConnectUrl = await buildCalendarConnectUrl(cfEnv, lead.shopId);
   if (!calendarConnectUrl) return back(request, "failed");
 
-  await sendCalendarInvite(cfEnv, {
+  const sent = await sendCalendarInvite(cfEnv, {
     email: lead.basics.email,
     businessName: lead.basics.businessName,
     ownerName: lead.basics.ownerName,
     calendarConnectUrl,
   });
+  if (!sent) return back(request, "send-failed");
 
   lead.calendarEmailSentAt = new Date().toISOString();
   await putLead(cfEnv.LEADS_KV, lead);
