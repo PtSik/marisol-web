@@ -1,4 +1,5 @@
 import { Reveal } from "@/components/motion/Reveal";
+import type { Dict } from "@/lib/i18n/dict";
 
 // const BENEFITS = [
 //   { stat: "24/7", desc: "every call answered" },
@@ -14,11 +15,11 @@ const BRANDS = [
   { name: "BARBAROSSA", className: "font-sans tracking-[0.18em] text-[0.8em]" },
 ];
 
-export function TrustStrip() {
+export function TrustStrip({ t }: { t: Dict["trust"] }) {
   return (
-    <section aria-label="Trusted by" className="border-y border-cream-200 bg-cream-100">
+    <section aria-label={t.ariaLabel} className="border-y border-cream-200 bg-cream-100">
       <Reveal className="mx-auto flex max-w-content flex-col items-center gap-[18px] px-[22px] py-[26px]">
-        <span className="text-xs uppercase tracking-[0.14em] text-muted-4">The front desk for</span>
+        <span className="text-xs uppercase tracking-[0.14em] text-muted-4">{t.kicker}</span>
         <div
           className="flex w-full overflow-hidden"
           style={{

@@ -1,9 +1,9 @@
 import { Reveal } from "@/components/motion/Reveal";
+import type { Dict } from "@/lib/i18n/dict";
 
 const STEPS = [
   {
     num: "01",
-    title: "Forward your number",
     icon: (
       <>
         <polyline points="18 2 22 6 18 10" />
@@ -14,7 +14,6 @@ const STEPS = [
   },
   {
     num: "02",
-    title: "The AI answers",
     icon: (
       <>
         <path d="M2 10v3" />
@@ -28,7 +27,6 @@ const STEPS = [
   },
   {
     num: "03",
-    title: "Bookings land in your calendar",
     icon: (
       <>
         <rect x="3" y="4" width="18" height="18" rx="2" />
@@ -41,7 +39,7 @@ const STEPS = [
   },
 ];
 
-export function HowItWorks() {
+export function HowItWorks({ t }: { t: Dict["how"] }) {
   return (
     <section id="how" className="mx-auto max-w-content px-[22px] py-[clamp(48px,7vw,88px)]">
       <div className="relative overflow-hidden rounded-[24px] px-[clamp(20px,4vw,40px)] py-[clamp(26px,4vw,40px)]">
@@ -98,10 +96,12 @@ export function HowItWorks() {
 
         <Reveal className="relative z-[2] mb-[clamp(22px,4vw,34px)] text-center">
           <span className="inline-block rounded-full bg-cream-200 px-[13px] py-[7px] text-[11.5px] font-semibold uppercase tracking-[0.16em] text-muted-2">
-            How it works
+            {t.badge}
           </span>
           <h2 className="mx-auto mt-4 max-w-[18ch] font-display text-[clamp(26px,4.5vw,42px)] font-light leading-[1.08] tracking-[-0.03em]">
-            Set up <span className="text-teal">once</span>, never pick up again.
+            {t.title.before}
+            <span className="text-teal">{t.title.accent}</span>
+            {t.title.after}
           </h2>
         </Reveal>
 
@@ -133,7 +133,7 @@ export function HowItWorks() {
                   {step.num}
                 </span>
                 <span className="font-display text-[18px] tracking-[-0.01em] text-ink">
-                  {step.title}
+                  {t.steps[i]}
                 </span>
               </div>
             </Reveal>

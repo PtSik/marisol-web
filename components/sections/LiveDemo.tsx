@@ -1,5 +1,6 @@
 "use client";
 
+import type { Dict } from "@/lib/i18n/dict";
 import dynamic from "vinext/shims/dynamic";
 
 const DemoWidget = dynamic(() => import("@/components/demo/DemoWidget").then((m) => m.DemoWidget), {
@@ -12,24 +13,30 @@ const DemoWidget = dynamic(() => import("@/components/demo/DemoWidget").then((m)
   ),
 });
 
-export function LiveDemo() {
+export function LiveDemo({
+  t,
+  widget,
+  personas,
+}: { t: Dict["demo"]; widget: Dict["widget"]; personas: Dict["personas"] }) {
   return (
     <section id="demo" className="mx-auto max-w-content px-[22px] py-[clamp(48px,7vw,88px)]">
       <div className="mb-[clamp(28px,4vw,40px)] text-center">
         <span className="inline-block rounded-full bg-cream-200 px-[13px] py-[7px] text-[11.5px] font-semibold uppercase tracking-[0.16em] text-muted-2">
-          Live demo
+          {t.badge}
         </span>
         <h2 className="mx-auto mt-[18px] max-w-[18ch] font-display text-[clamp(28px,5vw,46px)] font-light leading-[1.08] tracking-[-0.03em]">
-          Hear it <span className="text-teal">take a booking</span>.
+          {t.title.before}
+          <span className="text-teal">{t.title.accent}</span>
+          {t.title.after}
         </h2>
         <p className="mx-auto mt-[14px] max-w-[42ch] text-[15.5px] leading-[1.55] text-muted">
-          Tap talk and listen in as the receptionist books an appointment. No sign-up.
+          {t.subtitle}
         </p>
         <p className="mx-auto mt-2 max-w-[42ch] text-[13.5px] leading-[1.55] text-muted-2">
-          ¿Prefieres español? Just start speaking it — the receptionist switches instantly.
+          {t.note}
         </p>
       </div>
-      <DemoWidget />
+      <DemoWidget t={widget} personas={personas} />
     </section>
   );
 }

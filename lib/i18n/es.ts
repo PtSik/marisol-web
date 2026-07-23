@@ -1,0 +1,279 @@
+import type { Dict } from "./en";
+
+export const es: Dict = {
+  meta: {
+    title: "Marisol — Recepcionista con IA",
+    description:
+      "Una recepcionista con IA que contesta cada llamada en español o inglés y agenda citas 24/7.",
+  },
+  lang: {
+    label: "Idioma",
+    en: "EN",
+    es: "ES",
+    enAria: "View in English",
+    esAria: "Ver en español",
+  },
+  nav: {
+    demo: "Demo en vivo",
+    how: "Cómo funciona",
+    pricing: "Precios",
+    faq: "Preguntas",
+    cta: "Pruébala en vivo",
+    openMenu: "Abrir menú",
+  },
+  hero: {
+    badge: "Español + English · cambia a mitad de llamada",
+    title: { before: "Nunca más pierdas ", accent: "una llamada", after: "." },
+    subtitle:
+      "Una recepcionista con IA que contesta cada llamada en español o inglés, agenda la cita y manda la confirmación por mensaje — de día o de noche.",
+    ctaDemo: "Habla con la recepcionista",
+    ctaCall: "Llama a la línea de demo",
+    captionKicker: "Una recepción en vivo",
+    captionTitle: "Contesta al primer timbre — y suena como alguien que trabaja ahí.",
+    statAria: "Mostrar el dato {label}",
+    stats: [
+      { value: "99%", label: "Contestadas", desc: "de las llamadas, de día o de noche" },
+      { value: "0", label: "Perdidas", desc: "citas perdidas mientras estás ocupado" },
+      { value: "24/7", label: "Siempre activa", desc: "noches, fines de semana y feriados" },
+    ],
+  },
+  trust: {
+    ariaLabel: "Confían en nosotros",
+    kicker: "La recepción de",
+  },
+  how: {
+    badge: "Cómo funciona",
+    title: { before: "Configúrala ", accent: "una vez", after: " y no vuelvas a contestar." },
+    steps: ["Desvía tu número", "La IA contesta", "Las citas entran a tu calendario"],
+  },
+  demo: {
+    badge: "Demo en vivo",
+    title: { before: "Escúchala ", accent: "agendar una cita", after: "." },
+    subtitle: "Toca para hablar y escucha cómo la recepcionista agenda una cita. Sin registrarte.",
+    note: "Do you prefer English? Solo empieza a hablarlo — la recepcionista cambia al instante.",
+  },
+  widget: {
+    statusReady: "Lista",
+    statusConnecting: "Conectando…",
+    statusSpeaking: "La recepcionista habla",
+    statusListening: "Escuchando",
+    personaLegend: "Tipo de negocio del demo",
+    primaryIdle: "Habla con la recepcionista",
+    primaryAgain: "Habla otra vez",
+    primaryConnecting: "Conectando…",
+    primaryActive: "En conversación…",
+    end: "Colgar",
+    endAria: "Terminar la llamada",
+    errorGeneric: "Algo salió mal — inténtalo de nuevo.",
+    errorMic:
+      "El acceso al micrófono está bloqueado — permítelo en tu navegador e inténtalo de nuevo.",
+    errorConnect: "El demo en vivo no está disponible ahora — inténtalo de nuevo en un momento.",
+    footnote: "Voz en vivo en el navegador — te pedirá permiso del micrófono al tocar",
+    endedTitle: "¿Quieres que tu teléfono suene así?",
+    endedCta: "Empieza ahora →",
+    transcript: "Transcripción",
+    emptyBefore: "Toca ",
+    emptyStrong: "Hablar",
+    emptyAfter: " y la conversación aparece aquí, línea por línea.",
+    tryAsking: "Prueba a preguntar",
+    speakerAi: "Recepcionista",
+    speakerUser: "Cliente",
+  },
+  personas: {
+    barbershop: {
+      label: "Barbería",
+      prompts: [
+        "Hola, ¿puedo reservar un corte para mañana?",
+        "Can I book a haircut with anyone tomorrow?",
+      ],
+    },
+    grooming: {
+      label: "Peluquería canina",
+      prompts: [
+        "Hola, ¿tienen turno para bañar a mi perro esta semana?",
+        "Can I get a full groom for a small dog this week?",
+      ],
+    },
+  },
+  features: {
+    ariaLabel: "Qué resuelve",
+    badge: "Qué resuelve",
+    title: { before: "Una recepcionista que nunca ", accent: "sale del turno", after: "." },
+    items: [
+      {
+        title: "Contesta 24/7",
+        desc: "Contesta al primer timbre, a cualquier hora, en español o inglés — así una llamada perdida nunca se vuelve un cliente perdido.",
+      },
+      {
+        title: "Agenda y reprograma",
+        desc: "Encuentra horarios libres, agenda con la persona correcta y mueve las citas — sin dobles reservas, nunca.",
+      },
+      {
+        title: "Manda confirmaciones por SMS",
+        desc: "Cada cita recibe un mensaje con los detalles y un código para cancelar o reprogramar. Bajan las ausencias.",
+      },
+      {
+        title: "Conoce tus horarios y servicios",
+        desc: "Aprende tu menú, tus precios y tu agenda, así que las respuestas son exactas — nunca inventadas.",
+      },
+    ],
+  },
+  doneForYou: {
+    ariaLabel: "Lo hacemos por ti",
+    badge: "Lo hacemos por ti",
+    titleTop: "Nosotros lo configuramos todo.",
+    titleAccent: "Tú no mueves un dedo.",
+    subtitle:
+      "Mándanos tus datos una vez y nuestro equipo se encarga del resto. Sin software que instalar, sin guiones que escribir.",
+    items: [
+      {
+        title: "Conectamos tu número",
+        desc: "Tu línea se desvía a nosotros — el número de tu puerta nunca cambia.",
+      },
+      {
+        title: "Cargamos tu menú y horarios",
+        desc: "Servicios, precios, personal y agenda — cargados y revisados.",
+      },
+      {
+        title: "Ajustamos la voz y el saludo",
+        desc: "Elige entre más de 99 voces naturales que combinen con tu negocio — y la conectamos a tu calendario.",
+      },
+    ],
+  },
+  pricing: {
+    badge: "Precios",
+    title: { before: "Dos planes. ", accent: "Cada llamada", after: " contestada." },
+    subtitle:
+      "Precio mensual fijo — sin cobros por minuto, sin costo de instalación. Cancela cuando quieras y quédate con tu número.",
+    billingLegend: "Periodo de facturación",
+    monthly: "Mensual",
+    annual: "Anual — 1 mes gratis",
+    perMonth: "/mes",
+    billedMonthly: "facturado cada mes",
+    billedYearly: "facturado cada año — 1 mes gratis",
+    baseName: "Base",
+    baseDesc: "Tu recepción, configurada por nosotros — cada llamada contestada y agendada.",
+    baseCta: "Empieza ahora",
+    baseFeatures: [
+      "Contesta 24/7 en español e inglés",
+      "Citas, reprogramaciones y cancelaciones",
+      "Confirmaciones por SMS al instante",
+      "Sincronización con Google Calendar",
+      "Hasta 400 llamadas contestadas al mes",
+      "Conserva tu número actual",
+      "Configuración hecha por nosotros",
+    ],
+    premiumName: "Premium",
+    premiumTag: "Menos ausencias",
+    premiumDesc:
+      "Vuelve a llenar tu calendario — recordatorios, reagendamiento y tu propia recepcionista con tu marca.",
+    premiumCta: "Quiero Premium",
+    premiumFeatures: [
+      "Todo lo de Base",
+      "Llamadas contestadas ilimitadas",
+      "Recordatorios de cita por SMS — menos ausencias",
+      "Mensajes para reagendar que llenan tu calendario",
+      "Voz y personalidad de recepcionista a medida",
+      "2 locales incluidos — $99/mes por cada local extra",
+      "Soporte prioritario y onboarding 1:1",
+    ],
+    trialNote:
+      "{days} días gratis en ambos planes — cancela antes de que terminen y nunca se te cobra. ¿Tienes 3 o más locales? ",
+    salesLink: "Habla con ventas",
+  },
+  faq: {
+    badge: "Preguntas",
+    title: { before: "Preguntas, ", accent: "respondidas", after: "." },
+    items: [
+      {
+        q: "¿Suena robótica?",
+        a: "No — quien llama escucha una voz natural y cálida, con pausas normales. La mayoría ni se da cuenta de que es automática.",
+        termsLink: null,
+      },
+      {
+        q: "¿Habla inglés?",
+        a: "Yes — es totalmente bilingüe. Saluda en español y cambia al inglés en cuanto el cliente lo habla, durante toda la conversación y la reserva. Sin menús, sin “marque 2 para inglés” — el cliente solo habla.",
+        termsLink: null,
+      },
+      {
+        q: "¿Puedo elegir la voz?",
+        a: "Sí — elige entre más de 99 voces naturales, de hombre o de mujer, en español y en inglés. Dinos el estilo que quieres durante la configuración y lo ajustamos; después puedes cambiar de voz con solo pedirlo.",
+        termsLink: null,
+      },
+      {
+        q: "¿Qué pasa si no puede ayudar?",
+        a: "Pasa la llamada con elegancia. Para cualquier cosa fuera de agendar — una queja, un pedido especial — toma el mensaje o te transfiere la llamada, según las reglas que tú definas.",
+        termsLink: null,
+      },
+      {
+        q: "¿Conservo mi número actual?",
+        a: "Sí. Desvías tu línea actual a Marisol, así que el número de tu puerta, tus tarjetas y tu ficha de Google queda exactamente igual.",
+        termsLink: null,
+      },
+      {
+        q: "¿Cómo evita las dobles reservas?",
+        a: "Revisa la disponibilidad en vivo antes de confirmar y escribe directo en tu calendario, así dos clientes nunca pueden tomar el mismo horario con la misma persona.",
+        termsLink: null,
+      },
+      {
+        q: "¿Qué recibe el cliente después?",
+        a: "Un mensaje de confirmación con la fecha, la hora, la persona y el servicio — más un código corto para reprogramar o cancelar respondiendo el mensaje o llamando.",
+        termsLink: null,
+      },
+      {
+        q: "¿Cuánto tarda la configuración?",
+        a: "Nos compartes tus horarios, servicios y personal justo después de pagar — unos tres minutos de formulario. Nosotros configuramos todo y normalmente estás en vivo en un par de días; lo único que haces tú es desviar tu número.",
+        termsLink: null,
+      },
+      {
+        q: "¿Hay contrato o aviso previo?",
+        a: "Sin contrato. Es una suscripción mensual (o anual) que puedes cancelar cuando quieras desde el portal de facturación — sin aviso previo, sin penalización, y te quedas con tu número.",
+        termsLink: null,
+      },
+      {
+        q: "¿Y si no funciona para mí?",
+        a: "Todos los planes empiezan con {days} días gratis. Cancela antes de que termine la prueba y tu tarjeta nunca se cobra — sin preguntas. Los detalles están en nuestros ",
+        termsLink: "términos",
+      },
+    ],
+  },
+  finalCta: {
+    ariaLabel: "Empieza ahora",
+    title: "Que ninguna llamada se quede sin contestar.",
+    subtitle:
+      "¿Tienes dudas sobre precios o configuración? Agenda una llamada rápida o mándanos tu pregunta — te respondemos pronto.",
+    button: "Agenda una llamada de 15 min",
+    email: "o escríbele a nuestro equipo de ventas",
+  },
+  callForm: {
+    title: "Agenda una llamada de 15 min",
+    subtitle: "Sin pagar nada — te contactamos para encontrar un horario que te funcione.",
+    name: "Tu nombre",
+    email: "Correo",
+    phone: "Teléfono",
+    preferredTime: "Horario preferido (opcional)",
+    preferredTimePlaceholder: "Entre semana por la tarde, después de las 2pm ET…",
+    question: "Tu pregunta (opcional)",
+    questionPlaceholder: "Lo que quieras saber antes de empezar…",
+    errName: "Escribe tu nombre.",
+    errEmail: "Escribe un correo válido.",
+    errPhone: "Escribe un número de teléfono válido.",
+    errSubmit: "Algo salió mal al enviar tu solicitud. Inténtalo de nuevo.",
+    cancel: "Cancelar",
+    submit: "Solicitar llamada",
+    submitting: "Enviando…",
+    doneTitle: "Gracias — recibimos tu solicitud.",
+    doneBody: "Te escribimos por correo en un día hábil para agendar tu llamada.",
+  },
+  footer: {
+    tagline: "La recepción con IA para barberías, spas, salones, peluquerías caninas y muchos más.",
+    byline: "un producto de Kaijiro Labs",
+    product: "Producto",
+    company: "Empresa",
+    privacy: "Privacidad",
+    terms: "Términos",
+    contact: "Contacto",
+    portal: "Administrar suscripción",
+    copyright: "© 2026 Kaijiro Labs. Todos los derechos reservados.",
+  },
+};

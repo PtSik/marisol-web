@@ -1,7 +1,14 @@
+import { LangSwitch } from "@/components/LangSwitch";
 import { LogoMark } from "@/components/Logo";
+import type { Dict, Locale } from "@/lib/i18n/dict";
 import { CUSTOMER_PORTAL_URL, DEMO_PHONE, telHref } from "@/lib/site";
 
-export function Footer() {
+export function Footer({
+  t,
+  nav,
+  lang,
+  locale,
+}: { t: Dict["footer"]; nav: Dict["nav"]; lang: Dict["lang"]; locale: Locale }) {
   return (
     <footer className="border-t border-cream-200 bg-cream-100">
       <div className="mx-auto flex max-w-content flex-col gap-10 px-[22px] py-[clamp(34px,5vw,56px)] md:flex-row md:items-start md:justify-between">
@@ -10,10 +17,8 @@ export function Footer() {
             <LogoMark className="h-[22px] w-[22px] rounded-[4px]" />
             Marisol
           </div>
-          <p className="m-0 text-[13.5px] leading-[1.55] text-muted-2">
-            The AI front desk for barbershops, spas, salons, grooming studios and many more.
-          </p>
-          <p className="m-0 mt-2 text-[12.5px] text-muted-4">a Kaijiro Labs product</p>
+          <p className="m-0 text-[13.5px] leading-[1.55] text-muted-2">{t.tagline}</p>
+          <p className="m-0 mt-2 text-[12.5px] text-muted-4">{t.byline}</p>
           <a
             href={telHref}
             className="mt-[14px] inline-block font-display text-xl tracking-[-0.02em] text-ink no-underline"
@@ -23,39 +28,39 @@ export function Footer() {
         </div>
 
         <div className="flex justify-between gap-8 border-t border-cream-200 pt-9 md:justify-start md:gap-[clamp(40px,7vw,64px)] md:border-0 md:pt-0">
-          <nav className="flex flex-col gap-3 text-sm text-muted" aria-label="Product">
+          <nav className="flex flex-col gap-3 text-sm text-muted" aria-label={t.product}>
             <span className="mb-[2px] text-[11.5px] uppercase tracking-[0.12em] text-muted-4">
-              Product
+              {t.product}
             </span>
             <a href="#demo" className="no-underline">
-              Live demo
+              {nav.demo}
             </a>
             <a href="#how" className="no-underline">
-              How it works
+              {nav.how}
             </a>
             <a href="#pricing" className="no-underline">
-              Pricing
+              {nav.pricing}
             </a>
             <a href="#faq" className="no-underline">
-              FAQ
+              {nav.faq}
             </a>
           </nav>
-          <nav className="flex flex-col gap-3 text-sm text-muted" aria-label="Company">
+          <nav className="flex flex-col gap-3 text-sm text-muted" aria-label={t.company}>
             <span className="mb-[2px] text-[11.5px] uppercase tracking-[0.12em] text-muted-4">
-              Company
+              {t.company}
             </span>
             <a href="/privacy" className="no-underline">
-              Privacy
+              {t.privacy}
             </a>
             <a href="/terms" className="no-underline">
-              Terms
+              {t.terms}
             </a>
             <a href={telHref} className="no-underline">
-              Contact
+              {t.contact}
             </a>
             {CUSTOMER_PORTAL_URL && (
               <a href={CUSTOMER_PORTAL_URL} className="no-underline">
-                Manage subscription
+                {t.portal}
               </a>
             )}
           </nav>
@@ -64,7 +69,8 @@ export function Footer() {
 
       <div className="border-t border-cream-200">
         <div className="mx-auto flex max-w-content flex-wrap items-center justify-between gap-[10px] px-[22px] py-[18px] text-[12.5px] text-muted-4">
-          <span>© 2026 Kaijiro Labs. All rights reserved.</span>
+          <span>{t.copyright}</span>
+          <LangSwitch locale={locale} t={lang} />
         </div>
       </div>
     </footer>

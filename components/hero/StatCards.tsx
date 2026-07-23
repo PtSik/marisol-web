@@ -1,22 +1,20 @@
 "use client";
 
+import { type Dict, fill } from "@/lib/i18n/dict";
 import { useEffect, useState } from "react";
 
-const STATS = [
-  { value: "99%", label: "Answered", desc: "of calls picked up, day or night" },
-  { value: "0", label: "Missed", desc: "bookings lost while you're busy" },
-  { value: "24/7", label: "Always on", desc: "nights, weekends, and holidays" },
-];
-
-export function StatCards() {
+export function StatCards({
+  stats,
+  ariaTemplate,
+}: { stats: Dict["hero"]["stats"]; ariaTemplate: string }) {
   const [active, setActive] = useState(0);
 
   useEffect(() => {
-    const id = setInterval(() => setActive((a) => (a + 1) % STATS.length), 4200);
+    const id = setInterval(() => setActive((a) => (a + 1) % stats.length), 4200);
     return () => clearInterval(id);
-  }, []);
+  }, [stats.length]);
 
-  const next = () => setActive((a) => (a + 1) % STATS.length);
+  const next = () => setActive((a) => (a + 1) % stats.length);
 
   return (
     <>
@@ -31,7 +29,7 @@ export function StatCards() {
           }
         }}
       >
-        {STATS.map((s) => (
+        {stats.map((s) => (
           <div key={s.label} className="stat-card">
             <div className="font-display text-[clamp(40px,6.5vw,64px)] font-light leading-none tracking-[-0.03em] text-offwhite">
               {s.value}
@@ -46,11 +44,11 @@ export function StatCards() {
         ))}
       </div>
       <div className="stat-dots relative z-[3] items-center justify-center gap-2 pb-[clamp(20px,5vw,30px)] pt-[2px]">
-        {STATS.map((s, i) => (
+        {stats.map((s, i) => (
           <button
             key={s.label}
             type="button"
-            aria-label={`Show ${s.label} stat`}
+            aria-label={fill(ariaTemplate, { label: s.label })}
             onClick={() => setActive(i)}
             className={`h-2 rounded-full transition-all ${
               i === active ? "w-5 bg-offwhite" : "w-2 bg-offwhite/40"

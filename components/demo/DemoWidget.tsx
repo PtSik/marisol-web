@@ -2,6 +2,7 @@
 
 import { ParallaxLayer } from "@/components/motion/ParallaxLayer";
 import { DEFAULT_PERSONA, type DemoPersona, getDemoAgent } from "@/lib/demoAgents";
+import type { Dict } from "@/lib/i18n/dict";
 import { fetchConversationToken } from "@/lib/startConversation";
 import { track } from "@/lib/track";
 import { ConversationProvider, useConversation } from "@elevenlabs/react";
@@ -15,15 +16,17 @@ function fmtTime(sec: number): string {
   return `${m}:${String(s).padStart(2, "0")}`;
 }
 
-export function DemoWidget() {
+type WidgetProps = { t: Dict["widget"]; personas: Dict["personas"] };
+
+export function DemoWidget({ t, personas }: WidgetProps) {
   return (
     <ConversationProvider>
-      <DemoStage />
+      <DemoStage t={t} personas={personas} />
     </ConversationProvider>
   );
 }
 
-function DemoStage() {
+function DemoStage({ t, personas }: WidgetProps) {
   const [persona, setPersona] = useState<DemoPersona>(DEFAULT_PERSONA);
   const [lines, setLines] = useState<Line[]>([]);
   const [seconds, setSeconds] = useState(0);
@@ -41,7 +44,7 @@ function DemoStage() {
       setEnded(true);
       track("demo_completed", persona);
     },
-    onError: () => setError("Something went wrong — please try again."),
+    onError: () => setError(t.errorGeneric),
     onMessage: ({ message, source }: { message: string; source: "user" | "ai" }) =>
       setLines((prev) => [...prev, { source, text: message }]),
   });
@@ -80,7 +83,7 @@ function DemoStage() {
     try {
       await navigator.mediaDevices?.getUserMedia({ audio: true });
     } catch {
-      setError("Microphone access is blocked — allow the mic in your browser and try again.");
+      setError(t.errorMic);
       return;
     }
     try {
@@ -94,9 +97,9 @@ function DemoStage() {
       endTimer.current = setTimeout(() => conversation.endSession(), maxDurationSeconds * 1000);
       track("demo_started", persona);
     } catch {
-      setError("The live demo isn't connected right now — please try again in a moment.");
+      setError(t.errorConnect);
     }
-  }, [persona, conversation]);
+  }, [persona, conversation, t]);
 
   const end = useCallback(() => {
     if (endTimer.current) clearTimeout(endTimer.current);
@@ -116,21 +119,21 @@ function DemoStage() {
   const cool = persona === "grooming";
 
   const statusText = connecting
-    ? "Connecting…"
+    ? t.statusConnecting
     : active
       ? isSpeaking
-        ? "Receptionist speaking"
-        : "Listening"
-      : "Ready";
+        ? t.statusSpeaking
+        : t.statusListening
+      : t.statusReady;
   const statusDot = connecting ? "#FFB347" : active ? "#FF7A45" : "#7FD18F";
 
   const primaryLabel = connecting
-    ? "Connecting…"
+    ? t.primaryConnecting
     : active
-      ? "In conversation…"
+      ? t.primaryActive
       : lines.length > 0
-        ? "Talk again"
-        : "Talk to the receptionist";
+        ? t.primaryAgain
+        : t.primaryIdle;
 
   const orbScale = active && isSpeaking ? 1.12 : active ? 1.04 : 1;
   const ringAnim = busy ? "ringOut 2.4s ease-out infinite" : "none";
@@ -186,7 +189,7 @@ function DemoStage() {
             {statusText}
           </div>
           <fieldset className="m-0 flex flex-col gap-1 rounded-xl border-0 bg-cream/90 p-1 shadow-[0_6px_18px_-10px_rgba(36,27,20,0.5)]">
-            <legend className="sr-only">Demo business type</legend>
+            <legend className="sr-only">{t.personaLegend}</legend>
             {(["barbershop", "grooming"] as const).map((p) => (
               <button
                 key={p}
@@ -197,7 +200,7 @@ function DemoStage() {
                   persona === p ? "bg-ink text-cream" : "bg-transparent text-muted"
                 }`}
               >
-                {getDemoAgent(p).label}
+                {personas[p].label}
               </button>
             ))}
           </fieldset>
@@ -269,28 +272,28 @@ function DemoStage() {
               <button
                 type="button"
                 onClick={end}
-                aria-label="End call"
+                aria-label={t.endAria}
                 className="inline-flex min-h-11 items-center justify-center rounded-xl border border-ink/20 bg-ink/[0.16] px-[18px] text-sm font-medium text-ink md:min-h-[54px] md:rounded-[14px]"
               >
-                End
+                {t.end}
               </button>
             )}
           </div>
           {ended && !busy && !error ? (
             <div className="flex flex-col items-center gap-1 text-center">
               <span className="text-[12.5px] font-medium text-ink md:text-[13.5px]">
-                Want your phone to sound like this?
+                {t.endedTitle}
               </span>
               <a
                 href="/onboarding"
                 className="text-[12.5px] font-semibold text-ink underline underline-offset-2 md:text-[13.5px]"
               >
-                Get started →
+                {t.endedCta}
               </a>
             </div>
           ) : (
             <div className="max-w-[30ch] text-center text-[10.5px] leading-[1.35] text-ink/[0.62] md:text-[11.5px] md:leading-[1.4]">
-              {error ?? "Live in-browser voice — mic permission asked on tap"}
+              {error ?? t.footnote}
             </div>
           )}
         </div>
@@ -299,7 +302,7 @@ function DemoStage() {
       <div className="flex h-[380px] flex-col rounded-[26px] bg-white p-[18px] shadow-[0_30px_70px_-55px_rgba(36,27,20,0.5)] md:h-[560px]">
         <div className="mb-[6px] flex items-center justify-between border-b border-cream-200 px-[6px] pb-[14px] pt-1">
           <span className="text-xs font-semibold uppercase tracking-[0.14em] text-muted-2">
-            Transcript
+            {t.transcript}
           </span>
           <span className="text-xs text-muted-3">{agent.shopLabel}</span>
         </div>
@@ -325,14 +328,15 @@ function DemoStage() {
                 <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z" />
               </svg>
               <span className="text-sm leading-[1.5]">
-                Tap <strong className="text-muted-2">Talk</strong> and the conversation appears
-                here, line by line.
+                {t.emptyBefore}
+                <strong className="text-muted-2">{t.emptyStrong}</strong>
+                {t.emptyAfter}
               </span>
               <div className="mt-6 flex flex-col items-center gap-[6px]">
                 <span className="text-[11px] font-semibold uppercase tracking-[0.1em] text-muted-4">
-                  Try asking
+                  {t.tryAsking}
                 </span>
-                {agent.examplePrompts.map((prompt) => (
+                {personas[persona].prompts.map((prompt) => (
                   <span
                     key={prompt}
                     className="rounded-full bg-cream-100 px-[13px] py-[7px] text-[12.5px] leading-[1.4] text-muted"
@@ -355,7 +359,7 @@ function DemoStage() {
                       className="px-1 text-[10.5px] font-semibold uppercase tracking-[0.08em]"
                       style={{ color: ai ? "#B9A892" : "#c4a08a" }}
                     >
-                      {ai ? "Receptionist" : "Caller"}
+                      {ai ? t.speakerAi : t.speakerUser}
                     </span>
                     <div
                       className={`px-[15px] py-[11px] text-[14.5px] leading-[1.45] ${

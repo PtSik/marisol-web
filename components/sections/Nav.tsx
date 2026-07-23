@@ -1,16 +1,18 @@
 "use client";
 
+import { LangSwitch } from "@/components/LangSwitch";
 import { LogoMark } from "@/components/Logo";
+import type { Dict, Locale } from "@/lib/i18n/dict";
 import { useEffect, useRef } from "react";
 
-const LINKS = [
-  { href: "#demo", label: "Live demo" },
-  { href: "#how", label: "How it works" },
-  { href: "#pricing", label: "Pricing" },
-  { href: "#faq", label: "FAQ" },
-];
+export function Nav({ t, lang, locale }: { t: Dict["nav"]; lang: Dict["lang"]; locale: Locale }) {
+  const LINKS = [
+    { href: "#demo", label: t.demo },
+    { href: "#how", label: t.how },
+    { href: "#pricing", label: t.pricing },
+    { href: "#faq", label: t.faq },
+  ];
 
-export function Nav() {
   const menuRef = useRef<HTMLDetailsElement>(null);
   const closeMenu = () => menuRef.current?.removeAttribute("open");
 
@@ -43,9 +45,10 @@ export function Nav() {
         </div>
 
         <div className="flex items-center gap-2">
+          <LangSwitch locale={locale} t={lang} className="order-3 md:order-none" />
           <details ref={menuRef} className="relative order-2 md:hidden">
             <summary
-              aria-label="Open menu"
+              aria-label={t.openMenu}
               className="flex h-10 w-10 cursor-pointer list-none items-center justify-center rounded-xl bg-cream-200 sm:h-11 sm:w-11 [&::-webkit-details-marker]:hidden"
             >
               <svg
@@ -82,7 +85,7 @@ export function Nav() {
             href="#demo"
             className="order-1 inline-flex min-h-[40px] items-center justify-center whitespace-nowrap rounded-xl bg-ink px-[14px] py-[8px] text-[13px] font-medium text-cream no-underline sm:min-h-[44px] sm:px-[18px] sm:py-[11px] sm:text-sm"
           >
-            Try it live
+            {t.cta}
           </a>
         </div>
       </div>

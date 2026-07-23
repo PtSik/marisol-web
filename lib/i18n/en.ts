@@ -1,0 +1,278 @@
+export const en = {
+  meta: {
+    title: "Marisol — AI Receptionist",
+    description:
+      "An AI receptionist that answers every call in English or Spanish and books appointments 24/7.",
+  },
+  lang: {
+    label: "Language",
+    en: "EN",
+    es: "ES",
+    enAria: "View in English",
+    esAria: "Ver en español",
+  },
+  nav: {
+    demo: "Live demo",
+    how: "How it works",
+    pricing: "Pricing",
+    faq: "FAQ",
+    cta: "Try it live",
+    openMenu: "Open menu",
+  },
+  hero: {
+    badge: "English + Español · switches mid-call",
+    title: { before: "Never miss ", accent: "a call", after: " again." },
+    subtitle:
+      "A warm AI receptionist that answers every call in English or Spanish, books the appointment, and texts the confirmation — day or night.",
+    ctaDemo: "Talk to the receptionist",
+    ctaCall: "Call the demo line",
+    captionKicker: "A live front desk",
+    captionTitle: "It picks up on the first ring — and sounds like someone who works there.",
+    statAria: "Show {label} stat",
+    stats: [
+      { value: "99%", label: "Answered", desc: "of calls picked up, day or night" },
+      { value: "0", label: "Missed", desc: "bookings lost while you're busy" },
+      { value: "24/7", label: "Always on", desc: "nights, weekends, and holidays" },
+    ],
+  },
+  trust: {
+    ariaLabel: "Trusted by",
+    kicker: "The front desk for",
+  },
+  how: {
+    badge: "How it works",
+    title: { before: "Set up ", accent: "once", after: ", never pick up again." },
+    steps: ["Forward your number", "The AI answers", "Bookings land in your calendar"],
+  },
+  demo: {
+    badge: "Live demo",
+    title: { before: "Hear it ", accent: "take a booking", after: "." },
+    subtitle: "Tap talk and listen in as the receptionist books an appointment. No sign-up.",
+    note: "¿Prefieres español? Just start speaking it — the receptionist switches instantly.",
+  },
+  widget: {
+    statusReady: "Ready",
+    statusConnecting: "Connecting…",
+    statusSpeaking: "Receptionist speaking",
+    statusListening: "Listening",
+    personaLegend: "Demo business type",
+    primaryIdle: "Talk to the receptionist",
+    primaryAgain: "Talk again",
+    primaryConnecting: "Connecting…",
+    primaryActive: "In conversation…",
+    end: "End",
+    endAria: "End call",
+    errorGeneric: "Something went wrong — please try again.",
+    errorMic: "Microphone access is blocked — allow the mic in your browser and try again.",
+    errorConnect: "The live demo isn't connected right now — please try again in a moment.",
+    footnote: "Live in-browser voice — mic permission asked on tap",
+    endedTitle: "Want your phone to sound like this?",
+    endedCta: "Get started →",
+    transcript: "Transcript",
+    emptyBefore: "Tap ",
+    emptyStrong: "Talk",
+    emptyAfter: " and the conversation appears here, line by line.",
+    tryAsking: "Try asking",
+    speakerAi: "Receptionist",
+    speakerUser: "Caller",
+  },
+  personas: {
+    barbershop: {
+      label: "Barbershop",
+      prompts: [
+        "Can I book a haircut with anyone tomorrow?",
+        "Hola, ¿puedo reservar un corte para mañana?",
+      ],
+    },
+    grooming: {
+      label: "Pet grooming",
+      prompts: [
+        "Can I get a full groom for a small dog this week?",
+        "Hola, ¿tienen turno para bañar a mi perro esta semana?",
+      ],
+    },
+  },
+  features: {
+    ariaLabel: "What it handles",
+    badge: "What it handles",
+    title: { before: "A receptionist that never ", accent: "clocks out", after: "." },
+    items: [
+      {
+        title: "Answers 24/7",
+        desc: "Picks up on the first ring, any hour, in English or Spanish — so a missed call never becomes a lost customer.",
+      },
+      {
+        title: "Books & reschedules",
+        desc: "Finds open slots, books the right staff, and moves appointments — no double-bookings, ever.",
+      },
+      {
+        title: "Sends SMS confirmations",
+        desc: "Every booking gets a text with the details and a code to cancel or reschedule. No-shows drop.",
+      },
+      {
+        title: "Knows your hours & services",
+        desc: "Trained on your menu, pricing, and schedule, so answers are accurate — never made up.",
+      },
+    ],
+  },
+  doneForYou: {
+    ariaLabel: "Done for you",
+    badge: "Done for you",
+    titleTop: "We set the whole thing up.",
+    titleAccent: "You don't lift a finger.",
+    subtitle:
+      "Send us your details once and our team handles the rest. No software to install, no scripts to write.",
+    items: [
+      {
+        title: "We port your number",
+        desc: "Your line forwards to us — the number on your door never changes.",
+      },
+      {
+        title: "We build your menu & hours",
+        desc: "Services, pricing, staff, and schedule — loaded and double-checked.",
+      },
+      {
+        title: "We tune the voice & greeting",
+        desc: "Pick from 99+ natural voices to match your shop — and we connect it to your calendar.",
+      },
+    ],
+  },
+  pricing: {
+    badge: "Pricing",
+    title: { before: "Two plans. ", accent: "Every call", after: " answered." },
+    subtitle:
+      "Flat monthly pricing — no per-minute charges, no setup fees. Cancel anytime, keep your number.",
+    billingLegend: "Billing period",
+    monthly: "Monthly",
+    annual: "Annual — 1 month free",
+    perMonth: "/mo",
+    billedMonthly: "billed monthly",
+    billedYearly: "billed yearly — 1 month free",
+    baseName: "Base",
+    baseDesc: "Your front desk, set up for you — every call answered and booked.",
+    baseCta: "Get started",
+    baseFeatures: [
+      "24/7 answering in English & Spanish",
+      "Bookings, reschedules & cancellations",
+      "Instant SMS booking confirmations",
+      "Google Calendar sync",
+      "Up to 400 answered calls a month",
+      "Keep your current number",
+      "Done-for-you setup",
+    ],
+    premiumName: "Premium",
+    premiumTag: "Fewer no-shows",
+    premiumDesc:
+      "Fills your calendar back up — reminders, rebooking and your own branded receptionist.",
+    premiumCta: "Get Premium",
+    premiumFeatures: [
+      "Everything in Base",
+      "Unlimited answered calls",
+      "SMS appointment reminders — fewer no-shows",
+      "Rebooking nudges that refill your calendar",
+      "Custom voice & receptionist persona",
+      "2 locations included — $99/mo each extra",
+      "Priority support & 1:1 onboarding",
+    ],
+    trialNote:
+      "{days} days free on both plans — cancel before it ends and you're never charged. Running 3+ locations? ",
+    salesLink: "Talk to sales",
+  },
+  faq: {
+    badge: "FAQ",
+    title: { before: "Questions, ", accent: "answered", after: "." },
+    items: [
+      {
+        q: "Does it sound robotic?",
+        a: "No — callers hear a natural, warm voice with normal pauses. Most don't even realize it's automated.",
+        termsLink: null,
+      },
+      {
+        q: "Does it speak Spanish?",
+        a: "Sí — fully bilingual. It greets callers in English and switches to Spanish the moment a caller speaks it, through the whole conversation and the booking. No menus, no “press 2 for Spanish” — callers just talk.",
+        termsLink: null,
+      },
+      {
+        q: "Can I choose the voice?",
+        a: "Yes — pick from a library of 99+ natural voices, male or female, in English and Spanish. Tell us the vibe you want during setup and we'll match it; you can switch voices later just by asking.",
+        termsLink: null,
+      },
+      {
+        q: "What happens if it can't help?",
+        a: "It hands off gracefully. For anything outside booking — a complaint, a special request — it takes a message or transfers the call to you, based on rules you set.",
+        termsLink: null,
+      },
+      {
+        q: "Do I keep my current phone number?",
+        a: "Yes. You forward your existing line to Marisol, so the number on your door, cards, and Google listing stays exactly the same.",
+        termsLink: null,
+      },
+      {
+        q: "How does it avoid double-booking?",
+        a: "It checks live availability before confirming and writes straight to your calendar, so two callers can never grab the same slot for the same staff member.",
+        termsLink: null,
+      },
+      {
+        q: "What does the customer get afterward?",
+        a: "A confirmation text with the date, time, staff, and service — plus a short code they can use to reschedule or cancel by replying or calling back.",
+        termsLink: null,
+      },
+      {
+        q: "How long does setup take?",
+        a: "You share your hours, services and staff right after checkout — about three minutes of form. We configure everything and you're typically live within a couple of days; the only thing you do is forward your number.",
+        termsLink: null,
+      },
+      {
+        q: "Is there a contract or notice period?",
+        a: "No contract. It's a month-to-month (or annual) subscription you can cancel anytime from the billing portal — no notice period, no cancellation fee, and you keep your number.",
+        termsLink: null,
+      },
+      {
+        q: "What if it doesn't work out?",
+        a: "Every plan starts with {days} days free. Cancel before the trial ends and your card is never charged — no questions asked. Details in our ",
+        termsLink: "terms",
+      },
+    ],
+  },
+  finalCta: {
+    ariaLabel: "Get started",
+    title: "Let every call get answered.",
+    subtitle:
+      "Have questions about pricing or setup? Book a quick call or send us a question — we'll get back to you fast.",
+    button: "Book a 15-min call",
+    email: "or email our sales team",
+  },
+  callForm: {
+    title: "Book a 15-min call",
+    subtitle: "No payment needed — we'll reach out to find a time that works.",
+    name: "Your name",
+    email: "Email",
+    phone: "Phone",
+    preferredTime: "Preferred time (optional)",
+    preferredTimePlaceholder: "Weekday afternoons, after 2pm ET…",
+    question: "Your question (optional)",
+    questionPlaceholder: "Anything you'd like to know before getting started…",
+    errName: "Enter your name.",
+    errEmail: "Enter a valid email address.",
+    errPhone: "Enter a valid phone number.",
+    errSubmit: "Something went wrong sending your request. Please try again.",
+    cancel: "Cancel",
+    submit: "Request a call",
+    submitting: "Sending…",
+    doneTitle: "Thanks — we got your request.",
+    doneBody: "We'll email you within one business day to schedule your call.",
+  },
+  footer: {
+    tagline: "The AI front desk for barbershops, spas, salons, grooming studios and many more.",
+    byline: "a Kaijiro Labs product",
+    product: "Product",
+    company: "Company",
+    privacy: "Privacy",
+    terms: "Terms",
+    contact: "Contact",
+    portal: "Manage subscription",
+    copyright: "© 2026 Kaijiro Labs. All rights reserved.",
+  },
+};
+
+export type Dict = typeof en;

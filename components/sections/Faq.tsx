@@ -1,72 +1,23 @@
 import { Reveal } from "@/components/motion/Reveal";
+import { type Dict, fill } from "@/lib/i18n/dict";
 import { TRIAL_DAYS } from "@/lib/plans";
 
-const FAQS = [
-  {
-    q: "Does it sound robotic?",
-    a: "No — callers hear a natural, warm voice with normal pauses. Most don't even realize it's automated.",
-  },
-  {
-    q: "Does it speak Spanish?",
-    a: "Sí — fully bilingual. It greets callers in English and switches to Spanish the moment a caller speaks it, through the whole conversation and the booking. No menus, no “press 2 for Spanish” — callers just talk.",
-  },
-  {
-    q: "Can I choose the voice?",
-    a: "Yes — pick from a library of 99+ natural voices, male or female, in English and Spanish. Tell us the vibe you want during setup and we'll match it; you can switch voices later just by asking.",
-  },
-  {
-    q: "What happens if it can't help?",
-    a: "It hands off gracefully. For anything outside booking — a complaint, a special request — it takes a message or transfers the call to you, based on rules you set.",
-  },
-  {
-    q: "Do I keep my current phone number?",
-    a: "Yes. You forward your existing line to Marisol, so the number on your door, cards, and Google listing stays exactly the same.",
-  },
-  {
-    q: "How does it avoid double-booking?",
-    a: "It checks live availability before confirming and writes straight to your calendar, so two callers can never grab the same slot for the same staff member.",
-  },
-  {
-    q: "What does the customer get afterward?",
-    a: "A confirmation text with the date, time, staff, and service — plus a short code they can use to reschedule or cancel by replying or calling back.",
-  },
-  {
-    q: "How long does setup take?",
-    a: "You share your hours, services and staff right after checkout — about three minutes of form. We configure everything and you're typically live within a couple of days; the only thing you do is forward your number.",
-  },
-  {
-    q: "Is there a contract or notice period?",
-    a: "No contract. It's a month-to-month (or annual) subscription you can cancel anytime from the billing portal — no notice period, no cancellation fee, and you keep your number.",
-  },
-  {
-    q: "What if it doesn't work out?",
-    a: (
-      <>
-        Every plan starts with {TRIAL_DAYS} days free. Cancel before the trial ends and your card is
-        never charged — no questions asked. Details in our{" "}
-        <a href="/terms" className="font-medium text-teal">
-          terms
-        </a>
-        .
-      </>
-    ),
-  },
-];
-
-export function Faq() {
+export function Faq({ t }: { t: Dict["faq"] }) {
   return (
     <section id="faq" className="mx-auto max-w-[760px] px-[22px] py-[clamp(30px,4vw,46px)]">
       <Reveal className="mb-[clamp(30px,5vw,44px)] text-center">
         <span className="inline-block rounded-full bg-cream-200 px-[15px] py-[8px] text-[11.5px] font-semibold uppercase tracking-[0.16em] text-muted-2">
-          FAQ
+          {t.badge}
         </span>
         <h2 className="mx-auto mt-[clamp(22px,4vw,36px)] max-w-[16ch] font-display text-[clamp(28px,5vw,46px)] font-light leading-[1.08] tracking-[-0.03em]">
-          Questions, <span className="text-teal">answered</span>.
+          {t.title.before}
+          <span className="text-teal">{t.title.accent}</span>
+          {t.title.after}
         </h2>
       </Reveal>
 
       <div className="flex flex-col gap-3">
-        {FAQS.map((item, i) => (
+        {t.items.map((item, i) => (
           <Reveal key={item.q} delay={i * 60}>
             <details className="group overflow-hidden rounded-[18px] bg-cream-200">
               <summary className="flex min-h-[60px] cursor-pointer list-none items-center justify-between gap-4 px-[22px] py-5 text-[clamp(15px,2.2vw,17px)] font-medium text-ink [&::-webkit-details-marker]:hidden">
@@ -88,7 +39,15 @@ export function Faq() {
                 </span>
               </summary>
               <p className="m-0 px-[22px] pb-[22px] text-[14.5px] leading-[1.6] text-muted">
-                {item.a}
+                {fill(item.a, { days: TRIAL_DAYS })}
+                {item.termsLink && (
+                  <>
+                    <a href="/terms" className="font-medium text-teal">
+                      {item.termsLink}
+                    </a>
+                    .
+                  </>
+                )}
               </p>
             </details>
           </Reveal>

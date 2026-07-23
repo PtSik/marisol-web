@@ -1,19 +1,21 @@
 import { StatCards } from "@/components/hero/StatCards";
 import { ParallaxLayer } from "@/components/motion/ParallaxLayer";
+import type { Dict } from "@/lib/i18n/dict";
 import { telHref } from "@/lib/site";
 
-export function Hero() {
+export function Hero({ t }: { t: Dict["hero"] }) {
   return (
     <header className="mx-auto max-w-content px-[22px] pb-16 pt-[clamp(40px,9vw,84px)] text-center">
       <span className="inline-block rounded-full bg-cream-200 px-[13px] py-[7px] text-[11.5px] font-semibold uppercase tracking-[0.16em] text-muted-2">
-        English + Español · switches mid-call
+        {t.badge}
       </span>
       <h1 className="mx-auto mt-[18px] max-w-[14ch] font-display text-[clamp(40px,9.2vw,82px)] font-light leading-[1.02] tracking-[-0.035em]">
-        Never miss <span className="text-teal">a call</span> again.
+        {t.title.before}
+        <span className="text-teal">{t.title.accent}</span>
+        {t.title.after}
       </h1>
       <p className="mx-auto mt-[22px] max-w-[43ch] text-[clamp(16px,2.2vw,20px)] leading-[1.55] text-muted">
-        A warm AI receptionist that answers every call in English or Spanish, books the appointment,
-        and texts the confirmation — day or night.
+        {t.subtitle}
       </p>
 
       <div className="mx-auto mt-[30px] flex w-fit flex-col items-stretch gap-3 sm:w-auto sm:flex-row sm:justify-center">
@@ -27,7 +29,7 @@ export function Hero() {
           >
             ▶
           </span>
-          Talk to the receptionist
+          {t.ctaDemo}
         </a>
         <a
           href={telHref}
@@ -46,7 +48,7 @@ export function Hero() {
           >
             <path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6 19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72c.13.96.36 1.9.7 2.81a2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45c.91.34 1.85.57 2.81.7A2 2 0 0 1 22 16.92z" />
           </svg>
-          Call the demo line
+          {t.ctaCall}
         </a>
       </div>
 
@@ -161,15 +163,15 @@ export function Hero() {
           <div className="frontdesk-caption absolute inset-5 flex items-end p-[clamp(18px,3vw,30px)]">
             <div className="max-w-[60ch] rounded-[14px] bg-ink/30 px-[18px] py-3 text-left text-cream backdrop-blur-md">
               <div className="mb-1 text-xs uppercase tracking-[0.14em] opacity-85">
-                A live front desk
+                {t.captionKicker}
               </div>
               <div className="font-display text-[clamp(17px,3vw,24px)] font-light leading-[1.2] tracking-[-0.02em]">
-                It picks up on the first ring — and sounds like someone who works there.
+                {t.captionTitle}
               </div>
             </div>
           </div>
 
-          <StatCards />
+          <StatCards stats={t.stats} ariaTemplate={t.statAria} />
         </div>
       </div>
     </header>
