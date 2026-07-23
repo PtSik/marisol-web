@@ -25,6 +25,7 @@ export interface StripeSubscription {
   trial_end?: number | null;
   current_period_end?: number | null;
   cancel_at_period_end?: boolean;
+  metadata?: Record<string, string>;
 }
 
 export async function getSubscription(
@@ -55,6 +56,81 @@ export async function createBillingPortalSession(
   if (!res?.ok) return null;
   const body = (await res.json().catch(() => null)) as { url?: string } | null;
   return body?.url ?? null;
+}
+
+export interface StripeBalanceTransaction {
+  id: string;
+  amount?: number;
+}
+
+// A negative balance transaction is a credit: Stripe subtracts it from the client's next invoice.
+// The idempotency key makes a retried settlement return the original transaction, never a second one.
+export async function createCustomerBalanceCredit(
+  secretKey: string,
+  {
+    customerId,
+    amountCents,
+    description,
+    idempotencyKey,
+  }: { customerId: string; amountCents: number; description: string; idempotencyKey: string },
+): Promise<StripeBalanceTransaction | null> {
+  const res = await fetch(
+    `https://api.stripe.com/v1/customers/${encodeURIComponent(customerId)}/balance_transactions`,
+    {
+      method: "POST",
+      headers: {
+        Authorization: `Bearer ${secretKey}`,
+        "Content-Type": "application/x-www-form-urlencoded",
+        "Idempotency-Key": idempotencyKey,
+      },
+      body: new URLSearchParams({
+        amount: String(-Math.abs(amountCents)),
+        currency: "usd",
+        description,
+      }),
+    },
+  ).catch(() => null);
+  if (!res?.ok) return null;
+  return (await res.json().catch(() => null)) as StripeBalanceTransaction | null;
+}
+
+// The referral code doubles as a Stripe promotion code, so we look it up by its human code to get
+// the promo id Checkout needs. `active=true` skips codes we've since archived.
+export async function findPromotionCode(
+  secretKey: string,
+  code: string,
+): Promise<{ id: string } | null> {
+  const params = new URLSearchParams({ code, active: "true", limit: "1" });
+  const res = await fetch(`https://api.stripe.com/v1/promotion_codes?${params}`, {
+    headers: { Authorization: `Bearer ${secretKey}` },
+  }).catch(() => null);
+  if (!res?.ok) return null;
+  const body = (await res.json().catch(() => null)) as { data?: { id: string }[] } | null;
+  return body?.data?.[0] ?? null;
+}
+
+// One promo code per referrer, its code equal to their referral code. first_time_transaction keeps
+// existing clients from redeeming it.
+export async function createReferralPromoCode(
+  secretKey: string,
+  { code, couponId, accountId }: { code: string; couponId: string; accountId: string },
+): Promise<string | null> {
+  const res = await fetch("https://api.stripe.com/v1/promotion_codes", {
+    method: "POST",
+    headers: {
+      Authorization: `Bearer ${secretKey}`,
+      "Content-Type": "application/x-www-form-urlencoded",
+    },
+    body: new URLSearchParams({
+      coupon: couponId,
+      code,
+      "restrictions[first_time_transaction]": "true",
+      "metadata[account_id]": accountId,
+    }),
+  }).catch(() => null);
+  if (!res?.ok) return null;
+  const body = (await res.json().catch(() => null)) as { id?: string } | null;
+  return body?.id ?? null;
 }
 
 export async function getCheckoutSession(

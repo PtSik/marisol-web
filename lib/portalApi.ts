@@ -1,6 +1,7 @@
+import type { NotifyEnv } from "@/lib/notify";
 import { type VoiceAgentEnv, voiceAgentFetch } from "@/lib/voiceAgent";
 
-export interface PortalEnv extends VoiceAgentEnv {
+export interface PortalEnv extends VoiceAgentEnv, NotifyEnv {
   RATE_LIMIT_KV?: KVNamespace;
   LEADS_KV?: KVNamespace;
   STRIPE_SECRET_KEY?: string;

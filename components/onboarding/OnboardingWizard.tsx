@@ -35,6 +35,7 @@ export function OnboardingWizard() {
   const [billing, setBilling] = useState<Billing>("monthly");
   const [errors, setErrors] = useState<FieldErrors>({});
   const [cancelled, setCancelled] = useState(false);
+  const [referralCode, setReferralCode] = useState("");
   const [submitting, setSubmitting] = useState(false);
   const [submitError, setSubmitError] = useState<string | null>(null);
   const hydrated = useRef(false);
@@ -60,6 +61,11 @@ export function OnboardingWizard() {
     } catch {
       /* corrupted storage — start fresh */
     }
+    const ref = document.cookie
+      .split(";")
+      .map((c) => c.trim().split("="))
+      .find(([name]) => name === "marisol_ref")?.[1];
+    if (ref) setReferralCode(decodeURIComponent(ref).toUpperCase());
     hydrated.current = true;
     track("wizard_step", "basics");
   }, []);
@@ -85,7 +91,13 @@ export function OnboardingWizard() {
       const res = await fetch("/api/onboarding", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ intent: "checkout", plan, billing, basics }),
+        body: JSON.stringify({
+          intent: "checkout",
+          plan,
+          billing,
+          basics,
+          referralCode: referralCode.trim() || undefined,
+        }),
       });
       const body = (await res.json()) as { url?: string; error?: string };
       if (!res.ok || !body.url) {
@@ -289,6 +301,22 @@ export function OnboardingWizard() {
                 : `$${PRICE[plan].monthly}/mo, cancel anytime`}
             </p>
           </fieldset>
+
+          <Field
+            label="Referral code (optional)"
+            htmlFor="ob-referral"
+            hint="Have a friend's code? You'll get 10% off your first month."
+          >
+            <input
+              id="ob-referral"
+              className={inputCls}
+              value={referralCode}
+              onChange={(e) => setReferralCode(e.target.value.toUpperCase())}
+              placeholder="e.g. A7K3M9QP"
+              autoCapitalize="characters"
+              autoComplete="off"
+            />
+          </Field>
 
           {submitError && (
             <p role="alert" className="text-center text-[13.5px] font-medium text-[#B4452C]">

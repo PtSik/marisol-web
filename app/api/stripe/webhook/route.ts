@@ -2,19 +2,19 @@ import { env } from "cloudflare:workers";
 import { type CheckoutLead, getLead, putLead } from "@/lib/leads";
 import { notifyTeam } from "@/lib/notify";
 import { deprovisionLead } from "@/lib/provisioning";
-import type { StripeCheckoutSession } from "@/lib/stripe";
+import {
+  type ReferralEnv,
+  qualifyReferral,
+  registerReferral,
+  settleMatureReferrals,
+  voidReferral,
+} from "@/lib/referrals";
+import { type StripeCheckoutSession, getSubscription } from "@/lib/stripe";
 
 export const dynamic = "force-dynamic";
 
-interface WebhookEnv {
+interface WebhookEnv extends ReferralEnv {
   STRIPE_WEBHOOK_SECRET?: string;
-  LEADS_KV?: KVNamespace;
-  RESEND_API_KEY?: string;
-  LEAD_NOTIFY_EMAIL?: string;
-  RESEND_FROM?: string;
-  VOICE_AGENT_API?: Fetcher;
-  VOICE_AGENT_API_URL?: string;
-  ADMIN_API_KEY?: string;
   TWILIO_ACCOUNT_SID?: string;
   TWILIO_AUTH_TOKEN?: string;
 }
@@ -74,6 +74,26 @@ interface StripeSubscription {
   metadata?: { lead_id?: string };
 }
 
+interface StripeInvoice {
+  amount_paid?: number;
+  subscription?: string | null;
+  subscription_details?: { metadata?: { lead_id?: string } | null } | null;
+}
+
+// Every webhook doubles as the settlement tick that replaces a cron.
+async function received(cfEnv: WebhookEnv): Promise<Response> {
+  await settleMatureReferrals(cfEnv);
+  return Response.json({ received: true });
+}
+
+async function leadIdForInvoice(cfEnv: WebhookEnv, invoice: StripeInvoice): Promise<string | null> {
+  const fromDetails = invoice.subscription_details?.metadata?.lead_id;
+  if (fromDetails) return fromDetails;
+  if (!cfEnv.STRIPE_SECRET_KEY || !invoice.subscription) return null;
+  const subscription = await getSubscription(cfEnv.STRIPE_SECRET_KEY, invoice.subscription);
+  return subscription?.metadata?.lead_id ?? null;
+}
+
 async function leadForSubscription(
   cfEnv: WebhookEnv,
   sub: StripeSubscription | undefined,
@@ -122,10 +142,22 @@ export async function POST(request: Request) {
   }
   if (event.type === "customer.subscription.deleted") {
     const sub = event.data?.object as StripeSubscription | undefined;
+    const leadId = sub?.metadata?.lead_id;
+    if (leadId) await voidReferral(cfEnv, leadId);
     const lead = await leadForSubscription(cfEnv, sub);
-    if (!lead) return Response.json({ received: true });
+    if (!lead) return received(cfEnv);
     await cancelLead(cfEnv, lead, "Cancelled");
-    return Response.json({ received: true });
+    return received(cfEnv);
+  }
+
+  // The trial ends with the first real charge — that is when a referral has actually earned
+  // something, so it starts its 30-day maturity clock here.
+  if (event.type === "invoice.payment_succeeded") {
+    const invoice = event.data?.object as StripeInvoice | undefined;
+    if (!invoice?.amount_paid) return received(cfEnv);
+    const leadId = await leadIdForInvoice(cfEnv, invoice);
+    if (leadId) await qualifyReferral(cfEnv, leadId);
+    return received(cfEnv);
   }
 
   // Retries exhausted: whether Stripe then cancels, marks unpaid or leaves the subscription past
@@ -134,14 +166,14 @@ export async function POST(request: Request) {
   if (event.type === "customer.subscription.updated") {
     const sub = event.data?.object as StripeSubscription | undefined;
     if (sub?.status !== "unpaid" && sub?.status !== "past_due") {
-      return Response.json({ received: true });
+      return received(cfEnv);
     }
     const lead = await leadForSubscription(cfEnv, sub);
-    if (!lead) return Response.json({ received: true });
+    if (!lead) return received(cfEnv);
 
     if (sub.status === "unpaid") {
       await cancelLead(cfEnv, lead, "Unpaid — retries exhausted");
-      return Response.json({ received: true });
+      return received(cfEnv);
     }
 
     if (!lead.pastDueAlertedAt) {
@@ -156,17 +188,26 @@ export async function POST(request: Request) {
         }),
       ]);
     }
-    return Response.json({ received: true });
+    return received(cfEnv);
   }
 
   if (event.type !== "checkout.session.completed") {
-    return Response.json({ received: true });
+    return received(cfEnv);
   }
 
   const session = event.data?.object as StripeCheckoutSession | undefined;
   const leadId = session?.metadata?.lead_id;
   if (!session || !leadId) {
-    return Response.json({ received: true });
+    return received(cfEnv);
+  }
+
+  const referralCode = session.metadata?.referral_code;
+  if (referralCode) {
+    await registerReferral(cfEnv, {
+      referral_code: referralCode,
+      referred_lead_id: leadId,
+      referred_email: session.customer_details?.email ?? session.customer_email ?? undefined,
+    });
   }
 
   // 500 lets Stripe retry — covers KV eventual consistency right after checkout creation
@@ -175,7 +216,7 @@ export async function POST(request: Request) {
     return Response.json({ error: "lead not found" }, { status: 500 });
   }
   if (lead.status === "paid" || lead.status === "setup_complete") {
-    return Response.json({ received: true });
+    return received(cfEnv);
   }
 
   lead.status = "paid";
@@ -189,5 +230,5 @@ export async function POST(request: Request) {
     notifyTeam(cfEnv, `PAID — start setup: ${lead.basics.businessName}`, lead),
   ]);
 
-  return Response.json({ received: true });
+  return received(cfEnv);
 }

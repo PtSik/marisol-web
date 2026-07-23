@@ -8,6 +8,7 @@ const LINKS = [
   { href: "/portal/setup", label: "Setup" },
   { href: "/portal/calendar", label: "Calendar" },
   { href: "/portal/billing", label: "Billing" },
+  { href: "/portal/referrals", label: "Refer & earn" },
 ];
 
 export function PortalNav({ email }: { email: string }) {

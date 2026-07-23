@@ -44,6 +44,8 @@
     "RESEND_FROM": "Marisol Leads <leads@getmarisol.com>",
     "CLIENT_EMAIL_FROM": "Marisol <hello@getmarisol.com>",
     "GROOMING_AGENT_ID": "agent_2501ktmhtm2wf8789jqdtkbj7jdr",
-    "GCAL_SHARE_EMAIL": "bookings@marisol-voice.iam.gserviceaccount.com"
+    "GCAL_SHARE_EMAIL": "bookings@marisol-voice.iam.gserviceaccount.com",
+    // 10%-off, duration=once coupon that referred clients redeem via their referrer's code.
+    "STRIPE_REFERRAL_COUPON": "marisol_referral_10off"
   }
 }

@@ -12,10 +12,12 @@ import {
 import { BILLING_OPTIONS, type Billing, PLAN_OPTIONS, type Plan, TRIAL_DAYS } from "@/lib/plans";
 import { provisionLead } from "@/lib/provisioning";
 import { overRateLimit } from "@/lib/rateLimit";
+import { REF_CODE_RE, refCodeFromCookie } from "@/lib/referrals";
 import {
   SESSION_ID_RE,
   type StripeCheckoutSession,
   checkoutSettled,
+  findPromotionCode,
   getCheckoutSession,
 } from "@/lib/stripe";
 
@@ -23,6 +25,7 @@ export const dynamic = "force-dynamic";
 
 interface OnboardingEnv {
   STRIPE_SECRET_KEY?: string;
+  STRIPE_REFERRAL_COUPON?: string;
   STRIPE_PRICE_MONTHLY?: string;
   STRIPE_PRICE_ANNUAL?: string;
   STRIPE_PRICE_PREMIUM_MONTHLY?: string;
@@ -58,6 +61,7 @@ interface OnboardingRequest {
   call?: CallRequest;
   sessionId?: string;
   setup?: SetupDetails;
+  referralCode?: string;
 }
 
 const RATE_LIMITS: Record<OnboardingRequest["intent"], number> = {
@@ -119,12 +123,27 @@ function reconstructLead(leadId: string, session: StripeCheckoutSession): Checko
   };
 }
 
+// The referral code arrives either typed into the wizard or on the ?ref= cookie; a valid one both
+// registers the referral (via metadata, on the webhook) and gives the new client 10% off.
+async function resolveReferral(
+  cfEnv: OnboardingEnv,
+  request: Request,
+  typed: string | undefined,
+): Promise<{ code: string; promoId: string } | null> {
+  if (!cfEnv.STRIPE_SECRET_KEY) return null;
+  const candidate = (typed?.trim().toUpperCase() || refCodeFromCookie(request)) ?? null;
+  if (!candidate || !REF_CODE_RE.test(candidate)) return null;
+  const promo = await findPromotionCode(cfEnv.STRIPE_SECRET_KEY, candidate);
+  return promo ? { code: candidate, promoId: promo.id } : null;
+}
+
 async function handleCheckout(
   cfEnv: OnboardingEnv,
   request: Request,
   plan: Plan,
   billing: Billing,
   basics: BusinessBasics,
+  referralCode: string | undefined,
 ): Promise<Response> {
   const lead: CheckoutLead = {
     id: crypto.randomUUID(),
@@ -172,6 +191,12 @@ async function handleCheckout(
     "subscription_data[metadata][lead_id]": lead.id,
     "subscription_data[trial_period_days]": String(TRIAL_DAYS),
   });
+
+  const referral = await resolveReferral(cfEnv, request, referralCode);
+  if (referral) {
+    params.set("discounts[0][promotion_code]", referral.promoId);
+    params.set("metadata[referral_code]", referral.code);
+  }
 
   const res = await fetch("https://api.stripe.com/v1/checkout/sessions", {
     method: "POST",
@@ -307,6 +332,7 @@ export async function POST(request: Request) {
       plan,
       body.billing as Billing,
       body.basics as BusinessBasics,
+      typeof body.referralCode === "string" ? body.referralCode : undefined,
     );
   }
 

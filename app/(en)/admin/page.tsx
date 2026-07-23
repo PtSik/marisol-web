@@ -2,6 +2,7 @@ import { env } from "cloudflare:workers";
 import { LogoMark } from "@/components/Logo";
 import { ADMIN_COOKIE, isAdminCookieValid } from "@/lib/adminAuth";
 import { type CallLead, type CheckoutLead, listLeads } from "@/lib/leads";
+import { type Referral, cashCents, listReferrals } from "@/lib/referrals";
 import { voiceAgentFetch } from "@/lib/voiceAgent";
 import { cookies } from "next/headers";
 import type { ReactNode } from "react";
@@ -188,6 +189,61 @@ function CalendarInviteAction({ lead, connected }: { lead: CheckoutLead; connect
   );
 }
 
+const REFERRAL_TONE: Record<Referral["status"], Tone> = {
+  pending: "muted",
+  qualified: "amber",
+  crediting: "amber",
+  credited: "teal",
+  payout_requested: "amber",
+  paid_out: "teal",
+  void: "red",
+};
+
+function ReferralTile({ referral }: { referral: Referral }) {
+  return (
+    <article className="rounded-[18px] border border-ink/10 bg-cream/80 p-5">
+      <div className="flex flex-wrap items-center justify-between gap-2">
+        <h3 className="font-display text-[19px] tracking-tight">${referral.amount_cents / 100}</h3>
+        <Pill tone={REFERRAL_TONE[referral.status]}>{referral.status.replace("_", " ")}</Pill>
+      </div>
+      <dl className="mt-3 grid grid-cols-[max-content_1fr] gap-x-4 gap-y-1 text-sm">
+        <dt className="text-muted">Referrer</dt>
+        <dd className="break-all">{referral.referrer?.email ?? referral.referrer_account_id}</dd>
+        <dt className="text-muted">Referred</dt>
+        <dd className="break-all">{referral.referred_email ?? referral.referred_lead_id}</dd>
+        {referral.mature_at && (
+          <>
+            <dt className="text-muted">Matures</dt>
+            <dd>{fmtDate(referral.mature_at)}</dd>
+          </>
+        )}
+        {referral.payout_ref && (
+          <>
+            <dt className="text-muted">Payout ref</dt>
+            <dd className="break-all">{referral.payout_ref}</dd>
+          </>
+        )}
+      </dl>
+      {referral.status === "payout_requested" && (
+        <form method="post" action={`/api/admin/referrals/${referral.id}/payout`} className="mt-3">
+          <p className="mb-1.5 text-sm font-medium">
+            Cash to send: ${cashCents(referral.amount_cents) / 100}
+          </p>
+          <button
+            type="submit"
+            className="w-full rounded-[10px] border border-teal/30 bg-teal/10 px-4 py-2 text-sm font-medium text-teal"
+          >
+            Mark paid out
+          </button>
+          <span className="mt-1.5 block text-xs text-muted">
+            Reverse the unused Stripe credit (half stays with them) and wire the cash first.
+          </span>
+        </form>
+      )}
+    </article>
+  );
+}
+
 function CallTile({ lead }: { lead: CallLead }) {
   return (
     <article className="rounded-[18px] border border-ink/10 bg-cream/80 p-5">
@@ -238,13 +294,18 @@ const CALENDAR_NOTICE: Record<string, string> = {
   "send-failed": "Resend rejected the email — nothing was sent, try again.",
 };
 
+const PAYOUT_NOTICE: Record<string, string> = {
+  paid: "Referral marked as paid out.",
+  failed: "Couldn't mark that payout — it may already have been settled.",
+};
+
 export default async function AdminPage({
   searchParams,
 }: {
-  searchParams: Promise<{ error?: string; calendar?: string }>;
+  searchParams: Promise<{ error?: string; calendar?: string; payout?: string }>;
 }) {
   const cfEnv = env as unknown as AdminEnv;
-  const { error, calendar } = await searchParams;
+  const { error, calendar, payout } = await searchParams;
   const jar = await cookies();
   const authed = await isAdminCookieValid(jar.get(ADMIN_COOKIE)?.value, cfEnv.ADMIN_DASH_KEY);
   if (!authed) return <LoginForm error={Boolean(error)} />;
@@ -259,6 +320,9 @@ export default async function AdminPage({
     const data = (await res.json().catch(() => null)) as { shops?: Shop[] } | null;
     if (data?.shops) shops = new Map(data.shops.map((s) => [s.id, s]));
   }
+
+  const referrals = await listReferrals(cfEnv, {});
+  const openReferrals = referrals.filter((r) => r.status !== "void" && r.status !== "paid_out");
 
   const shopFor = (l: CheckoutLead) => (l.shopId ? shops?.get(l.shopId) : undefined);
   const active = checkout.filter((l) => l.status === "provisioned");
@@ -301,6 +365,17 @@ export default async function AdminPage({
             {CALENDAR_NOTICE[calendar]}
           </p>
         )}
+        {payout && PAYOUT_NOTICE[payout] && (
+          <p
+            className={`mt-3 rounded-[12px] border px-4 py-2.5 text-sm ${
+              payout === "paid"
+                ? "border-teal/30 bg-teal/10 text-teal"
+                : "border-[#B97E24]/30 bg-[#B97E24]/10 text-[#8A5D17]"
+            }`}
+          >
+            {PAYOUT_NOTICE[payout]}
+          </p>
+        )}
         {leads.length === 0 && <p className="mt-10 text-muted">No leads yet.</p>}
         <Section title="Active clients" count={active.length}>
           {active.map((l) => (
@@ -310,6 +385,11 @@ export default async function AdminPage({
         <Section title="In progress" count={inProgress.length}>
           {inProgress.map((l) => (
             <LeadTile key={l.id} lead={l} shop={shopFor(l)} />
+          ))}
+        </Section>
+        <Section title="Referrals" count={openReferrals.length}>
+          {openReferrals.map((r) => (
+            <ReferralTile key={r.id} referral={r} />
           ))}
         </Section>
         <Section title="Call requests" count={callLeads.length}>

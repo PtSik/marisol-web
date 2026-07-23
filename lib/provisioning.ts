@@ -2,6 +2,7 @@ import type { CheckoutLead } from "@/lib/leads";
 import { notifyTeam, sendClientWelcome, sendProvisionAlert } from "@/lib/notify";
 import type { DayId, ServiceEntry, SetupDetails, WeekHours } from "@/lib/onboarding";
 import { createAccount } from "@/lib/portalApi";
+import { createReferralPromoCode } from "@/lib/stripe";
 import {
   buyLocalNumber,
   lookupNumberSid,
@@ -20,6 +21,8 @@ export interface ProvisioningEnv extends VoiceAgentEnv {
   RESEND_FROM?: string;
   CLIENT_EMAIL_FROM?: string;
   GCAL_SHARE_EMAIL?: string;
+  STRIPE_SECRET_KEY?: string;
+  STRIPE_REFERRAL_COUPON?: string;
 }
 
 const DAY_KEY: Record<DayId, string> = {
@@ -218,6 +221,23 @@ export async function provisionLead(
         shopId: shop.id,
         leadId: lead.id,
       });
+    }
+
+    // The promo code lets people this client refers redeem their code for 10% off. The shop and
+    // the account are already live without it, so a failure here is an alert, not a rollback.
+    if (account && env.STRIPE_SECRET_KEY && env.STRIPE_REFERRAL_COUPON) {
+      const promo = await createReferralPromoCode(env.STRIPE_SECRET_KEY, {
+        code: account.referral_code,
+        couponId: env.STRIPE_REFERRAL_COUPON,
+        accountId: account.id,
+      });
+      if (!promo) {
+        await notifyTeam(env, `🎟️ Referral promo code failed: ${lead.basics.businessName}`, {
+          email: lead.basics.email,
+          referralCode: account.referral_code,
+          accountId: account.id,
+        });
+      }
     }
 
     const welcomed = await sendClientWelcome(env, {

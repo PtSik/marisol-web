@@ -1,3 +1,4 @@
+import { RefCapture } from "@/components/RefCapture";
 import { DoneForYou } from "@/components/sections/DoneForYou";
 import { Faq } from "@/components/sections/Faq";
 import { Features } from "@/components/sections/Features";
@@ -22,6 +23,7 @@ export function LandingPage({ locale }: { locale: Locale }) {
       <link rel="alternate" hrefLang="en" href={`${SITE_URL}/`} />
       <link rel="alternate" hrefLang="es" href={`${SITE_URL}/es`} />
       <link rel="alternate" hrefLang="x-default" href={`${SITE_URL}/`} />
+      <RefCapture />
       <Nav t={t.nav} lang={t.lang} locale={locale} />
       <main>
         <Hero t={t.hero} />
