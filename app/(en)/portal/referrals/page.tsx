@@ -2,7 +2,7 @@ import { env } from "cloudflare:workers";
 import { PortalHeading, PortalNotice } from "@/components/portal/PortalHeading";
 import { CopyField } from "@/components/portal/ReferralLink";
 import { type PortalEnv, findAccountByEmail } from "@/lib/portalApi";
-import { type Referral, cashCents, listReferrals, settleMatureReferrals } from "@/lib/referrals";
+import { type Referral, listReferrals, settleMatureReferrals } from "@/lib/referrals";
 import { requirePortalSession } from "@/lib/session";
 import { SALES_EMAIL_HREF, SITE_URL } from "@/lib/site";
 
@@ -83,7 +83,7 @@ export default async function PortalReferralsPage({
             Refer a shop, earn <span className="text-teal">$200</span>.
           </>
         }
-        lead="Send another owner your link. Once they've been a paying client for 30 days, you get $200 in account credit — or take half of it as cash if you'd rather. Their first month is 10% off, too."
+        lead="Send another owner your link. Once they've been a paying client for 30 days, you get $200 — as account credit, or as cash if you'd rather. Their first month is 10% off, too."
       />
 
       {payout && PAYOUT_NOTICE[payout] && (
@@ -131,11 +131,10 @@ export default async function PortalReferralsPage({
                 type="submit"
                 className="inline-flex min-h-[50px] w-full items-center justify-center rounded-[13px] border border-ink/15 px-7 py-[14px] text-[15px] font-medium sm:w-auto"
               >
-                Take ${cashCents(creditedCents) / 100} in cash instead
+                Take ${creditedCents / 100} in cash instead
               </button>
               <p className="mt-2 text-[13px] leading-[1.5] text-muted-2">
-                Cash is half your credit — the full ${creditedCents / 100} stays on your account if
-                you keep it as credit.
+                We'll wire it and remove the matching credit from your account.
               </p>
             </form>
           )}

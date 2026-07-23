@@ -2,7 +2,7 @@ import { env } from "cloudflare:workers";
 import { LogoMark } from "@/components/Logo";
 import { ADMIN_COOKIE, isAdminCookieValid } from "@/lib/adminAuth";
 import { type CallLead, type CheckoutLead, listLeads } from "@/lib/leads";
-import { type Referral, cashCents, listReferrals } from "@/lib/referrals";
+import { type Referral, listReferrals } from "@/lib/referrals";
 import { voiceAgentFetch } from "@/lib/voiceAgent";
 import { cookies } from "next/headers";
 import type { ReactNode } from "react";
@@ -226,9 +226,7 @@ function ReferralTile({ referral }: { referral: Referral }) {
       </dl>
       {referral.status === "payout_requested" && (
         <form method="post" action={`/api/admin/referrals/${referral.id}/payout`} className="mt-3">
-          <p className="mb-1.5 text-sm font-medium">
-            Cash to send: ${cashCents(referral.amount_cents) / 100}
-          </p>
+          <p className="mb-1.5 text-sm font-medium">Cash to send: ${referral.amount_cents / 100}</p>
           <button
             type="submit"
             className="w-full rounded-[10px] border border-teal/30 bg-teal/10 px-4 py-2 text-sm font-medium text-teal"
@@ -236,7 +234,7 @@ function ReferralTile({ referral }: { referral: Referral }) {
             Mark paid out
           </button>
           <span className="mt-1.5 block text-xs text-muted">
-            Reverse the unused Stripe credit (half stays with them) and wire the cash first.
+            Reverse the Stripe credit and wire the cash first.
           </span>
         </form>
       )}

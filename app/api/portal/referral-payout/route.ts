@@ -2,7 +2,7 @@ import { env } from "cloudflare:workers";
 import { notifyTeam } from "@/lib/notify";
 import { type PortalEnv, findAccountByEmail } from "@/lib/portalApi";
 import { overRateLimit } from "@/lib/rateLimit";
-import { cashCents, listReferrals, requestCashPayout } from "@/lib/referrals";
+import { listReferrals, requestCashPayout } from "@/lib/referrals";
 import { getSession, sessionIdFromCookies } from "@/lib/session";
 
 export const dynamic = "force-dynamic";
@@ -28,7 +28,7 @@ export async function POST(request: Request): Promise<Response> {
 
   const credited = await listReferrals(cfEnv, { referrer: account.id, status: "credited" });
   if (credited.length === 0) return back(request, "none");
-  const cashOwed = credited.reduce((sum, r) => sum + cashCents(r.amount_cents), 0);
+  const cashOwed = credited.reduce((sum, r) => sum + r.amount_cents, 0);
 
   const requested = await requestCashPayout(cfEnv, account.id);
   if (requested === 0) return back(request, "none");
@@ -38,7 +38,7 @@ export async function POST(request: Request): Promise<Response> {
     email: session.email,
     referrals: requested,
     cashToSend: `$${cashOwed / 100}`,
-    note: "Reverse the unused Stripe credit (half stays with them), wire the cash, then mark it paid out in /admin.",
+    note: "Reverse the Stripe credit, wire the cash, then mark it paid out in /admin.",
   });
   return back(request, "requested");
 }

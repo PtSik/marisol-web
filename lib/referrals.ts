@@ -11,13 +11,6 @@ export const REF_CODE_RE = /^[0-9A-Z]{4,16}$/;
 const MATURITY_DAYS = 30;
 const LIVE_SUBSCRIPTION = new Set(["active", "trialing", "past_due"]);
 
-// Credit is worth the full reward; cash is worth half — we say so up front, everywhere, so the
-// button is never a surprise. Reversing an unused credit and wiring money by hand costs us the
-// difference, and half keeps the incentive pointed at staying a client.
-export const CASH_PAYOUT_BPS = 5000;
-export const cashCents = (amountCents: number) =>
-  Math.round((amountCents * CASH_PAYOUT_BPS) / 10000);
-
 export type ReferralStatus =
   | "pending"
   | "qualified"
