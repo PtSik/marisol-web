@@ -162,21 +162,21 @@ export const en = {
       "Done-for-you setup",
     ],
     premiumName: "Premium",
-    premiumTag: "Fewer no-shows",
+    premiumTag: "2 locations",
     premiumDesc:
-      "Fills your calendar back up — reminders, rebooking and your own branded receptionist.",
+      "Both salons on one bill — plus the reminders and rebooking that keep every chair full.",
     premiumCta: "Get Premium",
     premiumFeatures: [
-      "Everything in Base",
-      "Unlimited answered calls",
+      "Two salons on one bill — ${saving}/mo less than two Base plans",
+      "Everything in Base, at both locations",
       "SMS appointment reminders — fewer no-shows",
       "Rebooking nudges that refill your calendar",
+      "Unlimited answered calls",
       "Custom voice & receptionist persona",
-      "2 locations included — $99/mo each extra",
       "Priority support & 1:1 onboarding",
     ],
-    trialNote:
-      "{days} days free on both plans — cancel before it ends and you're never charged. Running 3+ locations? ",
+    trialNote: "{days} days free trial — cancel before it ends and you're never charged.",
+    locationsNote: "Running 3+ locations? ",
     salesLink: "Talk to sales",
   },
   faq: {

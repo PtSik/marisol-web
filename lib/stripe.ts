@@ -19,6 +19,11 @@ export function checkoutSettled(session: StripeCheckoutSession): boolean {
   return session.payment_status === "paid" || session.payment_status === "no_payment_required";
 }
 
+export interface StripeSubscriptionItem {
+  id: string;
+  price?: { id?: string; recurring?: { interval?: string } | null } | null;
+}
+
 export interface StripeSubscription {
   id: string;
   status?: string;
@@ -26,6 +31,7 @@ export interface StripeSubscription {
   current_period_end?: number | null;
   cancel_at_period_end?: boolean;
   metadata?: Record<string, string>;
+  items?: { data?: StripeSubscriptionItem[] } | null;
 }
 
 export async function getSubscription(
@@ -38,6 +44,41 @@ export async function getSubscription(
   ).catch(() => null);
   if (!res?.ok) return null;
   return (await res.json()) as StripeSubscription;
+}
+
+// A cancelled or never-paid subscription has nothing to prorate against, so it can't be upgraded.
+export const UPGRADABLE_STATUSES: ReadonlySet<string> = new Set(["trialing", "active", "past_due"]);
+
+// Swapping the price on the existing item keeps one subscription and one cancellation path.
+// A trialing subscription keeps its trial_end — Stripe only prorates once the trial converts.
+export async function swapSubscriptionPrice(
+  secretKey: string,
+  {
+    subscriptionId,
+    itemId,
+    priceId,
+    plan,
+  }: { subscriptionId: string; itemId: string; priceId: string; plan: string },
+): Promise<StripeSubscription | null> {
+  const res = await fetch(
+    `https://api.stripe.com/v1/subscriptions/${encodeURIComponent(subscriptionId)}`,
+    {
+      method: "POST",
+      headers: {
+        Authorization: `Bearer ${secretKey}`,
+        "Content-Type": "application/x-www-form-urlencoded",
+        "Idempotency-Key": `plan:${subscriptionId}:${priceId}`,
+      },
+      body: new URLSearchParams({
+        "items[0][id]": itemId,
+        "items[0][price]": priceId,
+        proration_behavior: "create_prorations",
+        "metadata[plan]": plan,
+      }),
+    },
+  ).catch(() => null);
+  if (!res?.ok) return null;
+  return (await res.json().catch(() => null)) as StripeSubscription | null;
 }
 
 export async function createBillingPortalSession(

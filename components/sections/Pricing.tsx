@@ -2,7 +2,7 @@
 
 import { Reveal } from "@/components/motion/Reveal";
 import { type Dict, type Locale, fill, onboardingHref } from "@/lib/i18n/dict";
-import { PRICE, TRIAL_DAYS } from "@/lib/plans";
+import { PRICE, TRIAL_DAYS, premiumSaving } from "@/lib/plans";
 import { SALES_EMAIL_HREF } from "@/lib/site";
 import { useState } from "react";
 
@@ -127,7 +127,11 @@ export function Pricing({ t, locale }: { t: Dict["pricing"]; locale: Locale }) {
           </div>
           <p className="mt-[14px] text-[14px] leading-[1.5] text-cream/[0.78]">{t.premiumDesc}</p>
           <div className="my-[18px] mt-5 border-t border-cream/[0.14]" />
-          <FeatureList feats={t.premiumFeatures} check="#7FD18F" itemCls="text-cream/[0.92]" />
+          <FeatureList
+            feats={t.premiumFeatures.map((feat) => fill(feat, { saving: premiumSaving(billing) }))}
+            check="#7FD18F"
+            itemCls="text-cream/[0.92]"
+          />
           <a
             href={onboardingHref(locale, { plan: "premium", billing })}
             className="inline-flex min-h-[50px] items-center justify-center gap-2 rounded-[13px] bg-cream px-5 py-[14px] text-[15px] font-medium text-ink no-underline"
@@ -139,6 +143,8 @@ export function Pricing({ t, locale }: { t: Dict["pricing"]; locale: Locale }) {
 
       <p className="mt-6 text-center text-[13px] leading-[1.55] text-muted-2">
         {fill(t.trialNote, { days: TRIAL_DAYS })}
+        <br />
+        {t.locationsNote}
         <a href={SALES_EMAIL_HREF} className="text-ink underline">
           {t.salesLink}
         </a>

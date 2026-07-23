@@ -13,22 +13,5 @@ export const PRICE: Record<Plan, Record<Billing, number>> = {
   premium: { monthly: 349, annual: 319 },
 };
 
-export const BASE_FEATURES = [
-  "24/7 answering in English & Spanish",
-  "Bookings, reschedules & cancellations",
-  "Instant SMS booking confirmations",
-  "Google Calendar sync",
-  "Up to 400 answered calls a month",
-  "Keep your current number",
-  "Done-for-you setup",
-];
-
-export const PREMIUM_FEATURES = [
-  "Everything in Base",
-  "Unlimited answered calls",
-  "SMS appointment reminders — fewer no-shows",
-  "Rebooking nudges that refill your calendar",
-  "Custom voice & receptionist persona",
-  "2 locations included — $99/mo each extra",
-  "Priority support & 1:1 onboarding",
-];
+export const premiumSaving = (billing: Billing): number =>
+  PRICE.base[billing] * 2 - PRICE.premium[billing];

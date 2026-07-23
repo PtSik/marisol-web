@@ -5,7 +5,7 @@ import { PLAN_LABELS, PRICE, TRIAL_DAYS } from "@/lib/plans";
 import type { PortalEnv } from "@/lib/portalApi";
 import { requirePortalSession } from "@/lib/session";
 import { CUSTOMER_PORTAL_URL, SALES_EMAIL_HREF } from "@/lib/site";
-import { getSubscription } from "@/lib/stripe";
+import { UPGRADABLE_STATUSES, getSubscription } from "@/lib/stripe";
 
 export const dynamic = "force-dynamic";
 
@@ -27,10 +27,23 @@ const STATUS_LABEL: Record<string, string> = {
   incomplete: "Awaiting payment",
 };
 
-export default async function PortalBillingPage() {
+const UPGRADE_NOTICE: Record<string, string> = {
+  done: "You're on Premium — SMS reminders are on, and the difference is prorated to this period.",
+  partial:
+    "You're on Premium. Reminders need one last switch on our side — we're on it and will email you.",
+  already: "You're already on Premium.",
+  failed: "That upgrade didn't go through. Try again, or email us and we'll switch you over.",
+};
+
+export default async function PortalBillingPage({
+  searchParams,
+}: {
+  searchParams: Promise<{ upgrade?: string }>;
+}) {
   const cfEnv = env as unknown as PortalEnv;
   const session = await requirePortalSession(cfEnv.RATE_LIMIT_KV);
   const lead = session.leadId ? await getLead(cfEnv.LEADS_KV, session.leadId) : null;
+  const { upgrade } = await searchParams;
 
   const subscription =
     cfEnv.STRIPE_SECRET_KEY && lead?.stripeSubscriptionId
@@ -42,6 +55,7 @@ export default async function PortalBillingPage() {
   const status = subscription?.status ?? "";
   const trialEnds = fmtDate(subscription?.trial_end);
   const renews = fmtDate(subscription?.current_period_end);
+  const canUpgrade = plan === "base" && UPGRADABLE_STATUSES.has(status);
 
   return (
     <>
@@ -49,6 +63,12 @@ export default async function PortalBillingPage() {
         title="Billing"
         lead="Your plan, and everything else — card, invoices, cancellation — in Stripe."
       />
+
+      {upgrade && UPGRADE_NOTICE[upgrade] && (
+        <PortalNotice tone={upgrade === "done" || upgrade === "already" ? "good" : "warn"}>
+          {UPGRADE_NOTICE[upgrade]}
+        </PortalNotice>
+      )}
 
       <div className="mt-7 rounded-[24px] bg-cream-100 p-[clamp(20px,4vw,34px)]">
         <p className="text-[11.5px] font-semibold uppercase tracking-[0.16em] text-muted-2">
@@ -101,13 +121,44 @@ export default async function PortalBillingPage() {
         )}
 
         <p className="mt-4 text-[13.5px] leading-[1.5] text-muted-2">
-          Changing plan or adding a location?{" "}
+          Downgrading or adding a location?{" "}
           <a href={SALES_EMAIL_HREF} className="font-medium text-teal">
             Email us
           </a>{" "}
           — we'll move you over without downtime.
         </p>
       </div>
+
+      {canUpgrade && (
+        <div className="mt-3 rounded-[24px] border border-teal/25 bg-teal/[0.07] p-[clamp(20px,4vw,34px)]">
+          <p className="text-[11.5px] font-semibold uppercase tracking-[0.16em] text-teal">
+            Upgrade
+          </p>
+          <p className="mt-1.5 font-display text-[clamp(21px,3vw,27px)] tracking-[-0.02em]">
+            {PLAN_LABELS.premium} — ${PRICE.premium[billing]}/mo
+          </p>
+          <p className="mt-2 max-w-[54ch] text-[15px] leading-[1.55] text-muted">
+            SMS appointment reminders, rebooking nudges, unlimited answered calls and a second
+            location.
+          </p>
+          <p className="mt-2 max-w-[54ch] text-[14px] leading-[1.55] text-muted-2">
+            {status === "trialing"
+              ? `Premium starts right away and your trial is untouched — nothing is charged${
+                  trialEnds ? ` before ${trialEnds}` : " before it ends"
+                }.`
+              : "Premium starts right away. You're only charged the difference for the days left in this period."}
+          </p>
+
+          <form method="post" action="/api/portal/upgrade" className="mt-5">
+            <button
+              type="submit"
+              className="inline-flex min-h-[50px] w-full items-center justify-center rounded-[13px] bg-teal px-7 py-[14px] text-[15px] font-medium text-cream sm:w-auto"
+            >
+              Upgrade to Premium
+            </button>
+          </form>
+        </div>
+      )}
     </>
   );
 }

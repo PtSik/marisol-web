@@ -165,21 +165,21 @@ export const es: Dict = {
       "Configuración hecha por nosotros",
     ],
     premiumName: "Premium",
-    premiumTag: "Menos ausencias",
+    premiumTag: "2 locales",
     premiumDesc:
-      "Vuelve a llenar tu calendario — recordatorios, reagendamiento y tu propia recepcionista con tu marca.",
+      "Los dos salones en una sola factura — más los recordatorios y el reagendamiento que mantienen cada silla ocupada.",
     premiumCta: "Quiero Premium",
     premiumFeatures: [
-      "Todo lo de Base",
-      "Llamadas contestadas ilimitadas",
+      "Dos salones en una sola factura — ${saving}/mes menos que dos planes Base",
+      "Todo lo de Base, en ambos locales",
       "Recordatorios de cita por SMS — menos ausencias",
       "Mensajes para reagendar que llenan tu calendario",
+      "Llamadas contestadas ilimitadas",
       "Voz y personalidad de recepcionista a medida",
-      "2 locales incluidos — $99/mes por cada local extra",
       "Soporte prioritario y onboarding 1:1",
     ],
-    trialNote:
-      "{days} días gratis en ambos planes — cancela antes de que terminen y nunca se te cobra. ¿Tienes 3 o más locales? ",
+    trialNote: "{days} días de prueba gratis — cancela antes de que termine y nunca se te cobra.",
+    locationsNote: "¿Tienes 3 o más locales? ",
     salesLink: "Habla con ventas",
   },
   faq: {
