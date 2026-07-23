@@ -1,6 +1,7 @@
 import { env } from "cloudflare:workers";
 import { PortalHeading, PortalNotice } from "@/components/portal/PortalHeading";
 import { PortalSetupForm } from "@/components/portal/PortalSetupForm";
+import { en } from "@/lib/i18n/en";
 import { getLead } from "@/lib/leads";
 import { defaultSetup } from "@/lib/onboarding";
 import type { PortalEnv } from "@/lib/portalApi";
@@ -38,7 +39,7 @@ export default async function PortalSetupPage() {
         lead="Hours, services, staff and forwarding. Save and Marisol uses the new details on the very next call."
       />
       <PortalSetupForm
-        initialSetup={lead.setup ?? defaultSetup(vertical)}
+        initialSetup={lead.setup ?? defaultSetup(vertical, en.setup.servicePresets[vertical])}
         initialTimezone={lead.basics.timezone}
         vertical={vertical}
       />

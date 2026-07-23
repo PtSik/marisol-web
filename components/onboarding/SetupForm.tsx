@@ -4,12 +4,21 @@ import type { FieldErrors } from "@/components/onboarding/Field";
 import { ForwardingCard } from "@/components/onboarding/ForwardingCard";
 import { SetupFields, validateSetup } from "@/components/onboarding/SetupFields";
 import { SetupCompleteHeading, ThanksHeading } from "@/components/onboarding/ThanksHeading";
+import { type Locale, getDict } from "@/lib/i18n/dict";
 import { type SetupDetails, type Vertical, defaultSetup } from "@/lib/onboarding";
 import { track } from "@/lib/track";
 import { useEffect, useState } from "react";
 
-export function SetupForm({ sessionId, vertical }: { sessionId: string; vertical: Vertical }) {
-  const [setup, setSetup] = useState<SetupDetails>(() => defaultSetup(vertical));
+export function SetupForm({
+  sessionId,
+  vertical,
+  locale,
+}: { sessionId: string; vertical: Vertical; locale: Locale }) {
+  const dict = getDict(locale);
+  const t = dict.setup;
+  const [setup, setSetup] = useState<SetupDetails>(() =>
+    defaultSetup(vertical, t.servicePresets[vertical]),
+  );
   const [errors, setErrors] = useState<FieldErrors>({});
   const [submitting, setSubmitting] = useState(false);
   const [submitError, setSubmitError] = useState<string | null>(null);
@@ -27,7 +36,7 @@ export function SetupForm({ sessionId, vertical }: { sessionId: string; vertical
   const patch = (partial: Partial<SetupDetails>) => setSetup((s) => ({ ...s, ...partial }));
 
   const submit = async () => {
-    const errs = validateSetup(setup);
+    const errs = validateSetup(setup, t);
     setErrors(errs);
     if (Object.keys(errs).length > 0) return;
     setSubmitting(true);
@@ -46,7 +55,7 @@ export function SetupForm({ sessionId, vertical }: { sessionId: string; vertical
       setAssignedNumber(body.number ?? null);
       setDone(true);
     } catch {
-      setSubmitError("Something went wrong saving your setup. Please try again.");
+      setSubmitError(t.errSubmit);
       setSubmitting(false);
     }
   };
@@ -54,9 +63,13 @@ export function SetupForm({ sessionId, vertical }: { sessionId: string; vertical
   if (done) {
     return (
       <output className="block">
-        <SetupCompleteHeading hasNumber={Boolean(assignedNumber)} />
+        <SetupCompleteHeading hasNumber={Boolean(assignedNumber)} t={dict.thanks} />
         {assignedNumber && (
-          <ForwardingCard twilioNumber={assignedNumber} forwardMode={setup.forwardMode} />
+          <ForwardingCard
+            twilioNumber={assignedNumber}
+            forwardMode={setup.forwardMode}
+            t={dict.forwarding}
+          />
         )}
       </output>
     );
@@ -64,16 +77,9 @@ export function SetupForm({ sessionId, vertical }: { sessionId: string; vertical
 
   return (
     <>
-      <ThanksHeading
-        title={
-          <>
-            You're in. <span className="text-teal">Finish your setup.</span>
-          </>
-        }
-        lead="Add your hours, services and staff below — your receptionist is configured from exactly this. Takes about three minutes."
-      />
+      <ThanksHeading title={dict.thanks.finishTitle} lead={dict.thanks.finishLead} />
       <div className="mt-9 rounded-[24px] bg-cream-100 p-[clamp(20px,4vw,34px)]">
-        <SetupFields setup={setup} vertical={vertical} errors={errors} patch={patch} />
+        <SetupFields setup={setup} vertical={vertical} errors={errors} t={t} patch={patch} />
         {submitError && (
           <p role="alert" className="mt-5 text-center text-[13.5px] font-medium text-[#B4452C]">
             {submitError}
@@ -86,7 +92,7 @@ export function SetupForm({ sessionId, vertical }: { sessionId: string; vertical
             disabled={submitting}
             className="inline-flex min-h-[50px] w-full items-center justify-center gap-2 rounded-[13px] bg-ink px-7 py-[14px] text-[15px] font-medium text-cream disabled:opacity-60 sm:w-auto"
           >
-            {submitting ? "Saving…" : "Finish setup"}
+            {submitting ? t.submitting : t.submit}
           </button>
         </div>
       </div>

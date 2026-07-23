@@ -1,4 +1,5 @@
 import { type Segment, forwardingInstructions } from "@/lib/forwarding";
+import type { Dict } from "@/lib/i18n/dict";
 import type { ForwardMode } from "@/lib/onboarding";
 import { SALES_EMAIL_HREF } from "@/lib/site";
 
@@ -23,18 +24,19 @@ function Segments({ parts }: { parts: Segment[] }) {
 export function ForwardingCard({
   twilioNumber,
   forwardMode,
-}: { twilioNumber: string; forwardMode: ForwardMode }) {
-  const { intro, steps, turnOff } = forwardingInstructions(forwardMode, twilioNumber);
+  t,
+}: { twilioNumber: string; forwardMode: ForwardMode; t: Dict["forwarding"] }) {
+  const { intro, steps, turnOff } = forwardingInstructions(forwardMode, twilioNumber, t);
 
   return (
     <div className="mt-9 rounded-[24px] bg-cream-100 p-[clamp(20px,4vw,34px)]">
       <p className="text-[11.5px] font-semibold uppercase tracking-[0.16em] text-muted-2">
-        Your Marisol number
+        {t.kicker}
       </p>
       <p className="mt-1.5 font-display text-[clamp(26px,4vw,34px)] tracking-[-0.02em]">
         {twilioNumber}
       </p>
-      <h2 className="mt-7 text-[17px] font-medium">Forward your calls</h2>
+      <h2 className="mt-7 text-[17px] font-medium">{t.heading}</h2>
       <p className="mt-2 text-[15px] leading-[1.55] text-muted">
         <Segments parts={intro} />
       </p>
@@ -52,11 +54,11 @@ export function ForwardingCard({
         <Segments parts={turnOff} />
       </p>
       <p className="mt-2 text-[13.5px] leading-[1.5] text-muted-2">
-        Codes differ between carriers — if these don't work,{" "}
+        {t.carrierBefore}
         <a href={SALES_EMAIL_HREF} className="font-medium text-teal">
-          email us
-        </a>{" "}
-        and we'll set it up with you. We've also sent all of this to your inbox.
+          {t.carrierLink}
+        </a>
+        {t.carrierAfter}
       </p>
     </div>
   );

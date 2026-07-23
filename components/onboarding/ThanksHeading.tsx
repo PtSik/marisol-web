@@ -1,4 +1,4 @@
-import type { ReactNode } from "react";
+import type { Dict } from "@/lib/i18n/dict";
 
 function CheckIcon() {
   return (
@@ -20,12 +20,18 @@ function CheckIcon() {
   );
 }
 
-export function ThanksHeading({ title, lead }: { title: ReactNode; lead: string }) {
+export interface AccentTitle {
+  before: string;
+  accent: string;
+}
+
+export function ThanksHeading({ title, lead }: { title: AccentTitle; lead: string }) {
   return (
     <div className="text-center">
       <CheckIcon />
       <h1 className="mx-auto mt-5 max-w-[20ch] font-display text-[clamp(28px,5vw,44px)] font-light leading-[1.08] tracking-[-0.03em]">
-        {title}
+        {title.before}
+        <span className="text-teal">{title.accent}</span>
       </h1>
       <p className="mx-auto mt-[14px] max-w-[44ch] text-[15.5px] leading-[1.55] text-muted">
         {lead}
@@ -34,19 +40,11 @@ export function ThanksHeading({ title, lead }: { title: ReactNode; lead: string 
   );
 }
 
-export function SetupCompleteHeading({ hasNumber }: { hasNumber?: boolean }) {
+export function SetupCompleteHeading({ hasNumber, t }: { hasNumber?: boolean; t: Dict["thanks"] }) {
   return (
     <ThanksHeading
-      title={
-        <>
-          Setup complete. <span className="text-teal">One step left.</span>
-        </>
-      }
-      lead={
-        hasNumber
-          ? "Your receptionist is configured with everything you shared. Forward your number using the codes below and she starts answering."
-          : "Your receptionist is being configured with everything you shared — your number and forwarding instructions land in your inbox shortly."
-      }
+      title={t.completeTitle}
+      lead={hasNumber ? t.completeLead : t.completeLeadPending}
     />
   );
 }

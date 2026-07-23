@@ -1,4 +1,5 @@
 import { type Segment, forwardingInstructions } from "@/lib/forwarding";
+import { en } from "@/lib/i18n/en";
 import type { CheckoutLead } from "@/lib/leads";
 import type { DayId, ForwardMode, ServiceEntry, SetupDetails, WeekHours } from "@/lib/onboarding";
 import { SITE_URL } from "@/lib/site";
@@ -208,7 +209,7 @@ function renderSegments(parts: Segment[]): string {
 }
 
 function forwardInstructions(mode: ForwardMode, twilioNumber: string): string {
-  const { intro, steps, turnOff } = forwardingInstructions(mode, twilioNumber);
+  const { intro, steps, turnOff } = forwardingInstructions(mode, twilioNumber, en.forwarding);
   const items = steps
     .map((step) => `<li><strong>${esc(step.device)}:</strong> ${renderSegments(step.parts)}</li>`)
     .join("\n");

@@ -2,6 +2,7 @@
 
 import { Field, type FieldErrors } from "@/components/onboarding/Field";
 import { inputCls } from "@/components/onboarding/fieldStyles";
+import { type Dict, fill } from "@/lib/i18n/dict";
 import {
   DAYS,
   PHONE_RE,
@@ -12,34 +13,29 @@ import {
 } from "@/lib/onboarding";
 
 function cloneHours(hours: WeekHours): WeekHours {
-  return Object.fromEntries(
-    DAYS.map((day) => [day.id, { ...hours[day.id] }]),
-  ) as unknown as WeekHours;
+  return Object.fromEntries(DAYS.map((day) => [day, { ...hours[day] }])) as unknown as WeekHours;
 }
 
 function hoursError(hours: WeekHours): boolean {
   return DAYS.some((day) => {
-    const h = hours[day.id];
+    const h = hours[day];
     return !h.closed && h.open >= h.close;
   });
 }
 
-export function validateSetup(setup: SetupDetails): FieldErrors {
+export function validateSetup(setup: SetupDetails, t: Dict["setup"]): FieldErrors {
   const errors: FieldErrors = {};
-  if (hoursError(setup.hours))
-    errors.hours = "Opening time must be before closing time on every open day.";
+  if (hoursError(setup.hours)) errors.hours = t.errHours;
   const validServices = setup.services.filter((s) => s.name.trim() && Number(s.durationMin) > 0);
-  if (validServices.length === 0)
-    errors.services = "Add at least one service with a name and duration.";
-  if (!setup.staff.some((s) => s.name.trim())) errors.staff = "Add at least one staff member.";
+  if (validServices.length === 0) errors.services = t.errServices;
+  if (!setup.staff.some((s) => s.name.trim())) errors.staff = t.errStaff;
   else if (
     setup.staffCustomHours &&
     setup.staff.some((s) => s.name.trim() && s.hours && hoursError(s.hours))
   ) {
-    errors.staff = "Start time must be before end time on every day a staff member works.";
+    errors.staff = t.errStaffHours;
   }
-  if (!PHONE_RE.test(setup.forwardNumber))
-    errors.forwardNumber = "Enter the number your customers currently call.";
+  if (!PHONE_RE.test(setup.forwardNumber)) errors.forwardNumber = t.errForwardNumber;
   return errors;
 }
 
@@ -47,21 +43,24 @@ function HoursRows({
   hours,
   idPrefix,
   labelSuffix,
+  t,
   onChange,
 }: {
   hours: WeekHours;
   idPrefix: string;
   labelSuffix: string;
+  t: Dict["setup"];
   onChange: (hours: WeekHours) => void;
 }) {
   return (
     <div className="flex flex-col gap-2">
       {DAYS.map((day) => {
-        const h = hours[day.id];
-        const setDay = (dh: Partial<typeof h>) => onChange({ ...hours, [day.id]: { ...h, ...dh } });
+        const h = hours[day];
+        const label = t.days[day];
+        const setDay = (dh: Partial<typeof h>) => onChange({ ...hours, [day]: { ...h, ...dh } });
         return (
           <div
-            key={day.id}
+            key={day}
             className="flex flex-wrap items-center gap-x-3 gap-y-2 rounded-[12px] bg-white/60 px-[14px] py-[10px]"
           >
             <label className="flex min-w-[122px] items-center gap-[9px] text-[14px] font-medium">
@@ -71,28 +70,30 @@ function HoursRows({
                 onChange={(e) => setDay({ closed: !e.target.checked })}
                 className="h-[18px] w-[18px] accent-[#4F8C80]"
               />
-              {day.label}
+              {label}
             </label>
             {h.closed ? (
-              <span className="text-[13.5px] text-muted-2">Closed</span>
+              <span className="text-[13.5px] text-muted-2">{t.closed}</span>
             ) : (
               <span className="flex items-center gap-2 text-[14px]">
-                <label className="sr-only" htmlFor={`${idPrefix}-open-${day.id}`}>
-                  {day.label} opening time{labelSuffix}
+                <label className="sr-only" htmlFor={`${idPrefix}-open-${day}`}>
+                  {fill(t.openTimeAria, { day: label })}
+                  {labelSuffix}
                 </label>
                 <input
-                  id={`${idPrefix}-open-${day.id}`}
+                  id={`${idPrefix}-open-${day}`}
                   type="time"
                   value={h.open}
                   onChange={(e) => setDay({ open: e.target.value })}
                   className="min-h-[40px] rounded-[9px] border border-ink/15 bg-white px-2 py-1 text-[14px]"
                 />
                 <span className="text-muted-2">–</span>
-                <label className="sr-only" htmlFor={`${idPrefix}-close-${day.id}`}>
-                  {day.label} closing time{labelSuffix}
+                <label className="sr-only" htmlFor={`${idPrefix}-close-${day}`}>
+                  {fill(t.closeTimeAria, { day: label })}
+                  {labelSuffix}
                 </label>
                 <input
-                  id={`${idPrefix}-close-${day.id}`}
+                  id={`${idPrefix}-close-${day}`}
                   type="time"
                   value={h.close}
                   onChange={(e) => setDay({ close: e.target.value })}
@@ -111,21 +112,24 @@ export function SetupFields({
   setup,
   vertical,
   errors,
+  t,
   patch,
 }: {
   setup: SetupDetails;
   vertical: Vertical;
   errors: FieldErrors;
+  t: Dict["setup"];
   patch: (partial: Partial<SetupDetails>) => void;
 }) {
   return (
     <div className="flex flex-col gap-7">
       <fieldset className="m-0 border-0 p-0">
-        <legend className="mb-[10px] text-[13.5px] font-medium text-ink">Opening hours</legend>
+        <legend className="mb-[10px] text-[13.5px] font-medium text-ink">{t.hoursLegend}</legend>
         <HoursRows
           hours={setup.hours}
           idPrefix="ob"
           labelSuffix=""
+          t={t}
           onChange={(hours) => patch({ hours })}
         />
         {errors.hours && (
@@ -136,10 +140,9 @@ export function SetupFields({
       </fieldset>
 
       <fieldset className="m-0 border-0 p-0">
-        <legend className="mb-1 text-[13.5px] font-medium text-ink">Services</legend>
+        <legend className="mb-1 text-[13.5px] font-medium text-ink">{t.servicesLegend}</legend>
         <p className="mb-[10px] text-[12.5px] text-muted-2">
-          Pre-filled for a {vertical === "grooming" ? "grooming salon" : "barbershop"} — edit names,
-          durations and prices to match yours.
+          {fill(t.servicesHint, { kind: t.verticalKind[vertical] })}
         </p>
         <div className="flex flex-col gap-2">
           {setup.services.map((svc, i) => {
@@ -151,17 +154,17 @@ export function SetupFields({
               // biome-ignore lint/suspicious/noArrayIndexKey: rows are positional and editable
               <div key={i} className="flex flex-wrap items-center gap-2">
                 <label className="sr-only" htmlFor={`ob-svc-name-${i}`}>
-                  Service {i + 1} name
+                  {fill(t.serviceNameAria, { n: i + 1 })}
                 </label>
                 <input
                   id={`ob-svc-name-${i}`}
                   className={`${inputCls} min-w-[160px] flex-1`}
                   value={svc.name}
                   onChange={(e) => setSvc({ name: e.target.value })}
-                  placeholder="Service name"
+                  placeholder={t.serviceNamePlaceholder}
                 />
                 <label className="sr-only" htmlFor={`ob-svc-dur-${i}`}>
-                  Service {i + 1} duration in minutes
+                  {fill(t.serviceDurationAria, { n: i + 1 })}
                 </label>
                 <div className="relative">
                   <input
@@ -174,11 +177,11 @@ export function SetupFields({
                     onChange={(e) => setSvc({ durationMin: e.target.value })}
                   />
                   <span className="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 text-[12.5px] text-muted-2">
-                    min
+                    {t.serviceMinAbbr}
                   </span>
                 </div>
                 <label className="sr-only" htmlFor={`ob-svc-price-${i}`}>
-                  Service {i + 1} price in dollars
+                  {fill(t.servicePriceAria, { n: i + 1 })}
                 </label>
                 <div className="relative">
                   <span className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-[13.5px] text-muted-2">
@@ -195,7 +198,7 @@ export function SetupFields({
                 </div>
                 <button
                   type="button"
-                  aria-label={`Remove service ${svc.name || i + 1}`}
+                  aria-label={fill(t.removeService, { name: svc.name || i + 1 })}
                   onClick={() => patch({ services: setup.services.filter((_, j) => j !== i) })}
                   className="flex h-11 w-11 items-center justify-center rounded-[10px] text-muted-2 hover:bg-cream-200"
                 >
@@ -212,7 +215,7 @@ export function SetupFields({
           }
           className="mt-3 text-[14px] font-medium text-teal"
         >
-          + Add service
+          {t.addService}
         </button>
         {errors.services && (
           <p role="alert" className="mt-2 text-[12.5px] font-medium text-[#B4452C]">
@@ -222,10 +225,8 @@ export function SetupFields({
       </fieldset>
 
       <fieldset className="m-0 border-0 p-0">
-        <legend className="mb-1 text-[13.5px] font-medium text-ink">Staff</legend>
-        <p className="mb-[10px] text-[12.5px] text-muted-2">
-          Who takes appointments? Callers can ask for someone by name.
-        </p>
+        <legend className="mb-1 text-[13.5px] font-medium text-ink">{t.staffLegend}</legend>
+        <p className="mb-[10px] text-[12.5px] text-muted-2">{t.staffHint}</p>
         <label className="mb-3 flex items-center gap-[9px] text-[14px] font-medium">
           <input
             type="checkbox"
@@ -241,29 +242,30 @@ export function SetupFields({
             }
             className="h-[18px] w-[18px] accent-[#4F8C80]"
           />
-          Do your staff work different schedules?
+          {t.staffCustomHours}
         </label>
         <div className="flex flex-col gap-2">
           {setup.staff.map((member, i) => {
             const setMember = (partial: Partial<typeof member>) =>
               patch({ staff: setup.staff.map((m, j) => (j === i ? { ...m, ...partial } : m)) });
+            const displayName = member.name.trim() || fill(t.staffFallback, { n: i + 1 });
             return (
               <div key={member.id} className="flex flex-col gap-2">
                 <div className="flex items-center gap-2">
                   <label className="sr-only" htmlFor={`ob-staff-${member.id}`}>
-                    Staff member {i + 1} name
+                    {fill(t.staffNameAria, { n: i + 1 })}
                   </label>
                   <input
                     id={`ob-staff-${member.id}`}
                     className={`${inputCls} max-w-[320px]`}
                     value={member.name}
                     onChange={(e) => setMember({ name: e.target.value })}
-                    placeholder={i === 0 ? "Alex" : "Another name"}
+                    placeholder={i === 0 ? t.staffPlaceholderFirst : t.staffPlaceholderOther}
                   />
                   {setup.staff.length > 1 && (
                     <button
                       type="button"
-                      aria-label={`Remove staff member ${member.name || i + 1}`}
+                      aria-label={fill(t.removeStaff, { name: displayName })}
                       onClick={() => patch({ staff: setup.staff.filter((_, j) => j !== i) })}
                       className="flex h-11 w-11 items-center justify-center rounded-[10px] text-muted-2 hover:bg-cream-200"
                     >
@@ -274,12 +276,13 @@ export function SetupFields({
                 {setup.staffCustomHours && (
                   <div className="ml-1 border-l-2 border-ink/10 pl-3">
                     <p className="mb-[6px] text-[12.5px] text-muted-2">
-                      {member.name.trim() || `Staff member ${i + 1}`} — working hours
+                      {fill(t.staffHoursLabel, { name: displayName })}
                     </p>
                     <HoursRows
                       hours={member.hours ?? cloneHours(setup.hours)}
                       idPrefix={`ob-staff-${member.id}`}
-                      labelSuffix={` for ${member.name.trim() || `staff member ${i + 1}`}`}
+                      labelSuffix={fill(t.forStaff, { name: displayName })}
+                      t={t}
                       onChange={(hours) => setMember({ hours })}
                     />
                   </div>
@@ -303,7 +306,7 @@ export function SetupFields({
           }
           className="mt-3 text-[14px] font-medium text-teal"
         >
-          + Add staff member
+          {t.addStaff}
         </button>
         {errors.staff && (
           <p role="alert" className="mt-2 text-[12.5px] font-medium text-[#B4452C]">
@@ -313,20 +316,12 @@ export function SetupFields({
       </fieldset>
 
       <fieldset className="m-0 border-0 p-0">
-        <legend className="mb-[10px] text-[13.5px] font-medium text-ink">Calendar</legend>
+        <legend className="mb-[10px] text-[13.5px] font-medium text-ink">{t.calendarLegend}</legend>
         <div className="flex flex-col gap-2">
           {(
             [
-              {
-                id: "google_calendar",
-                label: "Google Calendar",
-                desc: "We connect it during setup — bookings land straight in it.",
-              },
-              {
-                id: "none",
-                label: "No calendar",
-                desc: "We track bookings for you; you get SMS confirmations.",
-              },
+              { id: "google_calendar", label: t.calendarGoogle, desc: t.calendarGoogleDesc },
+              { id: "none", label: t.calendarNone, desc: t.calendarNoneDesc },
             ] as const
           ).map((opt) => (
             <label
@@ -352,22 +347,20 @@ export function SetupFields({
       </fieldset>
 
       <fieldset className="m-0 border-0 p-0">
-        <legend className="mb-[10px] text-[13.5px] font-medium text-ink">
-          Which calls should Marisol answer?
-        </legend>
+        <legend className="mb-[10px] text-[13.5px] font-medium text-ink">{t.forwardLegend}</legend>
         <div className="flex flex-col gap-2">
           {(
             [
               {
                 id: "conditional",
-                label: "Only when you can't answer",
-                desc: "You still pick up when you're free — Marisol catches the rest, so no missed or busy call goes unanswered.",
+                label: t.forwardConditional,
+                desc: t.forwardConditionalDesc,
                 recommended: true,
               },
               {
                 id: "all",
-                label: "Every call",
-                desc: "Marisol answers all calls for you. Best if you're solo or usually hands-on with clients.",
+                label: t.forwardAll,
+                desc: t.forwardAllDesc,
                 recommended: false,
               },
             ] as const
@@ -391,7 +384,9 @@ export function SetupFields({
                 <span className="block text-[14.5px] font-medium">
                   {opt.label}
                   {opt.recommended && (
-                    <span className="ml-2 text-[12.5px] font-medium text-teal">Recommended</span>
+                    <span className="ml-2 text-[12.5px] font-medium text-teal">
+                      {t.recommended}
+                    </span>
                   )}
                 </span>
                 <span className="block text-[13px] text-muted">{opt.desc}</span>
@@ -402,10 +397,10 @@ export function SetupFields({
       </fieldset>
 
       <Field
-        label="Number to forward"
+        label={t.forwardNumber}
         htmlFor="ob-forward"
         error={errors.forwardNumber}
-        hint="The number your customers call today — we'll send simple forwarding instructions."
+        hint={t.forwardNumberHint}
       >
         <input
           id="ob-forward"
@@ -413,18 +408,18 @@ export function SetupFields({
           className={`${inputCls} max-w-[320px]`}
           value={setup.forwardNumber}
           onChange={(e) => patch({ forwardNumber: e.target.value })}
-          placeholder="+1 (555) 010-2244"
+          placeholder={t.forwardNumberPlaceholder}
         />
       </Field>
 
-      <Field label="Anything else we should know? (optional)" htmlFor="ob-notes">
+      <Field label={t.notes} htmlFor="ob-notes">
         <textarea
           id="ob-notes"
           rows={3}
           className={`${inputCls} min-h-[88px] resize-y`}
           value={setup.notes}
           onChange={(e) => patch({ notes: e.target.value })}
-          placeholder="Parking info, walk-in policy, a second language…"
+          placeholder={t.notesPlaceholder}
         />
       </Field>
     </div>

@@ -3,7 +3,8 @@
 import { Field, type FieldErrors } from "@/components/onboarding/Field";
 import { SetupFields, validateSetup } from "@/components/onboarding/SetupFields";
 import { inputCls } from "@/components/onboarding/fieldStyles";
-import { type SetupDetails, TIMEZONES, type Vertical } from "@/lib/onboarding";
+import { en } from "@/lib/i18n/en";
+import { type SetupDetails, TIMEZONE_IDS, type Vertical } from "@/lib/onboarding";
 import { useState } from "react";
 
 export function PortalSetupForm({
@@ -23,7 +24,7 @@ export function PortalSetupForm({
   };
 
   const save = async () => {
-    const errs = validateSetup(setup);
+    const errs = validateSetup(setup, en.setup);
     setErrors(errs);
     if (Object.keys(errs).length > 0) return;
     setSaving(true);
@@ -44,7 +45,7 @@ export function PortalSetupForm({
 
   return (
     <div className="mt-7 rounded-[24px] bg-cream-100 p-[clamp(20px,4vw,34px)]">
-      <SetupFields setup={setup} vertical={vertical} errors={errors} patch={patch} />
+      <SetupFields setup={setup} vertical={vertical} errors={errors} t={en.setup} patch={patch} />
 
       <div className="mt-7">
         <Field
@@ -61,9 +62,9 @@ export function PortalSetupForm({
               setTimezone(e.target.value);
             }}
           >
-            {TIMEZONES.map((tz) => (
-              <option key={tz.id} value={tz.id}>
-                {tz.label}
+            {TIMEZONE_IDS.map((id) => (
+              <option key={id} value={id}>
+                {en.timezones[id]}
               </option>
             ))}
           </select>

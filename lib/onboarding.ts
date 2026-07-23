@@ -1,22 +1,9 @@
 export const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 export const PHONE_RE = /^(?=(?:\D*\d){7})[+()\-.\s\d]{7,20}$/;
 
-export const VERTICALS = [
-  {
-    id: "barbershop",
-    label: "Barbershop / salon",
-    blurb: "Cuts, colour, beard work — booked by chair.",
-  },
-  {
-    id: "grooming",
-    label: "Pet grooming",
-    blurb: "Baths and grooms — sized to the dog.",
-  },
-] as const;
+export const VERTICAL_IDS = ["barbershop", "grooming"] as const;
 
-export type Vertical = (typeof VERTICALS)[number]["id"];
-
-export const VERTICAL_IDS = VERTICALS.map((v) => v.id);
+export type Vertical = (typeof VERTICAL_IDS)[number];
 
 export interface ServiceEntry {
   name: string;
@@ -24,31 +11,24 @@ export interface ServiceEntry {
   price: string;
 }
 
-export const SERVICE_PRESETS: Record<Vertical, ServiceEntry[]> = {
+// Names come from the dictionary (`setup.servicePresets`) so they follow the client's language.
+export const SERVICE_PRESETS: Record<Vertical, Omit<ServiceEntry, "name">[]> = {
   barbershop: [
-    { name: "Haircut", durationMin: "30", price: "35" },
-    { name: "Beard trim", durationMin: "20", price: "20" },
-    { name: "Haircut + beard", durationMin: "45", price: "50" },
+    { durationMin: "30", price: "35" },
+    { durationMin: "20", price: "20" },
+    { durationMin: "45", price: "50" },
   ],
   grooming: [
-    { name: "Bath & brush — small dog", durationMin: "60", price: "45" },
-    { name: "Full groom — small dog", durationMin: "90", price: "65" },
-    { name: "Full groom — large dog", durationMin: "120", price: "85" },
-    { name: "Nail trim", durationMin: "15", price: "15" },
+    { durationMin: "60", price: "45" },
+    { durationMin: "90", price: "65" },
+    { durationMin: "120", price: "85" },
+    { durationMin: "15", price: "15" },
   ],
 };
 
-export const DAYS = [
-  { id: "mon", label: "Monday" },
-  { id: "tue", label: "Tuesday" },
-  { id: "wed", label: "Wednesday" },
-  { id: "thu", label: "Thursday" },
-  { id: "fri", label: "Friday" },
-  { id: "sat", label: "Saturday" },
-  { id: "sun", label: "Sunday" },
-] as const;
+export const DAYS = ["mon", "tue", "wed", "thu", "fri", "sat", "sun"] as const;
 
-export type DayId = (typeof DAYS)[number]["id"];
+export type DayId = (typeof DAYS)[number];
 
 export interface DayHours {
   closed: boolean;
@@ -58,16 +38,16 @@ export interface DayHours {
 
 export type WeekHours = Record<DayId, DayHours>;
 
-export const TIMEZONES = [
-  { id: "America/New_York", label: "Eastern (ET) — Miami, New York, Atlanta" },
-  { id: "America/Chicago", label: "Central (CT) — Chicago, Houston, Dallas" },
-  { id: "America/Denver", label: "Mountain (MT) — Denver, Salt Lake City" },
-  { id: "America/Phoenix", label: "Arizona (MST, no DST) — Phoenix, Tucson" },
-  { id: "America/Los_Angeles", label: "Pacific (PT) — Los Angeles, Seattle, Las Vegas" },
-  { id: "America/Anchorage", label: "Alaska (AKT) — Anchorage" },
-  { id: "Pacific/Honolulu", label: "Hawaii (HST) — Honolulu" },
-  { id: "America/Puerto_Rico", label: "Atlantic (AST) — San Juan, Puerto Rico" },
-];
+export const TIMEZONE_IDS = [
+  "America/New_York",
+  "America/Chicago",
+  "America/Denver",
+  "America/Phoenix",
+  "America/Los_Angeles",
+  "America/Anchorage",
+  "Pacific/Honolulu",
+  "America/Puerto_Rico",
+] as const;
 
 export interface BusinessBasics {
   vertical: Vertical;
@@ -129,10 +109,10 @@ export function defaultBasics(vertical: Vertical = "barbershop"): BusinessBasics
   };
 }
 
-export function defaultSetup(vertical: Vertical = "barbershop"): SetupDetails {
+export function defaultSetup(vertical: Vertical, serviceNames: readonly string[]): SetupDetails {
   return {
     hours: defaultHours(),
-    services: SERVICE_PRESETS[vertical].map((s) => ({ ...s })),
+    services: SERVICE_PRESETS[vertical].map((s, i) => ({ ...s, name: serviceNames[i] ?? "" })),
     staff: [newStaffEntry()],
     staffCustomHours: false,
     calendar: "google_calendar",
@@ -152,7 +132,7 @@ function invalidWeekHours(hours: unknown): boolean {
   if (typeof hours !== "object" || hours === null) return true;
   const week = hours as WeekHours;
   return DAYS.some((day) => {
-    const h = week[day.id];
+    const h = week[day];
     if (typeof h?.closed !== "boolean" || !TIME_RE.test(h.open) || !TIME_RE.test(h.close))
       return true;
     return !h.closed && h.open >= h.close;

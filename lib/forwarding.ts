@@ -1,3 +1,4 @@
+import type { Dict } from "@/lib/i18n/dict";
 import type { ForwardMode } from "@/lib/onboarding";
 
 // Segments keep the dial codes marked up so the same instructions render as HTML in the
@@ -22,66 +23,65 @@ export function dialable(twilioNumber: string): string {
 export function forwardingInstructions(
   mode: ForwardMode,
   twilioNumber: string,
+  t: Dict["forwarding"],
 ): ForwardingInstructions {
   const number = dialable(twilioNumber);
+  const copy = mode === "all" ? t.all : t.conditional;
+  const intro: Segment[] = [copy.introBefore, { code: copy.introCode }, copy.introAfter];
 
   if (mode === "all") {
     return {
-      intro: ["Send ", { code: "every call" }, " straight to Marisol so she answers first:"],
+      intro,
       steps: [
         {
-          device: "Landline / desk phone",
-          parts: [
-            "dial ",
-            { code: "*72" },
-            ", then ",
-            { code: number },
-            ", then call — you'll hear a confirmation tone.",
-          ],
+          device: t.landline,
+          parts: [t.all.dial, { code: "*72" }, t.all.middle, { code: number }, t.all.landlineEnd],
         },
         {
-          device: "Mobile",
-          parts: ["dial ", { code: `**21*${number}#` }, " and press call."],
+          device: t.mobile,
+          parts: [t.all.dial, { code: `**21*${number}#` }, t.all.mobileEnd],
         },
       ],
       turnOff: [
-        "To turn it off later: ",
+        t.turnOffPrefix,
         { code: "*73" },
-        " (landline) or ",
+        t.turnOffLandline,
         { code: "##21#" },
-        " (mobile).",
+        t.turnOffMobile,
       ],
     };
   }
 
   return {
-    intro: [
-      "Send calls to Marisol ",
-      { code: "only when you can't pick up" },
-      " (busy or no answer) — you still answer first whenever you're free:",
-    ],
+    intro,
     steps: [
       {
-        device: "Landline / desk phone",
-        parts: ["dial ", { code: "*71" }, ", then ", { code: number }, ", then call."],
+        device: t.landline,
+        parts: [
+          t.conditional.dial,
+          { code: "*71" },
+          t.conditional.middle,
+          { code: number },
+          t.conditional.landlineEnd,
+        ],
       },
       {
-        device: "Mobile",
+        device: t.mobile,
         parts: [
-          "dial ",
+          t.conditional.dial,
           { code: `**61*${number}#` },
-          " (no answer) and ",
+          t.conditional.mobileNoAnswer,
           { code: `**67*${number}#` },
-          " (busy), pressing call after each.",
+          t.conditional.mobileBusy,
         ],
       },
     ],
     turnOff: [
-      "To turn it off later: ",
+      t.turnOffPrefix,
       { code: "*73" },
-      " (landline) or ",
+      t.turnOffLandline,
       { code: "##002#" },
-      " (mobile).",
+      t.turnOffMobile,
     ],
   };
 }

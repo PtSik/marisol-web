@@ -1,3 +1,4 @@
+import type { Locale } from "@/lib/i18n/dict";
 import type { BusinessBasics, SetupDetails } from "@/lib/onboarding";
 import type { Billing, Plan } from "@/lib/plans";
 
@@ -10,6 +11,8 @@ export interface CheckoutLead {
   /* optional: leads created before the premium tier have no plan */
   plan?: Plan;
   billing: Billing;
+  /* the funnel language the client came in with; leads created before /es onboarding have none */
+  locale?: Locale;
   basics: BusinessBasics;
   status: LeadStatus;
   stripeSessionId?: string;

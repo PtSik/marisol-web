@@ -1,6 +1,7 @@
 import { env } from "cloudflare:workers";
 import { ForwardingCard } from "@/components/onboarding/ForwardingCard";
 import { PortalHeading, PortalNotice } from "@/components/portal/PortalHeading";
+import { en } from "@/lib/i18n/en";
 import { getLead } from "@/lib/leads";
 import { PLAN_LABELS } from "@/lib/plans";
 import { type PortalEnv, getShop } from "@/lib/portalApi";
@@ -82,6 +83,7 @@ export default async function PortalOverviewPage() {
         <ForwardingCard
           twilioNumber={number}
           forwardMode={lead?.setup?.forwardMode ?? "conditional"}
+          t={en.forwarding}
         />
       ) : (
         <PortalNotice tone="warn">

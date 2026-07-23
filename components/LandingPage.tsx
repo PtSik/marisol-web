@@ -29,10 +29,10 @@ export function LandingPage({ locale }: { locale: Locale }) {
         <Hero t={t.hero} />
         <TrustStrip t={t.trust} />
         <HowItWorks t={t.how} />
-        <LiveDemo t={t.demo} widget={t.widget} personas={t.personas} />
+        <LiveDemo t={t.demo} widget={t.widget} personas={t.personas} locale={locale} />
         <Features t={t.features} />
         <DoneForYou t={t.doneForYou} />
-        <Pricing t={t.pricing} />
+        <Pricing t={t.pricing} locale={locale} />
         <Faq t={t.faq} />
         <FinalCta t={t.finalCta} form={t.callForm} />
       </main>

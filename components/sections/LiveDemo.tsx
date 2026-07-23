@@ -1,6 +1,6 @@
 "use client";
 
-import type { Dict } from "@/lib/i18n/dict";
+import type { Dict, Locale } from "@/lib/i18n/dict";
 import dynamic from "vinext/shims/dynamic";
 
 const DemoWidget = dynamic(() => import("@/components/demo/DemoWidget").then((m) => m.DemoWidget), {
@@ -17,7 +17,8 @@ export function LiveDemo({
   t,
   widget,
   personas,
-}: { t: Dict["demo"]; widget: Dict["widget"]; personas: Dict["personas"] }) {
+  locale,
+}: { t: Dict["demo"]; widget: Dict["widget"]; personas: Dict["personas"]; locale: Locale }) {
   return (
     <section id="demo" className="mx-auto max-w-content px-[22px] py-[clamp(48px,7vw,88px)]">
       <div className="mb-[clamp(28px,4vw,40px)] text-center">
@@ -36,7 +37,7 @@ export function LiveDemo({
           {t.note}
         </p>
       </div>
-      <DemoWidget t={widget} personas={personas} />
+      <DemoWidget t={widget} personas={personas} locale={locale} />
     </section>
   );
 }

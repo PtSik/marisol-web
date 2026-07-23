@@ -2,7 +2,7 @@
 
 import { ParallaxLayer } from "@/components/motion/ParallaxLayer";
 import { DEFAULT_PERSONA, type DemoPersona, getDemoAgent } from "@/lib/demoAgents";
-import type { Dict } from "@/lib/i18n/dict";
+import { type Dict, type Locale, onboardingHref } from "@/lib/i18n/dict";
 import { fetchConversationToken } from "@/lib/startConversation";
 import { track } from "@/lib/track";
 import { ConversationProvider, useConversation } from "@elevenlabs/react";
@@ -16,17 +16,17 @@ function fmtTime(sec: number): string {
   return `${m}:${String(s).padStart(2, "0")}`;
 }
 
-type WidgetProps = { t: Dict["widget"]; personas: Dict["personas"] };
+type WidgetProps = { t: Dict["widget"]; personas: Dict["personas"]; locale: Locale };
 
-export function DemoWidget({ t, personas }: WidgetProps) {
+export function DemoWidget({ t, personas, locale }: WidgetProps) {
   return (
     <ConversationProvider>
-      <DemoStage t={t} personas={personas} />
+      <DemoStage t={t} personas={personas} locale={locale} />
     </ConversationProvider>
   );
 }
 
-function DemoStage({ t, personas }: WidgetProps) {
+function DemoStage({ t, personas, locale }: WidgetProps) {
   const [persona, setPersona] = useState<DemoPersona>(DEFAULT_PERSONA);
   const [lines, setLines] = useState<Line[]>([]);
   const [seconds, setSeconds] = useState(0);
@@ -285,7 +285,7 @@ function DemoStage({ t, personas }: WidgetProps) {
                 {t.endedTitle}
               </span>
               <a
-                href="/onboarding"
+                href={onboardingHref(locale)}
                 className="text-[12.5px] font-semibold text-ink underline underline-offset-2 md:text-[13.5px]"
               >
                 {t.endedCta}

@@ -3,6 +3,15 @@ import { LogoMark } from "@/components/Logo";
 import { ForwardingCard } from "@/components/onboarding/ForwardingCard";
 import { SetupForm } from "@/components/onboarding/SetupForm";
 import { SetupCompleteHeading, ThanksHeading } from "@/components/onboarding/ThanksHeading";
+import {
+  type Dict,
+  LOCALE_PATH,
+  type Locale,
+  fill,
+  getDict,
+  onboardingHref,
+  parseLocale,
+} from "@/lib/i18n/dict";
 import { getLead } from "@/lib/leads";
 import { VERTICAL_IDS, type Vertical } from "@/lib/onboarding";
 import { TRIAL_DAYS } from "@/lib/plans";
@@ -12,38 +21,29 @@ import type { ReactNode } from "react";
 
 export const dynamic = "force-dynamic";
 
-export const metadata = {
-  title: "You're in — Marisol",
-  description: "Your trial has started — finish your setup and your AI receptionist goes live.",
-};
+type ThanksProps = { searchParams: Promise<{ session_id?: string; lang?: string }> };
+
+// The head takes its locale from `?lang` alone — resolving it from the lead would cost a second
+// Stripe round trip, and Stripe returns here with the same `lang` the checkout was started in.
+export async function generateMetadata({ searchParams }: ThanksProps) {
+  const t = getDict(parseLocale((await searchParams).lang)).thanks;
+  return { title: t.metaTitle, description: t.metaDescription };
+}
 
 interface ThanksEnv {
   STRIPE_SECRET_KEY?: string;
   LEADS_KV?: KVNamespace;
 }
 
-const NEXT_STEPS = [
-  {
-    title: "We review your details",
-    desc: "Services, hours, staff and voice — loaded and double-checked.",
-  },
-  {
-    title: "You forward your number",
-    desc: "Your Marisol number and the exact dial codes appear the moment you finish setup — and land in your inbox too. Takes about two minutes.",
-  },
-  {
-    title: "Your calendar connects",
-    desc: "We email you a one-click link so bookings drop straight into your Google Calendar.",
-  },
-];
-
-function Shell({ children }: { children: ReactNode }) {
+function Shell({ locale, children }: { locale: Locale; children: ReactNode }) {
+  const home = LOCALE_PATH[locale];
   return (
-    <>
+    // The route lives under the English layout, so the Spanish funnel marks its own language here.
+    <div lang={locale}>
       <nav className="mx-auto max-w-shell px-[22px] pt-[14px]">
         <div className="flex w-full items-center justify-between gap-5 rounded-[18px] border border-ink/10 bg-cream/80 px-5 py-3 backdrop-blur-md">
           <a
-            href="/"
+            href={home}
             className="flex items-center gap-[7px] font-display text-[22px] tracking-tight no-underline"
           >
             <LogoMark className="h-5 w-5 rounded-[3.5px]" />
@@ -54,14 +54,14 @@ function Shell({ children }: { children: ReactNode }) {
       <main className="mx-auto max-w-[720px] px-[22px] pb-[clamp(48px,7vw,88px)] pt-[clamp(40px,6vw,72px)]">
         {children}
       </main>
-    </>
+    </div>
   );
 }
 
-function NextSteps() {
+function NextSteps({ t }: { t: Dict["thanks"] }) {
   return (
     <ol className="mt-9 flex flex-col gap-3">
-      {NEXT_STEPS.map((step, i) => (
+      {t.steps.map((step, i) => (
         <li
           key={step.title}
           className="flex items-start gap-[14px] rounded-[16px] bg-cream-100 px-[18px] py-4"
@@ -81,24 +81,27 @@ function NextSteps() {
   );
 }
 
-function ContactLine({ portal = false }: { portal?: boolean }) {
+function ContactLine({
+  t,
+  locale,
+  portal = false,
+}: { t: Dict["thanks"]; locale: Locale; portal?: boolean }) {
   return (
     <p className="mt-8 text-center text-[14px] text-muted">
-      Questions in the meantime?{" "}
+      {t.contactIntro}
       <a href={SALES_EMAIL_HREF} className="font-medium text-teal">
-        Email us
-      </a>{" "}
-      or head{" "}
-      <a href="/" className="font-medium text-teal">
-        back to the site
+        {t.contactEmail}
+      </a>
+      {t.contactMiddle}
+      <a href={LOCALE_PATH[locale]} className="font-medium text-teal">
+        {t.contactBack}
       </a>
       .
       {portal && CUSTOMER_PORTAL_URL && (
         <>
-          {" "}
-          You can manage or cancel your subscription anytime in the{" "}
+          {t.portalBefore}
           <a href={CUSTOMER_PORTAL_URL} className="font-medium text-teal">
-            billing portal
+            {t.portalLink}
           </a>
           .
         </>
@@ -107,93 +110,94 @@ function ContactLine({ portal = false }: { portal?: boolean }) {
   );
 }
 
-function SessionNotFound() {
+function SessionNotFound({ t, locale }: { t: Dict["thanks"]; locale: Locale }) {
   return (
-    <Shell>
+    <Shell locale={locale}>
       <div className="text-center">
         <h1 className="mx-auto max-w-[24ch] font-display text-[clamp(28px,5vw,44px)] font-light leading-[1.08] tracking-[-0.03em]">
-          We couldn't find that checkout session.
+          {t.notFoundTitle}
         </h1>
         <p className="mx-auto mt-[14px] max-w-[44ch] text-[15.5px] leading-[1.55] text-muted">
-          If you just paid, use the link Stripe redirected you to — or start again below.
+          {t.notFoundLead}
         </p>
         <a
-          href="/onboarding"
+          href={onboardingHref(locale)}
           className="mt-7 inline-flex min-h-[50px] items-center justify-center rounded-[13px] bg-ink px-7 py-[14px] text-[15px] font-medium text-cream no-underline"
         >
-          Back to onboarding
+          {t.notFoundCta}
         </a>
       </div>
-      <ContactLine />
+      <ContactLine t={t} locale={locale} />
     </Shell>
   );
 }
 
-export default async function ThanksPage({
-  searchParams,
-}: {
-  searchParams: Promise<{ session_id?: string }>;
-}) {
-  const { session_id } = await searchParams;
+export default async function ThanksPage({ searchParams }: ThanksProps) {
+  const { session_id, lang } = await searchParams;
   const { STRIPE_SECRET_KEY, LEADS_KV } = env as unknown as ThanksEnv;
+
+  // Before the session is known the query is all we have; from there the lead and Stripe metadata win.
+  let locale = parseLocale(lang);
+  let t = getDict(locale).thanks;
 
   if (!STRIPE_SECRET_KEY) {
     return (
-      <Shell>
-        <ThanksHeading
-          title={
-            <>
-              You're in. <span className="text-teal">We're on it.</span>
-            </>
-          }
-          lead={`Your ${TRIAL_DAYS}-day trial has started. Our team begins your setup now and will reach out within one business day.`}
-        />
-        <NextSteps />
-        <ContactLine />
+      <Shell locale={locale}>
+        <ThanksHeading title={t.startedTitle} lead={fill(t.startedLead, { days: TRIAL_DAYS })} />
+        <NextSteps t={t} />
+        <ContactLine t={t} locale={locale} />
       </Shell>
     );
   }
 
   if (!session_id || !SESSION_ID_RE.test(session_id)) {
-    return <SessionNotFound />;
+    return <SessionNotFound t={t} locale={locale} />;
   }
 
   const session = await getCheckoutSession(STRIPE_SECRET_KEY, session_id);
   if (!session) {
-    return <SessionNotFound />;
+    return <SessionNotFound t={t} locale={locale} />;
   }
+
+  locale = parseLocale(session.metadata?.locale);
+  t = getDict(locale).thanks;
 
   if (!checkoutSettled(session)) {
     return (
-      <Shell>
+      <Shell locale={locale}>
         <div className="text-center">
           <h1 className="mx-auto max-w-[22ch] font-display text-[clamp(28px,5vw,44px)] font-light leading-[1.08] tracking-[-0.03em]">
-            Checkout is still processing…
+            {t.processingTitle}
           </h1>
           <p className="mx-auto mt-[14px] max-w-[44ch] text-[15.5px] leading-[1.55] text-muted">
-            This usually takes a few seconds. Refresh this page in a moment — your setup form
-            appears as soon as Stripe confirms.
+            {t.processingLead}
           </p>
         </div>
-        <ContactLine />
+        <ContactLine t={t} locale={locale} />
       </Shell>
     );
   }
 
   const leadId = session.metadata?.lead_id;
   const lead = leadId ? await getLead(LEADS_KV, leadId) : null;
+  if (lead?.locale) {
+    locale = lead.locale;
+    t = getDict(locale).thanks;
+  }
+
   if (lead?.status === "setup_complete" || lead?.status === "provisioned") {
     return (
-      <Shell>
-        <SetupCompleteHeading hasNumber={Boolean(lead.assignedNumber)} />
+      <Shell locale={locale}>
+        <SetupCompleteHeading hasNumber={Boolean(lead.assignedNumber)} t={t} />
         {lead.assignedNumber && (
           <ForwardingCard
             twilioNumber={lead.assignedNumber}
             forwardMode={lead.setup?.forwardMode ?? "conditional"}
+            t={getDict(locale).forwarding}
           />
         )}
-        <NextSteps />
-        <ContactLine portal />
+        <NextSteps t={t} />
+        <ContactLine t={t} locale={locale} portal />
       </Shell>
     );
   }
@@ -204,10 +208,10 @@ export default async function ThanksPage({
     : "barbershop";
 
   return (
-    <Shell>
-      <SetupForm sessionId={session_id} vertical={vertical} />
-      <NextSteps />
-      <ContactLine portal />
+    <Shell locale={locale}>
+      <SetupForm sessionId={session_id} vertical={vertical} locale={locale} />
+      <NextSteps t={t} />
+      <ContactLine t={t} locale={locale} portal />
     </Shell>
   );
 }

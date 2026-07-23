@@ -1,6 +1,6 @@
 import { env } from "cloudflare:workers";
 import { getLead, putLead } from "@/lib/leads";
-import { type SetupDetails, TIMEZONES, validateSetupPayload } from "@/lib/onboarding";
+import { type SetupDetails, TIMEZONE_IDS, validateSetupPayload } from "@/lib/onboarding";
 import type { PortalEnv } from "@/lib/portalApi";
 import { patchShop, toShopHours, toShopServices, toShopStaff } from "@/lib/provisioning";
 import { overRateLimit } from "@/lib/rateLimit";
@@ -35,7 +35,7 @@ export async function POST(request: Request): Promise<Response> {
   const setup = body.setup as SetupDetails;
 
   const timezone = body.timezone;
-  if (timezone !== undefined && !TIMEZONES.some((tz) => tz.id === timezone)) {
+  if (timezone !== undefined && !TIMEZONE_IDS.some((id) => id === timezone)) {
     return Response.json({ error: "invalid timezone" }, { status: 400 });
   }
 

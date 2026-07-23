@@ -1,4 +1,5 @@
 import { env } from "cloudflare:workers";
+import { type Locale, parseLocale } from "@/lib/i18n/dict";
 import { type CheckoutLead, getLead, putLead } from "@/lib/leads";
 import { notifyTeam } from "@/lib/notify";
 import {
@@ -62,6 +63,7 @@ interface OnboardingRequest {
   sessionId?: string;
   setup?: SetupDetails;
   referralCode?: string;
+  locale?: string;
 }
 
 const RATE_LIMITS: Record<OnboardingRequest["intent"], number> = {
@@ -110,6 +112,7 @@ function reconstructLead(leadId: string, session: StripeCheckoutSession): Checko
     intent: "checkout",
     plan: meta.plan === "premium" ? "premium" : "base",
     billing: meta.billing === "annual" ? "annual" : "monthly",
+    locale: parseLocale(meta.locale),
     basics: {
       vertical,
       businessName: meta.business_name ?? "",
@@ -144,6 +147,7 @@ async function handleCheckout(
   billing: Billing,
   basics: BusinessBasics,
   referralCode: string | undefined,
+  locale: Locale,
 ): Promise<Response> {
   const lead: CheckoutLead = {
     id: crypto.randomUUID(),
@@ -151,6 +155,7 @@ async function handleCheckout(
     intent: "checkout",
     plan,
     billing,
+    locale,
     basics,
     status: "created",
   };
@@ -174,14 +179,17 @@ async function handleCheckout(
   }
 
   const origin = new URL(request.url).origin;
+  const langQuery = locale === "es" ? "&lang=es" : "";
   const params = new URLSearchParams({
     mode: "subscription",
+    locale,
     "line_items[0][price]": priceId,
     "line_items[0][quantity]": "1",
     customer_email: basics.email,
-    success_url: `${origin}/onboarding/thanks?session_id={CHECKOUT_SESSION_ID}`,
-    cancel_url: `${origin}/onboarding?plan=${plan}&billing=${billing}&cancelled=1`,
+    success_url: `${origin}/onboarding/thanks?session_id={CHECKOUT_SESSION_ID}${langQuery}`,
+    cancel_url: `${origin}/onboarding?plan=${plan}&billing=${billing}&cancelled=1${langQuery}`,
     "metadata[lead_id]": lead.id,
+    "metadata[locale]": locale,
     "metadata[plan]": plan,
     "metadata[billing]": billing,
     "metadata[vertical]": basics.vertical,
@@ -333,6 +341,7 @@ export async function POST(request: Request) {
       body.billing as Billing,
       body.basics as BusinessBasics,
       typeof body.referralCode === "string" ? body.referralCode : undefined,
+      parseLocale(body.locale),
     );
   }
 

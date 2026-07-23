@@ -3,12 +3,13 @@
 import { BookCallForm } from "@/components/onboarding/BookCallForm";
 import { Field, type FieldErrors } from "@/components/onboarding/Field";
 import { inputCls } from "@/components/onboarding/fieldStyles";
+import { type Dict, type Locale, fill, getDict } from "@/lib/i18n/dict";
 import {
   type BusinessBasics,
   EMAIL_RE,
   PHONE_RE,
-  TIMEZONES,
-  VERTICALS,
+  TIMEZONE_IDS,
+  VERTICAL_IDS,
   type Vertical,
   defaultBasics,
   isBusinessBasics,
@@ -19,17 +20,19 @@ import { useEffect, useRef, useState } from "react";
 
 const STORAGE_KEY = "marisol-onboarding";
 
-function validateBasics(basics: BusinessBasics): FieldErrors {
+function validateBasics(basics: BusinessBasics, t: Dict["onboarding"]): FieldErrors {
   const errors: FieldErrors = {};
-  if (!basics.businessName.trim()) errors.businessName = "Enter your business name.";
-  if (!basics.ownerName.trim()) errors.ownerName = "Enter your name.";
-  if (!EMAIL_RE.test(basics.email)) errors.email = "Enter a valid email address.";
-  if (!PHONE_RE.test(basics.businessPhone)) errors.businessPhone = "Enter a valid phone number.";
-  if (!PHONE_RE.test(basics.ownerMobile)) errors.ownerMobile = "Enter a valid mobile number.";
+  if (!basics.businessName.trim()) errors.businessName = t.errBusinessName;
+  if (!basics.ownerName.trim()) errors.ownerName = t.errOwnerName;
+  if (!EMAIL_RE.test(basics.email)) errors.email = t.errEmail;
+  if (!PHONE_RE.test(basics.businessPhone)) errors.businessPhone = t.errBusinessPhone;
+  if (!PHONE_RE.test(basics.ownerMobile)) errors.ownerMobile = t.errOwnerMobile;
   return errors;
 }
 
-export function OnboardingWizard() {
+export function OnboardingWizard({ locale }: { locale: Locale }) {
+  const dict = getDict(locale);
+  const t = dict.onboarding;
   const [basics, setBasics] = useState<BusinessBasics>(() => defaultBasics());
   const [plan, setPlan] = useState<Plan>("base");
   const [billing, setBilling] = useState<Billing>("monthly");
@@ -82,7 +85,7 @@ export function OnboardingWizard() {
   const patch = (partial: Partial<BusinessBasics>) => setBasics((b) => ({ ...b, ...partial }));
 
   const submit = async () => {
-    const errs = validateBasics(basics);
+    const errs = validateBasics(basics, t);
     setErrors(errs);
     if (Object.keys(errs).length > 0) return;
     setSubmitting(true);
@@ -96,6 +99,7 @@ export function OnboardingWizard() {
           plan,
           billing,
           basics,
+          locale,
           referralCode: referralCode.trim() || undefined,
         }),
       });
@@ -106,32 +110,33 @@ export function OnboardingWizard() {
       track("checkout_redirect", `${plan}:${billing}`);
       window.location.href = body.url;
     } catch {
-      setSubmitError("Something went wrong starting checkout. Please try again.");
+      setSubmitError(t.errSubmit);
       setSubmitting(false);
     }
   };
 
-  const timezones = TIMEZONES.some((tz) => tz.id === basics.timezone)
-    ? TIMEZONES
-    : [{ id: basics.timezone, label: basics.timezone.replace(/_/g, " ") }, ...TIMEZONES];
+  const known = TIMEZONE_IDS.map((id) => ({ id: id as string, label: dict.timezones[id] }));
+  const timezones = TIMEZONE_IDS.some((id) => id === basics.timezone)
+    ? known
+    : [{ id: basics.timezone, label: basics.timezone.replace(/_/g, " ") }, ...known];
 
   return (
     <div className="mx-auto max-w-[720px] px-[22px] pb-[clamp(48px,7vw,88px)]">
       <div className="mb-7 text-center">
         <span className="inline-block rounded-full bg-cream-200 px-[13px] py-[7px] text-[11.5px] font-semibold uppercase tracking-[0.16em] text-muted-2">
-          Get started
+          {t.badge}
         </span>
         <h1 className="mx-auto mt-[18px] max-w-[22ch] font-display text-[clamp(26px,4.4vw,40px)] font-light leading-[1.1] tracking-[-0.03em]">
-          Tell us about your shop — we set up the rest.
+          {t.title}
         </h1>
         <p className="mx-auto mt-3 max-w-[44ch] text-[14.5px] leading-[1.55] text-muted">
-          Just the basics now — you'll add hours, services and staff right after checkout.
+          {t.subtitle}
         </p>
       </div>
 
       {cancelled && (
         <output className="mb-5 block rounded-[12px] bg-cream-200 px-4 py-3 text-[14px] text-muted">
-          Payment was cancelled — your details are saved below whenever you're ready.
+          {t.cancelled}
         </output>
       )}
 
@@ -139,28 +144,28 @@ export function OnboardingWizard() {
         <div className="flex flex-col gap-5">
           <fieldset className="m-0 border-0 p-0">
             <legend className="mb-[10px] text-[13.5px] font-medium text-ink">
-              What kind of business is it?
+              {t.verticalLegend}
             </legend>
             <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
-              {VERTICALS.map((v) => {
-                const active = basics.vertical === v.id;
+              {VERTICAL_IDS.map((id) => {
+                const active = basics.vertical === id;
                 return (
                   <button
-                    key={v.id}
+                    key={id}
                     type="button"
                     aria-pressed={active}
-                    onClick={() => patch({ vertical: v.id as Vertical })}
+                    onClick={() => patch({ vertical: id as Vertical })}
                     className={`rounded-[16px] border px-[18px] py-4 text-left transition-all ${
                       active ? "border-ink bg-ink text-cream" : "border-ink/15 bg-white/70 text-ink"
                     }`}
                   >
-                    <span className="block text-[15px] font-medium">{v.label}</span>
+                    <span className="block text-[15px] font-medium">{t.verticals[id].label}</span>
                     <span
                       className={`mt-1 block text-[13px] leading-[1.45] ${
                         active ? "text-cream/70" : "text-muted"
                       }`}
                     >
-                      {v.blurb}
+                      {t.verticals[id].blurb}
                     </span>
                   </button>
                 );
@@ -168,36 +173,36 @@ export function OnboardingWizard() {
             </div>
           </fieldset>
 
-          <Field label="Business name" htmlFor="ob-business" error={errors.businessName}>
+          <Field label={t.businessName} htmlFor="ob-business" error={errors.businessName}>
             <input
               id="ob-business"
               className={inputCls}
               value={basics.businessName}
               onChange={(e) => patch({ businessName: e.target.value })}
-              placeholder="Fade District"
+              placeholder={t.businessNamePlaceholder}
               autoComplete="organization"
             />
           </Field>
 
           <div className="grid grid-cols-1 gap-5 sm:grid-cols-2">
-            <Field label="Your name" htmlFor="ob-owner" error={errors.ownerName}>
+            <Field label={t.ownerName} htmlFor="ob-owner" error={errors.ownerName}>
               <input
                 id="ob-owner"
                 className={inputCls}
                 value={basics.ownerName}
                 onChange={(e) => patch({ ownerName: e.target.value })}
-                placeholder="Alex Rivera"
+                placeholder={t.ownerNamePlaceholder}
                 autoComplete="name"
               />
             </Field>
-            <Field label="Email" htmlFor="ob-email" error={errors.email}>
+            <Field label={t.email} htmlFor="ob-email" error={errors.email}>
               <input
                 id="ob-email"
                 type="email"
                 className={inputCls}
                 value={basics.email}
                 onChange={(e) => patch({ email: e.target.value })}
-                placeholder="alex@fadedistrict.com"
+                placeholder={t.emailPlaceholder}
                 autoComplete="email"
               />
             </Field>
@@ -205,10 +210,10 @@ export function OnboardingWizard() {
 
           <div className="grid grid-cols-1 gap-5 sm:grid-cols-2">
             <Field
-              label="Business phone"
+              label={t.businessPhone}
               htmlFor="ob-bizphone"
               error={errors.businessPhone}
-              hint="Where we transfer callers who ask for a human."
+              hint={t.businessPhoneHint}
             >
               <input
                 id="ob-bizphone"
@@ -216,15 +221,15 @@ export function OnboardingWizard() {
                 className={inputCls}
                 value={basics.businessPhone}
                 onChange={(e) => patch({ businessPhone: e.target.value })}
-                placeholder="+1 (555) 210-4890"
+                placeholder={t.businessPhonePlaceholder}
                 autoComplete="tel"
               />
             </Field>
             <Field
-              label="Your mobile"
+              label={t.ownerMobile}
               htmlFor="ob-mobile"
               error={errors.ownerMobile}
-              hint="For urgent escalations only."
+              hint={t.ownerMobileHint}
             >
               <input
                 id="ob-mobile"
@@ -232,13 +237,13 @@ export function OnboardingWizard() {
                 className={inputCls}
                 value={basics.ownerMobile}
                 onChange={(e) => patch({ ownerMobile: e.target.value })}
-                placeholder="+1 (555) 902-3311"
+                placeholder={t.ownerMobilePlaceholder}
                 autoComplete="tel"
               />
             </Field>
           </div>
 
-          <Field label="Timezone" htmlFor="ob-tz">
+          <Field label={t.timezone} htmlFor="ob-tz">
             <select
               id="ob-tz"
               className={inputCls}
@@ -254,7 +259,7 @@ export function OnboardingWizard() {
           </Field>
 
           <fieldset className="m-0 border-0 p-0 text-center">
-            <legend className="sr-only">Plan</legend>
+            <legend className="sr-only">{t.planLegend}</legend>
             <div className="inline-flex items-center gap-1 rounded-[14px] bg-cream-200 p-1 shadow-[inset_0_1px_2px_rgba(36,27,20,0.06)]">
               {PLAN_OPTIONS.map((p) => {
                 const isActive = p === plan;
@@ -276,7 +281,7 @@ export function OnboardingWizard() {
           </fieldset>
 
           <fieldset className="m-0 border-0 p-0 text-center">
-            <legend className="sr-only">Billing period</legend>
+            <legend className="sr-only">{t.billingLegend}</legend>
             <div className="inline-flex items-center gap-1 rounded-[14px] bg-cream-200 p-1 shadow-[inset_0_1px_2px_rgba(36,27,20,0.06)]">
               {(["monthly", "annual"] as const).map((period) => {
                 const isActive = period === billing;
@@ -286,33 +291,29 @@ export function OnboardingWizard() {
                     type="button"
                     aria-pressed={isActive}
                     onClick={() => setBilling(period)}
-                    className={`min-h-[38px] rounded-[10px] px-4 py-[9px] text-[13px] font-medium capitalize transition-all ${
+                    className={`min-h-[38px] rounded-[10px] px-4 py-[9px] text-[13px] font-medium transition-all ${
                       isActive ? "bg-ink text-cream" : "bg-transparent text-muted"
                     }`}
                   >
-                    {period}
+                    {period === "annual" ? t.annual : t.monthly}
                   </button>
                 );
               })}
             </div>
             <p className="mt-2 text-[13px] text-muted-2">
               {billing === "annual"
-                ? `$${PRICE[plan].annual}/mo billed yearly — 1 month free`
-                : `$${PRICE[plan].monthly}/mo, cancel anytime`}
+                ? fill(t.noteAnnual, { price: PRICE[plan].annual })
+                : fill(t.noteMonthly, { price: PRICE[plan].monthly })}
             </p>
           </fieldset>
 
-          <Field
-            label="Referral code (optional)"
-            htmlFor="ob-referral"
-            hint="Have a friend's code? You'll get 10% off your first month."
-          >
+          <Field label={t.referral} htmlFor="ob-referral" hint={t.referralHint}>
             <input
               id="ob-referral"
               className={inputCls}
               value={referralCode}
               onChange={(e) => setReferralCode(e.target.value.toUpperCase())}
-              placeholder="e.g. A7K3M9QP"
+              placeholder={t.referralPlaceholder}
               autoCapitalize="characters"
               autoComplete="off"
             />
@@ -327,10 +328,10 @@ export function OnboardingWizard() {
 
         <div className="mt-8 flex flex-col-reverse items-stretch gap-3 sm:flex-row sm:items-center sm:justify-between">
           <a
-            href="/#pricing"
+            href={locale === "es" ? "/es#pricing" : "/#pricing"}
             className="inline-flex min-h-[50px] items-center justify-center rounded-[13px] px-5 py-[14px] text-[15px] font-medium text-muted no-underline"
           >
-            ← Back to site
+            {t.back}
           </a>
           <button
             type="button"
@@ -339,14 +340,13 @@ export function OnboardingWizard() {
             className="inline-flex min-h-[50px] items-center justify-center gap-2 rounded-[13px] bg-ink px-7 py-[14px] text-[15px] font-medium text-cream disabled:opacity-60"
           >
             {submitting
-              ? "Redirecting to Stripe…"
-              : `Start ${TRIAL_DAYS} days free — then $${PRICE[plan][billing]}/mo`}
+              ? t.submitting
+              : fill(t.submit, { days: TRIAL_DAYS, price: PRICE[plan][billing] })}
           </button>
         </div>
 
         <p className="mt-4 text-center text-[13px] leading-[1.55] text-muted-2">
-          Your card is saved now but charged only after {TRIAL_DAYS} days — cancel before then and
-          you pay nothing. One saved appointment a day more than covers the subscription.
+          {fill(t.trialNote, { days: TRIAL_DAYS })}
         </p>
       </div>
 
@@ -356,6 +356,8 @@ export function OnboardingWizard() {
           email: basics.email,
           phone: basics.ownerMobile || basics.businessPhone,
         }}
+        t={t}
+        form={dict.callForm}
       />
     </div>
   );

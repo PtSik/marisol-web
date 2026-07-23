@@ -1,26 +1,31 @@
 "use client";
 
 import { type CallPrefill, CallRequestForm } from "@/components/CallRequestForm";
+import type { Dict } from "@/lib/i18n/dict";
 import { useState } from "react";
 
-export function BookCallForm({ prefill }: { prefill: CallPrefill }) {
+export function BookCallForm({
+  prefill,
+  t,
+  form,
+}: { prefill: CallPrefill; t: Dict["onboarding"]; form: Dict["callForm"] }) {
   const [open, setOpen] = useState(false);
 
   if (!open) {
     return (
       <p className="mt-6 text-center text-[14px] text-muted">
-        Prefer to talk it through first?{" "}
+        {t.bookCallBefore}
         <button type="button" onClick={() => setOpen(true)} className="font-medium text-teal">
-          Book a 15-min call
-        </button>{" "}
-        — no payment needed.
+          {t.bookCallLink}
+        </button>
+        {t.bookCallAfter}
       </p>
     );
   }
 
   return (
     <div className="mt-6">
-      <CallRequestForm prefill={prefill} onCancel={() => setOpen(false)} />
+      <CallRequestForm prefill={prefill} onCancel={() => setOpen(false)} t={form} />
     </div>
   );
 }

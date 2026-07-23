@@ -1,7 +1,7 @@
 "use client";
 
 import { Reveal } from "@/components/motion/Reveal";
-import { type Dict, fill } from "@/lib/i18n/dict";
+import { type Dict, type Locale, fill, onboardingHref } from "@/lib/i18n/dict";
 import { PRICE, TRIAL_DAYS } from "@/lib/plans";
 import { SALES_EMAIL_HREF } from "@/lib/site";
 import { useState } from "react";
@@ -39,7 +39,7 @@ function FeatureList({
   );
 }
 
-export function Pricing({ t }: { t: Dict["pricing"] }) {
+export function Pricing({ t, locale }: { t: Dict["pricing"]; locale: Locale }) {
   const [annual, setAnnual] = useState(false);
   const billing = annual ? "annual" : "monthly";
 
@@ -100,7 +100,7 @@ export function Pricing({ t }: { t: Dict["pricing"] }) {
           <div className="my-[18px] mt-5 border-t border-ink/10" />
           <FeatureList feats={t.baseFeatures} check="#4F8C80" itemCls="text-[#54493e]" />
           <a
-            href={`/onboarding?plan=base&billing=${billing}`}
+            href={onboardingHref(locale, { plan: "base", billing })}
             className="inline-flex min-h-[50px] items-center justify-center gap-2 rounded-[13px] bg-ink px-5 py-[14px] text-[15px] font-medium text-cream no-underline"
           >
             {t.baseCta}
@@ -129,7 +129,7 @@ export function Pricing({ t }: { t: Dict["pricing"] }) {
           <div className="my-[18px] mt-5 border-t border-cream/[0.14]" />
           <FeatureList feats={t.premiumFeatures} check="#7FD18F" itemCls="text-cream/[0.92]" />
           <a
-            href={`/onboarding?plan=premium&billing=${billing}`}
+            href={onboardingHref(locale, { plan: "premium", billing })}
             className="inline-flex min-h-[50px] items-center justify-center gap-2 rounded-[13px] bg-cream px-5 py-[14px] text-[15px] font-medium text-ink no-underline"
           >
             {t.premiumCta}
