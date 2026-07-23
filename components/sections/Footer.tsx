@@ -1,7 +1,7 @@
 import { LangSwitch } from "@/components/LangSwitch";
 import { LogoMark } from "@/components/Logo";
 import type { Dict, Locale } from "@/lib/i18n/dict";
-import { CUSTOMER_PORTAL_URL, DEMO_PHONE, telHref } from "@/lib/site";
+import { DEMO_PHONE, telHref } from "@/lib/site";
 
 export function Footer({
   t,
@@ -58,11 +58,9 @@ export function Footer({
             <a href={telHref} className="no-underline">
               {t.contact}
             </a>
-            {CUSTOMER_PORTAL_URL && (
-              <a href={CUSTOMER_PORTAL_URL} className="no-underline">
-                {t.portal}
-              </a>
-            )}
+            <a href="/portal" className="no-underline">
+              {t.portal}
+            </a>
           </nav>
         </div>
       </div>

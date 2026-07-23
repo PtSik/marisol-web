@@ -142,6 +142,66 @@ export function defaultSetup(vertical: Vertical = "barbershop"): SetupDetails {
   };
 }
 
+const TIME_RE = /^\d{2}:\d{2}$/;
+
+function isShortString(value: unknown, max = 120): value is string {
+  return typeof value === "string" && value.length <= max;
+}
+
+function invalidWeekHours(hours: unknown): boolean {
+  if (typeof hours !== "object" || hours === null) return true;
+  const week = hours as WeekHours;
+  return DAYS.some((day) => {
+    const h = week[day.id];
+    if (typeof h?.closed !== "boolean" || !TIME_RE.test(h.open) || !TIME_RE.test(h.close))
+      return true;
+    return !h.closed && h.open >= h.close;
+  });
+}
+
+// Server-side gate for anything that writes a shop's configuration — the onboarding setup
+// submit and the portal's later edits go through the same rules.
+export function validateSetupPayload(setup: unknown): string | null {
+  if (typeof setup !== "object" || setup === null) return "invalid setup";
+  const s = setup as SetupDetails;
+
+  if (!isShortString(s.forwardNumber) || !PHONE_RE.test(s.forwardNumber))
+    return "invalid forwardNumber";
+  if (!FORWARD_MODES.includes(s.forwardMode)) return "invalid forwardMode";
+  if (s.calendar !== "google_calendar" && s.calendar !== "none") return "invalid calendar";
+  if (typeof s.notes !== "string" || s.notes.length > 2000) return "invalid notes";
+
+  if (invalidWeekHours(s.hours)) return "invalid hours";
+
+  if (!Array.isArray(s.services) || s.services.length === 0 || s.services.length > 30)
+    return "invalid services";
+  const hasService = s.services.some(
+    (svc) => isShortString(svc?.name) && svc.name.trim() && Number(svc?.durationMin) > 0,
+  );
+  if (
+    !hasService ||
+    !s.services.every(
+      (svc) =>
+        isShortString(svc?.name) &&
+        isShortString(svc?.durationMin, 5) &&
+        isShortString(svc?.price, 10),
+    )
+  )
+    return "invalid services";
+
+  if (typeof s.staffCustomHours !== "boolean") return "invalid staff";
+  if (!Array.isArray(s.staff) || s.staff.length === 0 || s.staff.length > 30)
+    return "invalid staff";
+  if (!s.staff.some((m) => isShortString(m?.name) && m.name.trim())) return "invalid staff";
+  for (const m of s.staff) {
+    if (!isShortString(m?.name) || !isShortString(m?.id, 40)) return "invalid staff";
+    if (m.hours === null || m.hours === undefined) continue;
+    if (invalidWeekHours(m.hours)) return "invalid staff";
+  }
+
+  return null;
+}
+
 export function isBusinessBasics(value: unknown): value is BusinessBasics {
   if (typeof value !== "object" || value === null) return false;
   const v = value as Record<string, unknown>;

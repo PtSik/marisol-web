@@ -45,6 +45,12 @@ export function Nav({ t, lang, locale }: { t: Dict["nav"]; lang: Dict["lang"]; l
         </div>
 
         <div className="flex items-center gap-2">
+          <a
+            href="/login"
+            className="order-4 hidden whitespace-nowrap px-1 text-sm text-muted no-underline md:order-none md:inline"
+          >
+            {t.signIn}
+          </a>
           <LangSwitch locale={locale} t={lang} className="order-3 md:order-none" />
           <details ref={menuRef} className="relative order-2 md:hidden">
             <summary
@@ -78,6 +84,13 @@ export function Nav({ t, lang, locale }: { t: Dict["nav"]; lang: Dict["lang"]; l
                   {l.label}
                 </a>
               ))}
+              <a
+                href="/login"
+                onClick={closeMenu}
+                className="mt-1 flex min-h-[44px] items-center rounded-[10px] border-t border-ink/10 px-[14px] py-3 text-[15px] text-muted no-underline"
+              >
+                {t.signIn}
+              </a>
             </div>
           </details>
 

@@ -19,6 +19,7 @@ export const es: Dict = {
     pricing: "Precios",
     faq: "Preguntas",
     cta: "Pruébala en vivo",
+    signIn: "Iniciar sesión",
     openMenu: "Abrir menú",
   },
   hero: {
@@ -273,7 +274,7 @@ export const es: Dict = {
     privacy: "Privacidad",
     terms: "Términos",
     contact: "Contacto",
-    portal: "Administrar suscripción",
+    portal: "Portal de cliente",
     copyright: "© 2026 Kaijiro Labs. Todos los derechos reservados.",
   },
 };

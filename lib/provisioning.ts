@@ -1,6 +1,7 @@
 import type { CheckoutLead } from "@/lib/leads";
 import { notifyTeam, sendClientWelcome, sendProvisionAlert } from "@/lib/notify";
 import type { DayId, ServiceEntry, SetupDetails, WeekHours } from "@/lib/onboarding";
+import { createAccount } from "@/lib/portalApi";
 import {
   buyLocalNumber,
   lookupNumberSid,
@@ -8,11 +9,9 @@ import {
   toUsE164,
   usAreaCode,
 } from "@/lib/twilio";
+import { type VoiceAgentEnv, voiceAgentFetch } from "@/lib/voiceAgent";
 
-export interface ProvisioningEnv {
-  VOICE_AGENT_API?: Fetcher;
-  VOICE_AGENT_API_URL?: string;
-  ADMIN_API_KEY?: string;
+export interface ProvisioningEnv extends VoiceAgentEnv {
   GROOMING_AGENT_ID?: string;
   TWILIO_ACCOUNT_SID?: string;
   TWILIO_AUTH_TOKEN?: string;
@@ -114,23 +113,6 @@ export function buildShopPayload(
   return payload;
 }
 
-export async function voiceAgentFetch(
-  env: ProvisioningEnv,
-  path: string,
-  init: RequestInit = {},
-): Promise<Response | null> {
-  if (!env.VOICE_AGENT_API_URL || !env.ADMIN_API_KEY) return null;
-  const url = `${env.VOICE_AGENT_API_URL}${path}`;
-  const withAuth: RequestInit = {
-    ...init,
-    headers: {
-      "Content-Type": "application/json",
-      Authorization: `Bearer ${env.ADMIN_API_KEY}`,
-    },
-  };
-  return env.VOICE_AGENT_API ? env.VOICE_AGENT_API.fetch(url, withAuth) : fetch(url, withAuth);
-}
-
 async function createShop(
   env: ProvisioningEnv,
   payload: Record<string, unknown>,
@@ -144,7 +126,7 @@ async function createShop(
   return data?.shop?.id ? { id: data.shop.id } : null;
 }
 
-async function patchShop(
+export async function patchShop(
   env: ProvisioningEnv,
   shopId: string,
   update: Record<string, unknown>,
@@ -223,6 +205,21 @@ export async function provisionLead(
       await sendProvisionAlert(env, lead, "admin POST /shops failed");
       return { ok: false, reason: "admin POST /shops failed" };
     }
+    // The portal account is what lets the client come back and edit their own setup. The shop
+    // is already live without it, so a failure here is an alert, not a rollback.
+    const account = await createAccount(env, {
+      email: lead.basics.email,
+      shop_id: shop.id,
+      lead_id: lead.id,
+    });
+    if (!account) {
+      await notifyTeam(env, `🔑 Portal account failed: ${lead.basics.businessName}`, {
+        email: lead.basics.email,
+        shopId: shop.id,
+        leadId: lead.id,
+      });
+    }
+
     const welcomed = await sendClientWelcome(env, {
       email: lead.basics.email,
       businessName: lead.basics.businessName,

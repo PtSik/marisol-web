@@ -2,7 +2,7 @@ import { env } from "cloudflare:workers";
 import { LogoMark } from "@/components/Logo";
 import { ADMIN_COOKIE, isAdminCookieValid } from "@/lib/adminAuth";
 import { type CallLead, type CheckoutLead, listLeads } from "@/lib/leads";
-import { voiceAgentFetch } from "@/lib/provisioning";
+import { voiceAgentFetch } from "@/lib/voiceAgent";
 import { cookies } from "next/headers";
 import type { ReactNode } from "react";
 

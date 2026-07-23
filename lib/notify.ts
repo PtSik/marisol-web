@@ -1,7 +1,7 @@
 import { type Segment, forwardingInstructions } from "@/lib/forwarding";
 import type { CheckoutLead } from "@/lib/leads";
 import type { DayId, ForwardMode, ServiceEntry, SetupDetails, WeekHours } from "@/lib/onboarding";
-import { CUSTOMER_PORTAL_URL } from "@/lib/site";
+import { SITE_URL } from "@/lib/site";
 
 export interface NotifyEnv {
   RESEND_API_KEY?: string;
@@ -237,9 +237,7 @@ function firstNameOf(ownerName: string): string {
 }
 
 function portalFooter(): string {
-  return CUSTOMER_PORTAL_URL
-    ? `<p style="margin:24px 0 0;font-size:13px;color:#6F6457">Manage your subscription anytime in the <a href="${CUSTOMER_PORTAL_URL}" style="color:#4F8C80">billing portal</a>.</p>`
-    : "";
+  return `<p style="margin:24px 0 0;font-size:13px;color:#6F6457">Your hours, services, staff and billing live in <a href="${SITE_URL}/portal" style="color:#4F8C80">your portal</a> — sign in with this email address whenever something changes.</p>`;
 }
 
 export async function sendClientWelcome(env: NotifyEnv, w: ClientWelcome): Promise<boolean> {

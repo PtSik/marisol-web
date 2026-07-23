@@ -3,12 +3,11 @@ import { type CheckoutLead, getLead, putLead } from "@/lib/leads";
 import { notifyTeam } from "@/lib/notify";
 import {
   type BusinessBasics,
-  DAYS,
   EMAIL_RE,
-  FORWARD_MODES,
   PHONE_RE,
   type SetupDetails,
   VERTICAL_IDS,
+  validateSetupPayload,
 } from "@/lib/onboarding";
 import { BILLING_OPTIONS, type Billing, PLAN_OPTIONS, type Plan, TRIAL_DAYS } from "@/lib/plans";
 import { provisionLead } from "@/lib/provisioning";
@@ -67,8 +66,6 @@ const RATE_LIMITS: Record<OnboardingRequest["intent"], number> = {
   setup: 20,
 };
 
-const TIME_RE = /^\d{2}:\d{2}$/;
-
 function isShortString(value: unknown, max = 120): value is string {
   return typeof value === "string" && value.length <= max;
 }
@@ -95,59 +92,6 @@ function validateBasics(basics: unknown): string | null {
     if (!isShortString(b[field]) || !PHONE_RE.test(b[field])) return `invalid ${field}`;
   }
   if (!isShortString(b.timezone, 60)) return "invalid timezone";
-  return null;
-}
-
-function validateSetup(setup: unknown): string | null {
-  if (typeof setup !== "object" || setup === null) return "invalid setup";
-  const s = setup as SetupDetails;
-
-  if (!isShortString(s.forwardNumber) || !PHONE_RE.test(s.forwardNumber))
-    return "invalid forwardNumber";
-  if (!FORWARD_MODES.includes(s.forwardMode)) return "invalid forwardMode";
-  if (s.calendar !== "google_calendar" && s.calendar !== "none") return "invalid calendar";
-  if (typeof s.notes !== "string" || s.notes.length > 2000) return "invalid notes";
-
-  if (typeof s.hours !== "object" || s.hours === null) return "invalid hours";
-  for (const day of DAYS) {
-    const h = s.hours[day.id];
-    if (typeof h?.closed !== "boolean" || !TIME_RE.test(h.open) || !TIME_RE.test(h.close))
-      return "invalid hours";
-    if (!h.closed && h.open >= h.close) return "invalid hours";
-  }
-
-  if (!Array.isArray(s.services) || s.services.length === 0 || s.services.length > 30)
-    return "invalid services";
-  const hasService = s.services.some(
-    (svc) => isShortString(svc?.name) && svc.name.trim() && Number(svc?.durationMin) > 0,
-  );
-  if (
-    !hasService ||
-    !s.services.every(
-      (svc) =>
-        isShortString(svc?.name) &&
-        isShortString(svc?.durationMin, 5) &&
-        isShortString(svc?.price, 10),
-    )
-  )
-    return "invalid services";
-
-  if (typeof s.staffCustomHours !== "boolean") return "invalid staff";
-  if (!Array.isArray(s.staff) || s.staff.length === 0 || s.staff.length > 30)
-    return "invalid staff";
-  if (!s.staff.some((m) => isShortString(m?.name) && m.name.trim())) return "invalid staff";
-  for (const m of s.staff) {
-    if (!isShortString(m?.name) || !isShortString(m?.id, 40)) return "invalid staff";
-    if (m.hours === null || m.hours === undefined) continue;
-    if (typeof m.hours !== "object") return "invalid staff";
-    for (const day of DAYS) {
-      const h = m.hours[day.id];
-      if (typeof h?.closed !== "boolean" || !TIME_RE.test(h.open) || !TIME_RE.test(h.close))
-        return "invalid staff";
-      if (!h.closed && h.open >= h.close) return "invalid staff";
-    }
-  }
-
   return null;
 }
 
@@ -369,7 +313,7 @@ export async function POST(request: Request) {
   if (!isShortString(body.sessionId, 300) || !SESSION_ID_RE.test(body.sessionId)) {
     return Response.json({ error: "invalid sessionId" }, { status: 400 });
   }
-  const error = validateSetup(body.setup);
+  const error = validateSetupPayload(body.setup);
   if (error) return Response.json({ error }, { status: 400 });
   return handleSetup(cfEnv, body.sessionId, body.setup as SetupDetails);
 }

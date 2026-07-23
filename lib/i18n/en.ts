@@ -17,6 +17,7 @@ export const en = {
     pricing: "Pricing",
     faq: "FAQ",
     cta: "Try it live",
+    signIn: "Sign in",
     openMenu: "Open menu",
   },
   hero: {
@@ -270,7 +271,7 @@ export const en = {
     privacy: "Privacy",
     terms: "Terms",
     contact: "Contact",
-    portal: "Manage subscription",
+    portal: "Client portal",
     copyright: "© 2026 Kaijiro Labs. All rights reserved.",
   },
 };

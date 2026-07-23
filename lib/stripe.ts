@@ -19,6 +19,44 @@ export function checkoutSettled(session: StripeCheckoutSession): boolean {
   return session.payment_status === "paid" || session.payment_status === "no_payment_required";
 }
 
+export interface StripeSubscription {
+  id: string;
+  status?: string;
+  trial_end?: number | null;
+  current_period_end?: number | null;
+  cancel_at_period_end?: boolean;
+}
+
+export async function getSubscription(
+  secretKey: string,
+  subscriptionId: string,
+): Promise<StripeSubscription | null> {
+  const res = await fetch(
+    `https://api.stripe.com/v1/subscriptions/${encodeURIComponent(subscriptionId)}`,
+    { headers: { Authorization: `Bearer ${secretKey}` } },
+  ).catch(() => null);
+  if (!res?.ok) return null;
+  return (await res.json()) as StripeSubscription;
+}
+
+export async function createBillingPortalSession(
+  secretKey: string,
+  customerId: string,
+  returnUrl: string,
+): Promise<string | null> {
+  const res = await fetch("https://api.stripe.com/v1/billing_portal/sessions", {
+    method: "POST",
+    headers: {
+      Authorization: `Bearer ${secretKey}`,
+      "Content-Type": "application/x-www-form-urlencoded",
+    },
+    body: new URLSearchParams({ customer: customerId, return_url: returnUrl }),
+  }).catch(() => null);
+  if (!res?.ok) return null;
+  const body = (await res.json().catch(() => null)) as { url?: string } | null;
+  return body?.url ?? null;
+}
+
 export async function getCheckoutSession(
   secretKey: string,
   sessionId: string,
