@@ -1,4 +1,5 @@
 import { LegalShell } from "@/components/LegalShell";
+import { TRIAL_DAYS } from "@/lib/plans";
 import { SALES_EMAIL } from "@/lib/site";
 
 export const metadata = {
@@ -8,7 +9,7 @@ export const metadata = {
 
 export default function TermsPage() {
   return (
-    <LegalShell title="Terms of Service" updated="July 3, 2026">
+    <LegalShell title="Terms of Service" updated="July 23, 2026">
       <p>
         These terms govern your use of the Marisol AI receptionist service provided by Kaijiro Labs
         ("Marisol", "we"). By subscribing, you agree to them.
@@ -22,11 +23,24 @@ export default function TermsPage() {
         those details accurate.
       </p>
 
+      <h2>Free trial</h2>
+      <p>
+        Every new subscription starts with a {TRIAL_DAYS}-day free trial. We collect your card at
+        checkout but charge nothing until the trial ends. Cancel any time before then — through the
+        billing portal or by emailing{" "}
+        <a href={`mailto:${SALES_EMAIL}`} className="text-teal">
+          {SALES_EMAIL}
+        </a>{" "}
+        — and you are never charged. If you do not cancel, the first payment is taken automatically
+        on the day the trial ends and the subscription continues as normal.
+      </p>
+
       <h2>Billing</h2>
       <p>
         Marisol is a subscription billed through Stripe, monthly or annually depending on the plan
-        you choose at checkout. Prices are shown on the pricing page before you pay. Subscriptions
-        renew automatically until cancelled.
+        you choose at checkout. Prices are shown on the pricing page before you subscribe.
+        Subscriptions renew automatically until cancelled. Payments already taken are not refunded;
+        the free trial is there so you can decide before any money changes hands.
       </p>
 
       <h2>Fair use</h2>
@@ -36,16 +50,6 @@ export default function TermsPage() {
         locations plausibly generate — or calls are automated, bulk or artificial in nature — we
         will reach out to find a plan that fits before making any change. We never interrupt the
         service mid-month over volume.
-      </p>
-
-      <h2>14-day money-back guarantee</h2>
-      <p>
-        If Marisol is not right for you, tell us within 14 days of your first payment and we will
-        refund it in full — no questions asked. Email{" "}
-        <a href={`mailto:${SALES_EMAIL}`} className="text-teal">
-          {SALES_EMAIL}
-        </a>{" "}
-        from the address you signed up with.
       </p>
 
       <h2>Cancellation</h2>

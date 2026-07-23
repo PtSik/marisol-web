@@ -13,7 +13,7 @@ import {
   defaultBasics,
   isBusinessBasics,
 } from "@/lib/onboarding";
-import { type Billing, PLAN_LABELS, PLAN_OPTIONS, PRICE, type Plan } from "@/lib/plans";
+import { type Billing, PLAN_LABELS, PLAN_OPTIONS, PRICE, type Plan, TRIAL_DAYS } from "@/lib/plans";
 import { track } from "@/lib/track";
 import { useEffect, useRef, useState } from "react";
 
@@ -312,13 +312,13 @@ export function OnboardingWizard() {
           >
             {submitting
               ? "Redirecting to Stripe…"
-              : `Continue to payment — $${PRICE[plan][billing]}/mo`}
+              : `Start ${TRIAL_DAYS} days free — then $${PRICE[plan][billing]}/mo`}
           </button>
         </div>
 
         <p className="mt-4 text-center text-[13px] leading-[1.55] text-muted-2">
-          14-day money-back guarantee — if it's not for you, we refund your first payment, no
-          questions. One saved appointment a day more than covers the subscription.
+          Your card is saved now but charged only after {TRIAL_DAYS} days — cancel before then and
+          you pay nothing. One saved appointment a day more than covers the subscription.
         </p>
       </div>
 

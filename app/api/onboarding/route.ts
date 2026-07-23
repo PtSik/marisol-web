@@ -10,10 +10,15 @@ import {
   type SetupDetails,
   VERTICAL_IDS,
 } from "@/lib/onboarding";
-import { BILLING_OPTIONS, type Billing, PLAN_OPTIONS, type Plan } from "@/lib/plans";
+import { BILLING_OPTIONS, type Billing, PLAN_OPTIONS, type Plan, TRIAL_DAYS } from "@/lib/plans";
 import { provisionLead } from "@/lib/provisioning";
 import { overRateLimit } from "@/lib/rateLimit";
-import { SESSION_ID_RE, type StripeCheckoutSession, getCheckoutSession } from "@/lib/stripe";
+import {
+  SESSION_ID_RE,
+  type StripeCheckoutSession,
+  checkoutSettled,
+  getCheckoutSession,
+} from "@/lib/stripe";
 
 export const dynamic = "force-dynamic";
 
@@ -221,6 +226,7 @@ async function handleCheckout(
     "metadata[owner_name]": basics.ownerName.slice(0, 500),
     "metadata[business_phone]": basics.businessPhone,
     "subscription_data[metadata][lead_id]": lead.id,
+    "subscription_data[trial_period_days]": String(TRIAL_DAYS),
   });
 
   const res = await fetch("https://api.stripe.com/v1/checkout/sessions", {
@@ -259,7 +265,7 @@ async function handleSetup(
   if (!session) {
     return Response.json({ error: "unknown session" }, { status: 400 });
   }
-  if (session.payment_status !== "paid") {
+  if (!checkoutSettled(session)) {
     return Response.json({ error: "session not paid" }, { status: 402 });
   }
   const leadId = session.metadata?.lead_id;
@@ -273,7 +279,7 @@ async function handleSetup(
   if (lead.status === "provisioned") {
     lead.setup = setup;
     await putLead(cfEnv.LEADS_KV, lead);
-    return Response.json({ ok: true, provisioned: true });
+    return Response.json({ ok: true, provisioned: true, number: lead.assignedNumber });
   }
 
   lead.setup = setup;
@@ -302,7 +308,7 @@ async function handleSetup(
     await putLead(cfEnv.LEADS_KV, lead);
   }
 
-  return Response.json({ ok: true, provisioned: result.ok });
+  return Response.json({ ok: true, provisioned: result.ok, number: result.number });
 }
 
 export async function POST(request: Request) {

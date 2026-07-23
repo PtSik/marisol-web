@@ -1,3 +1,4 @@
+import { type Segment, forwardingInstructions } from "@/lib/forwarding";
 import type { CheckoutLead } from "@/lib/leads";
 import type { DayId, ForwardMode, ServiceEntry, SetupDetails, WeekHours } from "@/lib/onboarding";
 import { CUSTOMER_PORTAL_URL } from "@/lib/site";
@@ -199,22 +200,23 @@ export async function sendProvisionAlert(
   });
 }
 
-function forwardInstructions(mode: ForwardMode, dialable: string): string {
-  const help = `<p style="margin:10px 0 0;color:#6F6457;font-size:13px">Forwarding codes differ between carriers — if these don't work, just reply and we'll set it up with you in a couple of minutes.</p>`;
-  if (mode === "all") {
-    return `Send <strong>every call</strong> straight to Marisol so she answers first:
+function renderSegments(parts: Segment[]): string {
+  return parts
+    .map((part) => (typeof part === "string" ? esc(part) : `<strong>${esc(part.code)}</strong>`))
+    .join("");
+}
+
+function forwardInstructions(mode: ForwardMode, twilioNumber: string): string {
+  const { intro, steps, turnOff } = forwardingInstructions(mode, twilioNumber);
+  const items = steps
+    .map((step) => `<li><strong>${esc(step.device)}:</strong> ${renderSegments(step.parts)}</li>`)
+    .join("\n");
+  return `${renderSegments(intro)}
 <ul style="margin:8px 0 0;padding-left:20px">
-<li><strong>Landline / desk phone:</strong> dial <strong>*72</strong>, then <strong>${dialable}</strong>, then call — you'll hear a confirmation tone.</li>
-<li><strong>Mobile:</strong> dial <strong>**21*${dialable}#</strong> and press call.</li>
+${items}
 </ul>
-<p style="margin:8px 0 0;font-size:13px;color:#6F6457">To turn it off later: <strong>*73</strong> (landline) or <strong>##21#</strong> (mobile).</p>${help}`;
-  }
-  return `Send calls to Marisol <strong>only when you can't pick up</strong> (busy or no answer) — you still answer first whenever you're free:
-<ul style="margin:8px 0 0;padding-left:20px">
-<li><strong>Landline / desk phone:</strong> dial <strong>*71</strong>, then <strong>${dialable}</strong>, then call.</li>
-<li><strong>Mobile:</strong> dial <strong>**61*${dialable}#</strong> (no answer) and <strong>**67*${dialable}#</strong> (busy), pressing call after each.</li>
-</ul>
-<p style="margin:8px 0 0;font-size:13px;color:#6F6457">To turn it off later: <strong>*73</strong> (landline) or <strong>##002#</strong> (mobile).</p>${help}`;
+<p style="margin:8px 0 0;font-size:13px;color:#6F6457">${renderSegments(turnOff)}</p>
+<p style="margin:10px 0 0;color:#6F6457;font-size:13px">Forwarding codes differ between carriers — if these don't work, just reply and we'll set it up with you in a couple of minutes.</p>`;
 }
 
 export interface ClientWelcome {
@@ -223,41 +225,75 @@ export interface ClientWelcome {
   ownerName: string;
   twilioNumber: string;
   forwardMode: ForwardMode;
-  calendarConnectUrl?: string;
+}
+
+function clientFrom({ CLIENT_EMAIL_FROM, RESEND_FROM }: NotifyEnv): string {
+  return CLIENT_EMAIL_FROM ?? RESEND_FROM ?? "Marisol <hello@getmarisol.com>";
+}
+
+function firstNameOf(ownerName: string): string {
+  return ownerName.trim().split(/\s+/)[0] || "there";
+}
+
+function portalFooter(): string {
+  return CUSTOMER_PORTAL_URL
+    ? `<p style="margin:24px 0 0;font-size:13px;color:#6F6457">Manage your subscription anytime in the <a href="${CUSTOMER_PORTAL_URL}" style="color:#4F8C80">billing portal</a>.</p>`
+    : "";
 }
 
 export async function sendClientWelcome(env: NotifyEnv, w: ClientWelcome): Promise<void> {
-  const { RESEND_API_KEY, CLIENT_EMAIL_FROM, RESEND_FROM } = env;
+  const { RESEND_API_KEY } = env;
   if (!RESEND_API_KEY) return;
-  const from = CLIENT_EMAIL_FROM ?? RESEND_FROM ?? "Marisol <hello@getmarisol.com>";
-  const firstName = w.ownerName.trim().split(/\s+/)[0] || "there";
-
-  const calendarStep = w.calendarConnectUrl
-    ? `<p style="margin:0">Marisol can book appointments straight into your Google Calendar — connect it in one click:</p>
-<p style="margin:12px 0 0"><a href="${w.calendarConnectUrl}" style="display:inline-block;background:#4F8C80;color:#fff;text-decoration:none;padding:12px 22px;border-radius:10px;font-weight:600;font-size:15px">Connect Google Calendar</a></p>
-<p style="font-size:13px;color:#6F6457;margin:10px 0 0">Takes a few seconds on your phone or computer. Until you connect it, Marisol still answers every call, takes the details, and texts them to you.</p>`
-    : `<p style="margin:0">Marisol can drop every booking straight into your Google Calendar. Reply to this email and we'll walk you through it. Until then Marisol still answers every call, takes the details, and texts them to you.</p>`;
-
-  const portalLink = CUSTOMER_PORTAL_URL
-    ? `<p style="margin:24px 0 0;font-size:13px;color:#6F6457">Manage your subscription anytime in the <a href="${CUSTOMER_PORTAL_URL}" style="color:#4F8C80">billing portal</a>.</p>`
-    : "";
 
   const html = `<div style="font-family:Inter,Helvetica,Arial,sans-serif;max-width:560px;margin:0 auto;color:#241B14;line-height:1.55">
-  <p style="font-size:16px">Hi ${firstName},</p>
-  <p style="font-size:16px">Marisol is set up for <strong>${w.businessName}</strong> and ready to answer your calls 24/7.</p>
+  <p style="font-size:16px">Hi ${esc(firstNameOf(w.ownerName))},</p>
+  <p style="font-size:16px">Marisol is set up for <strong>${esc(w.businessName)}</strong> and ready to answer your calls 24/7.</p>
   <div style="background:#F6EFE6;border-radius:12px;padding:20px 24px;margin:20px 0">
     <p style="margin:0;font-size:13px;color:#6F6457;text-transform:uppercase;letter-spacing:.04em">Your Marisol number</p>
-    <p style="margin:6px 0 0;font-size:24px;font-weight:600">${w.twilioNumber}</p>
+    <p style="margin:6px 0 0;font-size:24px;font-weight:600">${esc(w.twilioNumber)}</p>
   </div>
   <p style="font-size:16px;font-weight:600;margin:24px 0 4px">1. Forward your calls</p>
-  <div style="font-size:15px">${forwardInstructions(w.forwardMode, w.twilioNumber.replace(/\D/g, ""))}</div>
-  <p style="font-size:16px;font-weight:600;margin:24px 0 4px">2. Connect your calendar</p>
-  <div style="font-size:15px">${calendarStep}</div>
-  ${portalLink}
+  <div style="font-size:15px">${forwardInstructions(w.forwardMode, w.twilioNumber)}</div>
+  <p style="font-size:16px;font-weight:600;margin:24px 0 4px">2. Your calendar comes next</p>
+  <div style="font-size:15px"><p style="margin:0">We'll email you a one-click link to connect your Google Calendar shortly. Until then Marisol still answers every call, takes the details, and texts them to you.</p></div>
+  ${portalFooter()}
   <p style="font-size:15px;margin:24px 0 0">Questions? Just reply — we're here to help.</p>
 </div>`;
 
-  await sendEmail(RESEND_API_KEY, from, w.email, `Marisol is live for ${w.businessName} 🎉`, {
-    html,
-  });
+  await sendEmail(
+    RESEND_API_KEY,
+    clientFrom(env),
+    w.email,
+    `Marisol is live for ${w.businessName} 🎉`,
+    { html },
+  );
+}
+
+export interface CalendarInvite {
+  email: string;
+  businessName: string;
+  ownerName: string;
+  calendarConnectUrl: string;
+}
+
+export async function sendCalendarInvite(env: NotifyEnv, c: CalendarInvite): Promise<void> {
+  const { RESEND_API_KEY } = env;
+  if (!RESEND_API_KEY) return;
+
+  const html = `<div style="font-family:Inter,Helvetica,Arial,sans-serif;max-width:560px;margin:0 auto;color:#241B14;line-height:1.55">
+  <p style="font-size:16px">Hi ${esc(firstNameOf(c.ownerName))},</p>
+  <p style="font-size:16px">Marisol can book appointments straight into your Google Calendar — and read it so she never double-books you. Connect it in one click:</p>
+  <p style="margin:20px 0 0"><a href="${c.calendarConnectUrl}" style="display:inline-block;background:#4F8C80;color:#fff;text-decoration:none;padding:12px 22px;border-radius:10px;font-weight:600;font-size:15px">Connect Google Calendar</a></p>
+  <p style="font-size:13px;color:#6F6457;margin:10px 0 0">Takes a few seconds on your phone or computer. Use the Google account whose calendar you book into.</p>
+  ${portalFooter()}
+  <p style="font-size:15px;margin:24px 0 0">Something not working? Just reply — we'll set it up with you.</p>
+</div>`;
+
+  await sendEmail(
+    RESEND_API_KEY,
+    clientFrom(env),
+    c.email,
+    `Connect your calendar to Marisol — ${c.businessName}`,
+    { html },
+  );
 }

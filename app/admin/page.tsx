@@ -155,7 +155,36 @@ function LeadTile({ lead, shop }: { lead: CheckoutLead; shop?: Shop }) {
           Provisioning failed: {lead.provisionError}
         </p>
       )}
+      {lead.shopId && <CalendarInviteAction lead={lead} connected={isCalendarConnected(shop)} />}
     </article>
+  );
+}
+
+function isCalendarConnected(shop?: Shop): boolean {
+  return shop?.integration === "google_calendar";
+}
+
+function CalendarInviteAction({ lead, connected }: { lead: CheckoutLead; connected: boolean }) {
+  if (connected) return null;
+  if (lead.calendarEmailSentAt) {
+    return (
+      <p className="mt-3 text-sm text-muted">
+        Calendar invite sent {fmtDate(lead.calendarEmailSentAt)} — not connected yet.
+      </p>
+    );
+  }
+  return (
+    <form method="post" action={`/api/admin/leads/${lead.id}/calendar-email`} className="mt-3">
+      <button
+        type="submit"
+        className="w-full rounded-[10px] border border-teal/30 bg-teal/10 px-4 py-2 text-sm font-medium text-teal"
+      >
+        Send calendar invite
+      </button>
+      <span className="mt-1.5 block text-xs text-muted">
+        Add {lead.basics.email} as a Google Cloud test user first.
+      </span>
+    </form>
   );
 }
 
@@ -201,13 +230,21 @@ function Section({
   );
 }
 
+const CALENDAR_NOTICE: Record<string, string> = {
+  sent: "Calendar invite sent.",
+  "already-sent": "That client already got the calendar invite.",
+  missing: "No shop for that lead — provision it first.",
+  failed: "Couldn't build the connect link — check ADMIN_API_KEY and the voice-agent URL.",
+  denied: "Session expired — sign in again.",
+};
+
 export default async function AdminPage({
   searchParams,
 }: {
-  searchParams: Promise<{ error?: string }>;
+  searchParams: Promise<{ error?: string; calendar?: string }>;
 }) {
   const cfEnv = env as unknown as AdminEnv;
-  const { error } = await searchParams;
+  const { error, calendar } = await searchParams;
   const jar = await cookies();
   const authed = await isAdminCookieValid(jar.get(ADMIN_COOKIE)?.value, cfEnv.ADMIN_DASH_KEY);
   if (!authed) return <LoginForm error={Boolean(error)} />;
@@ -251,6 +288,11 @@ export default async function AdminPage({
           <p className="rounded-[12px] border border-[#B97E24]/30 bg-[#B97E24]/10 px-4 py-2.5 text-sm text-[#8A5D17]">
             Couldn't reach the voice-agent admin API — shop status, calendar and reminders are
             hidden.
+          </p>
+        )}
+        {calendar && CALENDAR_NOTICE[calendar] && (
+          <p className="mt-3 rounded-[12px] border border-teal/30 bg-teal/10 px-4 py-2.5 text-sm text-teal">
+            {CALENDAR_NOTICE[calendar]}
           </p>
         )}
         {leads.length === 0 && <p className="mt-10 text-muted">No leads yet.</p>}

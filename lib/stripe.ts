@@ -10,6 +10,12 @@ export interface StripeCheckoutSession {
   metadata?: Record<string, string>;
 }
 
+// A checkout that starts a free trial completes with `no_payment_required` — treating that as
+// unpaid would block setup for every trialling client.
+export function checkoutSettled(session: StripeCheckoutSession): boolean {
+  return session.payment_status === "paid" || session.payment_status === "no_payment_required";
+}
+
 export async function getCheckoutSession(
   secretKey: string,
   sessionId: string,

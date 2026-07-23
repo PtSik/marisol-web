@@ -1,7 +1,7 @@
 "use client";
 
 import { Reveal } from "@/components/motion/Reveal";
-import { BASE_FEATURES, PREMIUM_FEATURES, PRICE } from "@/lib/plans";
+import { BASE_FEATURES, PREMIUM_FEATURES, PRICE, TRIAL_DAYS } from "@/lib/plans";
 import { SALES_EMAIL_HREF } from "@/lib/site";
 import { useState } from "react";
 
@@ -140,7 +140,8 @@ export function Pricing() {
       </div>
 
       <p className="mt-6 text-center text-[13px] leading-[1.55] text-muted-2">
-        14-day money-back guarantee on both plans. Running 3+ locations?{" "}
+        {TRIAL_DAYS} days free on both plans — cancel before it ends and you're never charged.
+        Running 3+ locations?{" "}
         <a href={SALES_EMAIL_HREF} className="text-ink underline">
           Talk to sales
         </a>

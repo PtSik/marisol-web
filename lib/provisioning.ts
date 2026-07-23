@@ -1,7 +1,13 @@
 import type { CheckoutLead } from "@/lib/leads";
 import { sendClientWelcome, sendProvisionAlert } from "@/lib/notify";
 import type { DayId, ServiceEntry, SetupDetails, WeekHours } from "@/lib/onboarding";
-import { buyLocalNumber, lookupNumberSid, releaseTwilioNumber, usAreaCode } from "@/lib/twilio";
+import {
+  buyLocalNumber,
+  lookupNumberSid,
+  releaseTwilioNumber,
+  toUsE164,
+  usAreaCode,
+} from "@/lib/twilio";
 
 export interface ProvisioningEnv {
   VOICE_AGENT_API?: Fetcher;
@@ -164,7 +170,7 @@ async function hmacV0(secret: string, message: string): Promise<string> {
     .join("")}`;
 }
 
-async function buildCalendarConnectUrl(
+export async function buildCalendarConnectUrl(
   env: ProvisioningEnv,
   shopId: string,
 ): Promise<string | undefined> {
@@ -187,16 +193,25 @@ export async function provisionLead(
   env: ProvisioningEnv,
   lead: CheckoutLead,
 ): Promise<ProvisionResult> {
-  const areaCode = usAreaCode(lead.setup?.forwardNumber ?? lead.basics.businessPhone);
+  const clientNumber = lead.setup?.forwardNumber ?? lead.basics.businessPhone;
+  const areaCode = usAreaCode(clientNumber);
   if (!areaCode) {
     await sendProvisionAlert(env, lead, "cannot determine US area code from forwarding number");
     return { ok: false, reason: "invalid area code" };
   }
 
   const voiceUrl = `${env.VOICE_AGENT_API_URL}/twilio/inbound`;
-  const bought = await buyLocalNumber(env, areaCode, voiceUrl);
+  const bought = await buyLocalNumber(
+    env,
+    { areaCode, nearNumber: toUsE164(clientNumber) ?? undefined },
+    voiceUrl,
+  );
   if (!bought) {
-    await sendProvisionAlert(env, lead, `no local number available in area code ${areaCode}`);
+    await sendProvisionAlert(
+      env,
+      lead,
+      `no US local number available (tried area code ${areaCode})`,
+    );
     return { ok: false, reason: "number purchase failed" };
   }
 
@@ -214,7 +229,6 @@ export async function provisionLead(
       ownerName: lead.basics.ownerName,
       twilioNumber: bought.number,
       forwardMode: lead.setup?.forwardMode ?? "conditional",
-      calendarConnectUrl: await buildCalendarConnectUrl(env, shop.id),
     });
     return { ok: true, shopId: shop.id, number: bought.number };
   } catch (err) {

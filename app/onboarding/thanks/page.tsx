@@ -1,18 +1,20 @@
 import { env } from "cloudflare:workers";
 import { LogoMark } from "@/components/Logo";
+import { ForwardingCard } from "@/components/onboarding/ForwardingCard";
 import { SetupForm } from "@/components/onboarding/SetupForm";
 import { SetupCompleteHeading, ThanksHeading } from "@/components/onboarding/ThanksHeading";
 import { getLead } from "@/lib/leads";
 import { VERTICAL_IDS, type Vertical } from "@/lib/onboarding";
+import { TRIAL_DAYS } from "@/lib/plans";
 import { CUSTOMER_PORTAL_URL, SALES_EMAIL_HREF } from "@/lib/site";
-import { SESSION_ID_RE, getCheckoutSession } from "@/lib/stripe";
+import { SESSION_ID_RE, checkoutSettled, getCheckoutSession } from "@/lib/stripe";
 import type { ReactNode } from "react";
 
 export const dynamic = "force-dynamic";
 
 export const metadata = {
   title: "You're in — Marisol",
-  description: "Payment received — finish your setup and your AI receptionist goes live.",
+  description: "Your trial has started — finish your setup and your AI receptionist goes live.",
 };
 
 interface ThanksEnv {
@@ -26,12 +28,12 @@ const NEXT_STEPS = [
     desc: "Services, hours, staff and voice — loaded and double-checked.",
   },
   {
-    title: "You get forwarding instructions",
-    desc: "A short email shows how to forward your current number. Takes about two minutes.",
+    title: "You forward your number",
+    desc: "Your Marisol number and the exact dial codes appear the moment you finish setup — and land in your inbox too. Takes about two minutes.",
   },
   {
-    title: "Your receptionist goes live",
-    desc: "We confirm everything sounds right — then every call gets answered.",
+    title: "Your calendar connects",
+    desc: "We email you a one-click link so bookings drop straight into your Google Calendar.",
   },
 ];
 
@@ -144,7 +146,7 @@ export default async function ThanksPage({
               You're in. <span className="text-teal">We're on it.</span>
             </>
           }
-          lead="Payment received. Our team starts your setup now and will reach out within one business day."
+          lead={`Your ${TRIAL_DAYS}-day trial has started. Our team begins your setup now and will reach out within one business day.`}
         />
         <NextSteps />
         <ContactLine />
@@ -161,16 +163,16 @@ export default async function ThanksPage({
     return <SessionNotFound />;
   }
 
-  if (session.payment_status !== "paid") {
+  if (!checkoutSettled(session)) {
     return (
       <Shell>
         <div className="text-center">
           <h1 className="mx-auto max-w-[22ch] font-display text-[clamp(28px,5vw,44px)] font-light leading-[1.08] tracking-[-0.03em]">
-            Payment is still processing…
+            Checkout is still processing…
           </h1>
           <p className="mx-auto mt-[14px] max-w-[44ch] text-[15.5px] leading-[1.55] text-muted">
             This usually takes a few seconds. Refresh this page in a moment — your setup form
-            appears as soon as the payment confirms.
+            appears as soon as Stripe confirms.
           </p>
         </div>
         <ContactLine />
@@ -180,10 +182,16 @@ export default async function ThanksPage({
 
   const leadId = session.metadata?.lead_id;
   const lead = leadId ? await getLead(LEADS_KV, leadId) : null;
-  if (lead?.status === "setup_complete") {
+  if (lead?.status === "setup_complete" || lead?.status === "provisioned") {
     return (
       <Shell>
-        <SetupCompleteHeading />
+        <SetupCompleteHeading hasNumber={Boolean(lead.assignedNumber)} />
+        {lead.assignedNumber && (
+          <ForwardingCard
+            twilioNumber={lead.assignedNumber}
+            forwardMode={lead.setup?.forwardMode ?? "conditional"}
+          />
+        )}
         <NextSteps />
         <ContactLine portal />
       </Shell>

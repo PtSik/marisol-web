@@ -1,4 +1,5 @@
 import { Reveal } from "@/components/motion/Reveal";
+import { TRIAL_DAYS } from "@/lib/plans";
 
 const FAQS = [
   {
@@ -41,8 +42,8 @@ const FAQS = [
     q: "What if it doesn't work out?",
     a: (
       <>
-        Every plan comes with a 14-day money-back guarantee — if it's not for you, we refund your
-        first payment in full, no questions asked. Details in our{" "}
+        Every plan starts with {TRIAL_DAYS} days free. Cancel before the trial ends and your card is
+        never charged — no questions asked. Details in our{" "}
         <a href="/terms" className="font-medium text-teal">
           terms
         </a>

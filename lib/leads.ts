@@ -22,7 +22,11 @@ export interface CheckoutLead {
   assignedNumber?: string;
   provisionedAt?: string;
   provisionError?: string;
+  /* set once the client's address is a Google Cloud test user and the connect link was mailed */
+  calendarEmailSentAt?: string;
   deprovisionedAt?: string;
+  /* first past_due notice; keeps every Stripe retry from re-alerting the team */
+  pastDueAlertedAt?: string;
 }
 
 export interface CallLead {

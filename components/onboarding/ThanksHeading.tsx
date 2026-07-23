@@ -34,15 +34,19 @@ export function ThanksHeading({ title, lead }: { title: ReactNode; lead: string 
   );
 }
 
-export function SetupCompleteHeading() {
+export function SetupCompleteHeading({ hasNumber }: { hasNumber?: boolean }) {
   return (
     <ThanksHeading
       title={
         <>
-          Setup complete. <span className="text-teal">We take it from here.</span>
+          Setup complete. <span className="text-teal">One step left.</span>
         </>
       }
-      lead="Your receptionist is being configured with everything you shared — forwarding instructions land in your inbox shortly."
+      lead={
+        hasNumber
+          ? "Your receptionist is configured with everything you shared. Forward your number using the codes below and she starts answering."
+          : "Your receptionist is being configured with everything you shared — your number and forwarding instructions land in your inbox shortly."
+      }
     />
   );
 }

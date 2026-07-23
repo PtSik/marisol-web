@@ -1,6 +1,7 @@
 "use client";
 
 import type { FieldErrors } from "@/components/onboarding/Field";
+import { ForwardingCard } from "@/components/onboarding/ForwardingCard";
 import { SetupFields, validateSetup } from "@/components/onboarding/SetupFields";
 import { SetupCompleteHeading, ThanksHeading } from "@/components/onboarding/ThanksHeading";
 import { type SetupDetails, type Vertical, defaultSetup } from "@/lib/onboarding";
@@ -13,6 +14,7 @@ export function SetupForm({ sessionId, vertical }: { sessionId: string; vertical
   const [submitting, setSubmitting] = useState(false);
   const [submitError, setSubmitError] = useState<string | null>(null);
   const [done, setDone] = useState(false);
+  const [assignedNumber, setAssignedNumber] = useState<string | null>(null);
 
   useEffect(() => {
     try {
@@ -36,11 +38,12 @@ export function SetupForm({ sessionId, vertical }: { sessionId: string; vertical
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ intent: "setup", sessionId, setup }),
       });
-      const body = (await res.json()) as { ok?: boolean; error?: string };
+      const body = (await res.json()) as { ok?: boolean; error?: string; number?: string };
       if (!res.ok || !body.ok) {
         throw new Error(body.error ?? "setup failed");
       }
       track("setup_completed");
+      setAssignedNumber(body.number ?? null);
       setDone(true);
     } catch {
       setSubmitError("Something went wrong saving your setup. Please try again.");
@@ -51,7 +54,10 @@ export function SetupForm({ sessionId, vertical }: { sessionId: string; vertical
   if (done) {
     return (
       <output className="block">
-        <SetupCompleteHeading />
+        <SetupCompleteHeading hasNumber={Boolean(assignedNumber)} />
+        {assignedNumber && (
+          <ForwardingCard twilioNumber={assignedNumber} forwardMode={setup.forwardMode} />
+        )}
       </output>
     );
   }
@@ -61,7 +67,7 @@ export function SetupForm({ sessionId, vertical }: { sessionId: string; vertical
       <ThanksHeading
         title={
           <>
-            Payment received. <span className="text-teal">Finish your setup.</span>
+            You're in. <span className="text-teal">Finish your setup.</span>
           </>
         }
         lead="Add your hours, services and staff below — your receptionist is configured from exactly this. Takes about three minutes."

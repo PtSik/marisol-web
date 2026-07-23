@@ -1,5 +1,5 @@
 import { env } from "cloudflare:workers";
-import { getLead, putLead } from "@/lib/leads";
+import { type CheckoutLead, getLead, putLead } from "@/lib/leads";
 import { notifyTeam } from "@/lib/notify";
 import { deprovisionLead } from "@/lib/provisioning";
 import type { StripeCheckoutSession } from "@/lib/stripe";
@@ -69,6 +69,36 @@ async function signatureValid(
   return false;
 }
 
+interface StripeSubscription {
+  status?: string;
+  metadata?: { lead_id?: string };
+}
+
+async function leadForSubscription(
+  cfEnv: WebhookEnv,
+  sub: StripeSubscription | undefined,
+): Promise<CheckoutLead | null> {
+  const leadId = sub?.metadata?.lead_id;
+  if (!leadId) return null;
+  const lead = await getLead(cfEnv.LEADS_KV, leadId);
+  return lead && lead.status !== "cancelled" ? lead : null;
+}
+
+async function cancelLead(cfEnv: WebhookEnv, lead: CheckoutLead, reason: string): Promise<void> {
+  const result = await deprovisionLead(cfEnv, lead);
+  lead.status = "cancelled";
+  lead.deprovisionedAt = new Date().toISOString();
+  await Promise.all([
+    putLead(cfEnv.LEADS_KV, lead),
+    notifyTeam(cfEnv, `🚫 ${reason} — deprovisioned ${lead.basics.businessName}`, {
+      shopId: lead.shopId,
+      number: lead.assignedNumber,
+      releasedNumber: result.releasedNumber,
+      suspendedShop: result.suspendedShop,
+    }),
+  ]);
+}
+
 export async function POST(request: Request) {
   const cfEnv = env as unknown as WebhookEnv;
   if (!cfEnv.STRIPE_WEBHOOK_SECRET) {
@@ -91,24 +121,41 @@ export async function POST(request: Request) {
     return Response.json({ error: "invalid payload" }, { status: 400 });
   }
   if (event.type === "customer.subscription.deleted") {
-    const sub = event.data?.object as { metadata?: { lead_id?: string } } | undefined;
-    const subLeadId = sub?.metadata?.lead_id;
-    if (!subLeadId) return Response.json({ received: true });
-    const lead = await getLead(cfEnv.LEADS_KV, subLeadId);
-    if (!lead || lead.status === "cancelled") return Response.json({ received: true });
+    const sub = event.data?.object as StripeSubscription | undefined;
+    const lead = await leadForSubscription(cfEnv, sub);
+    if (!lead) return Response.json({ received: true });
+    await cancelLead(cfEnv, lead, "Cancelled");
+    return Response.json({ received: true });
+  }
 
-    const result = await deprovisionLead(cfEnv, lead);
-    lead.status = "cancelled";
-    lead.deprovisionedAt = new Date().toISOString();
-    await Promise.all([
-      putLead(cfEnv.LEADS_KV, lead),
-      notifyTeam(cfEnv, `🚫 Cancelled — deprovisioned ${lead.basics.businessName}`, {
-        shopId: lead.shopId,
-        number: lead.assignedNumber,
-        releasedNumber: result.releasedNumber,
-        suspendedShop: result.suspendedShop,
-      }),
-    ]);
+  // Retries exhausted: whether Stripe then cancels, marks unpaid or leaves the subscription past
+  // due is a dashboard setting, so we react to the status itself rather than trusting it to end
+  // in a `deleted` event — otherwise a non-paying client keeps a number we pay for.
+  if (event.type === "customer.subscription.updated") {
+    const sub = event.data?.object as StripeSubscription | undefined;
+    if (sub?.status !== "unpaid" && sub?.status !== "past_due") {
+      return Response.json({ received: true });
+    }
+    const lead = await leadForSubscription(cfEnv, sub);
+    if (!lead) return Response.json({ received: true });
+
+    if (sub.status === "unpaid") {
+      await cancelLead(cfEnv, lead, "Unpaid — retries exhausted");
+      return Response.json({ received: true });
+    }
+
+    if (!lead.pastDueAlertedAt) {
+      lead.pastDueAlertedAt = new Date().toISOString();
+      await Promise.all([
+        putLead(cfEnv.LEADS_KV, lead),
+        notifyTeam(cfEnv, `💸 Payment failed — ${lead.basics.businessName} is past due`, {
+          shopId: lead.shopId,
+          number: lead.assignedNumber,
+          email: lead.basics.email,
+          note: "Stripe is retrying. Service stays live until the retries run out.",
+        }),
+      ]);
+    }
     return Response.json({ received: true });
   }
 
