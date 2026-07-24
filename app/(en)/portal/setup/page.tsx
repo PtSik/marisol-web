@@ -12,7 +12,7 @@ export const dynamic = "force-dynamic";
 
 export default async function PortalSetupPage() {
   const cfEnv = env as unknown as PortalEnv;
-  const session = await requirePortalSession(cfEnv.RATE_LIMIT_KV);
+  const session = await requirePortalSession(cfEnv);
   const lead = session.leadId ? await getLead(cfEnv.LEADS_KV, session.leadId) : null;
 
   if (!lead) {

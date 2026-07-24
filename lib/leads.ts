@@ -23,6 +23,11 @@ export interface CheckoutLead {
   setupCompletedAt?: string;
   shopId?: string;
   assignedNumber?: string;
+  /* set when the client verified their identity through the Google gate after checkout */
+  claimedAt?: string;
+  /* the account the gate bound to this lead — its Google email may differ from the order email,
+     so provisioning attaches the shop to this account instead of creating one by order email */
+  claimedAccountId?: string;
   provisionedAt?: string;
   provisionError?: string;
   /* set once the client's address is a Google Cloud test user and the connect link was mailed */

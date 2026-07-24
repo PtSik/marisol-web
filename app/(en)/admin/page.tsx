@@ -104,6 +104,7 @@ function LeadTile({ lead, shop }: { lead: CheckoutLead; shop?: Shop }) {
         <h3 className="font-display text-[19px] tracking-tight">{lead.basics.businessName}</h3>
         <div className="flex gap-1.5">
           <Pill tone={LEAD_TONE[lead.status]}>{lead.status.replace("_", " ")}</Pill>
+          {lead.claimedAt && <Pill tone="teal">claimed</Pill>}
           {shop?.status && shop.status !== "active" && <Pill tone="red">shop: {shop.status}</Pill>}
         </div>
       </div>
@@ -132,6 +133,12 @@ function LeadTile({ lead, shop }: { lead: CheckoutLead; shop?: Shop }) {
           <>
             <dt className="text-muted">Provisioned</dt>
             <dd>{fmtDate(lead.provisionedAt)}</dd>
+          </>
+        )}
+        {lead.claimedAt && (
+          <>
+            <dt className="text-muted">Claimed</dt>
+            <dd>{fmtDate(lead.claimedAt)}</dd>
           </>
         )}
         {lead.setup && (

@@ -238,7 +238,7 @@ function firstNameOf(ownerName: string): string {
 }
 
 function portalFooter(): string {
-  return `<p style="margin:24px 0 0;font-size:13px;color:#6F6457">Your hours, services, staff and billing live in <a href="${SITE_URL}/portal" style="color:#4F8C80">your portal</a> — sign in with this email address whenever something changes.</p>`;
+  return `<p style="margin:24px 0 0;font-size:13px;color:#6F6457">Your hours, services, staff and billing live in <a href="${SITE_URL}/portal" style="color:#4F8C80">your portal</a> — sign in with Google whenever something changes.</p>`;
 }
 
 export async function sendClientWelcome(env: NotifyEnv, w: ClientWelcome): Promise<boolean> {

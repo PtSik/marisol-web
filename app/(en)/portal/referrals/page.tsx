@@ -57,7 +57,7 @@ export default async function PortalReferralsPage({
   searchParams: Promise<{ payout?: string }>;
 }) {
   const cfEnv = env as unknown as PortalEnv;
-  const session = await requirePortalSession(cfEnv.RATE_LIMIT_KV);
+  const session = await requirePortalSession(cfEnv);
   const { payout } = await searchParams;
 
   const account = await findAccountByEmail(cfEnv, session.email);

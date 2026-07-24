@@ -41,7 +41,7 @@ export default async function PortalBillingPage({
   searchParams: Promise<{ upgrade?: string }>;
 }) {
   const cfEnv = env as unknown as PortalEnv;
-  const session = await requirePortalSession(cfEnv.RATE_LIMIT_KV);
+  const session = await requirePortalSession(cfEnv);
   const lead = session.leadId ? await getLead(cfEnv.LEADS_KV, session.leadId) : null;
   const { upgrade } = await searchParams;
 

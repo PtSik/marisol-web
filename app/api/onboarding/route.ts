@@ -14,6 +14,7 @@ import { BILLING_OPTIONS, type Billing, PLAN_OPTIONS, type Plan, TRIAL_DAYS } fr
 import { provisionLead } from "@/lib/provisioning";
 import { overRateLimit } from "@/lib/rateLimit";
 import { REF_CODE_RE, refCodeFromCookie } from "@/lib/referrals";
+import { checkoutCookie, getSession, refreshSession, sessionIdFromCookies } from "@/lib/session";
 import {
   SESSION_ID_RE,
   type StripeCheckoutSession,
@@ -226,7 +227,12 @@ async function handleCheckout(
   if (session.id) {
     await putLead(cfEnv.LEADS_KV, { ...lead, stripeSessionId: session.id });
   }
-  return Response.json({ url: session.url });
+
+  const response = Response.json({ url: session.url });
+  // Set here, not on /thanks: vinext only flushes cookies().set() on redirect/error renders, not on
+  // a normal page render. This way every client who started checkout carries the session id back.
+  if (session.id) response.headers.append("Set-Cookie", checkoutCookie(session.id));
+  return response;
 }
 
 async function handleSetup(
@@ -280,6 +286,20 @@ async function handleSetup(
       putLead(cfEnv.LEADS_KV, lead),
       notifyTeam(cfEnv, `✅ Provisioned ${lead.basics.businessName} → ${result.number}`, lead),
     ]);
+    // A client who came through the gate has a session but no shopId yet — back-fill it so the portal
+    // resolves without a re-login. Skip a session tied to a different lead (the conflict case).
+    if (result.shopId) {
+      const portalSessionId = await sessionIdFromCookies();
+      const current = portalSessionId
+        ? await getSession(cfEnv.RATE_LIMIT_KV, portalSessionId)
+        : null;
+      if (portalSessionId && current && (!current.leadId || current.leadId === lead.id)) {
+        await refreshSession(cfEnv.RATE_LIMIT_KV, portalSessionId, {
+          shopId: result.shopId,
+          leadId: lead.id,
+        });
+      }
+    }
   } else {
     lead.provisionError = result.reason;
     await putLead(cfEnv.LEADS_KV, lead);

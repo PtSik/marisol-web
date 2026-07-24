@@ -25,7 +25,7 @@ function Tile({ label, value, hint }: { label: string; value: string; hint?: Rea
 
 export default async function PortalOverviewPage() {
   const cfEnv = env as unknown as PortalEnv;
-  const session = await requirePortalSession(cfEnv.RATE_LIMIT_KV);
+  const session = await requirePortalSession(cfEnv);
   const lead = session.leadId ? await getLead(cfEnv.LEADS_KV, session.leadId) : null;
   const shop = session.shopId ? await getShop(cfEnv, session.shopId) : null;
 

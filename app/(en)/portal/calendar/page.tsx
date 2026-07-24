@@ -9,7 +9,7 @@ export const dynamic = "force-dynamic";
 
 export default async function PortalCalendarPage() {
   const cfEnv = env as unknown as PortalEnv;
-  const session = await requirePortalSession(cfEnv.RATE_LIMIT_KV);
+  const session = await requirePortalSession(cfEnv);
   const shop = session.shopId ? await getShop(cfEnv, session.shopId) : null;
   const connectUrl = session.shopId
     ? await buildCalendarConnectUrl(cfEnv, session.shopId)

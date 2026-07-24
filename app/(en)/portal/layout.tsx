@@ -13,7 +13,7 @@ export const metadata = {
 
 export default async function PortalLayout({ children }: { children: ReactNode }) {
   const cfEnv = env as unknown as PortalEnv;
-  const session = await requirePortalSession(cfEnv.RATE_LIMIT_KV);
+  const session = await requirePortalSession(cfEnv);
 
   return (
     <>

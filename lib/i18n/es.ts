@@ -448,6 +448,26 @@ export const es: Dict = {
     processingTitle: "El pago se está procesando…",
     processingLead:
       "Normalmente tarda unos segundos. Recarga esta página en un momento — tu formulario aparece en cuanto Stripe confirme.",
+    gate: {
+      title: { before: "Pago recibido. ", accent: "Hazla tuya." },
+      lead: "Inicia sesión con Google para que solo tú administres tu recepcionista — tus horarios, personal, calendario y facturación en un solo lugar.",
+      button: "Continuar con Google",
+      skip: "¿No tienes cuenta de Google? Continúa sin iniciar sesión",
+      conflictBefore: "Esta cuenta de Google ya está vinculada a ",
+      conflictAfter:
+        " — te iniciamos sesión en esa cuenta. Responde a tu correo de bienvenida y conectamos este pedido con el lugar correcto.",
+    },
+    gateErrors: {
+      already_claimed:
+        "Este pedido ya está vinculado a otra cuenta de Google. Responde a tu correo de bienvenida y lo resolvemos.",
+      unpaid_session:
+        "Todavía no pudimos confirmar tu pago. Espera un momento e inténtalo de nuevo.",
+      account_failed: "No pudimos crear tu cuenta ahora mismo. Inténtalo de nuevo.",
+      session_failed: "No pudimos iniciar tu sesión. Inténtalo de nuevo.",
+      oauth_failed: "El inicio de sesión con Google no se completó. Inténtalo de nuevo.",
+      rate_limited: "Demasiados intentos. Espera un minuto e inténtalo de nuevo.",
+      not_configured: "El inicio de sesión no está disponible ahora — puedes continuar sin él.",
+    },
   },
   forwarding: {
     kicker: "Tu número de Marisol",

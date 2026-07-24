@@ -441,6 +441,25 @@ export const en = {
     processingTitle: "Checkout is still processing…",
     processingLead:
       "This usually takes a few seconds. Refresh this page in a moment — your setup form appears as soon as Stripe confirms.",
+    gate: {
+      title: { before: "Payment received. ", accent: "Make it yours." },
+      lead: "Sign in with Google so only you can manage your receptionist — your hours, staff, calendar and billing all live in one place.",
+      button: "Continue with Google",
+      skip: "No Google account? Continue without signing in",
+      conflictBefore: "This Google account is already linked to ",
+      conflictAfter:
+        " — we've signed you into that account. Reply to your welcome email and we'll connect this order to the right place.",
+    },
+    gateErrors: {
+      already_claimed:
+        "This order is already linked to another Google account. Reply to your welcome email and we'll sort it out.",
+      unpaid_session: "We couldn't confirm your payment yet. Give it a moment, then try again.",
+      account_failed: "We couldn't set up your account just now. Please try again.",
+      session_failed: "We couldn't start your session. Please try again.",
+      oauth_failed: "Google sign-in didn't finish. Please try again.",
+      rate_limited: "Too many attempts. Wait a minute and try again.",
+      not_configured: "Sign-in isn't available right now — you can continue without it.",
+    },
   },
   forwarding: {
     kicker: "Your Marisol number",

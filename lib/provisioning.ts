@@ -1,7 +1,7 @@
 import type { CheckoutLead } from "@/lib/leads";
 import { notifyTeam, sendClientWelcome, sendProvisionAlert } from "@/lib/notify";
 import type { DayId, ServiceEntry, SetupDetails, WeekHours } from "@/lib/onboarding";
-import { createAccount } from "@/lib/portalApi";
+import { createAccount, patchAccount } from "@/lib/portalApi";
 import { createReferralPromoCode } from "@/lib/stripe";
 import {
   buyLocalNumber,
@@ -210,17 +210,26 @@ export async function provisionLead(
     }
     // The portal account is what lets the client come back and edit their own setup. The shop
     // is already live without it, so a failure here is an alert, not a rollback.
-    const account = await createAccount(env, {
-      email: lead.basics.email,
-      shop_id: shop.id,
-      lead_id: lead.id,
-    });
+    // A lead claimed at the gate already has an account (keyed on the client's Google email, which
+    // may differ from the order email) — attach the shop to *that* account rather than creating a
+    // second one by order email. Unclaimed leads (the escape hatch) fall back to create-by-email.
+    const account = lead.claimedAccountId
+      ? await patchAccount(env, lead.claimedAccountId, { shop_id: shop.id })
+      : await createAccount(env, {
+          email: lead.basics.email,
+          shop_id: shop.id,
+          lead_id: lead.id,
+        });
     if (!account) {
       await notifyTeam(env, `🔑 Portal account failed: ${lead.basics.businessName}`, {
         email: lead.basics.email,
         shopId: shop.id,
         leadId: lead.id,
+        claimedAccountId: lead.claimedAccountId,
       });
+    } else if (account.shop_id !== shop.id) {
+      // create is idempotent by email: an account that already existed came back without a shop_id.
+      await patchAccount(env, account.id, { shop_id: shop.id });
     }
 
     // The promo code lets people this client refers redeem their code for 10% off. The shop and
