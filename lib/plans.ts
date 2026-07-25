@@ -16,6 +16,13 @@ export const PRICE: Record<Plan, Record<Billing, number>> = {
 export const premiumSaving = (billing: Billing): number =>
   PRICE.base[billing] * 2 - PRICE.premium[billing];
 
+// What a year on the annual plan saves against paying monthly. Distinct from premiumSaving(), which
+// compares Premium against two Base plans.
+export const annualSavingPerYear = (plan: Plan): number =>
+  (PRICE[plan].monthly - PRICE[plan].annual) * 12;
+
+export const maxAnnualSaving = (): number => Math.max(...PLAN_OPTIONS.map(annualSavingPerYear));
+
 // How many salons each plan's flat price already covers. Salons beyond this are billed as
 // extra-location line items on the same subscription.
 export const PLAN_SALON_LIMIT: Record<Plan, number> = { base: 1, premium: 2 };

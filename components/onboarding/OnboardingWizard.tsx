@@ -2,6 +2,8 @@
 
 import { BookCallForm } from "@/components/onboarding/BookCallForm";
 import { Field, type FieldErrors } from "@/components/onboarding/Field";
+import { PlanPickerModal } from "@/components/onboarding/PlanPickerModal";
+import { PlanSummary } from "@/components/onboarding/PlanSummary";
 import { inputCls } from "@/components/onboarding/fieldStyles";
 import { type Dict, type Locale, fill, getDict } from "@/lib/i18n/dict";
 import {
@@ -13,11 +15,22 @@ import {
   defaultBasics,
   isBusinessBasics,
 } from "@/lib/onboarding";
-import { type Billing, PLAN_LABELS, PLAN_OPTIONS, PRICE, type Plan, TRIAL_DAYS } from "@/lib/plans";
+import { type Billing, PRICE, type Plan, TRIAL_DAYS } from "@/lib/plans";
 import { track } from "@/lib/track";
 import { useEffect, useRef, useState } from "react";
 
 const STORAGE_KEY = "marisol-onboarding";
+
+interface StoredWizard {
+  basics?: unknown;
+  billing?: Billing;
+  plan?: Plan;
+  // Explicit, because a stored base/annual pair is indistinguishable from the untouched defaults.
+  planChosen?: boolean;
+}
+
+const isPlan = (value: unknown): value is Plan => value === "base" || value === "premium";
+const isBilling = (value: unknown): value is Billing => value === "monthly" || value === "annual";
 
 function validateBasics(basics: BusinessBasics, t: Dict["onboarding"]): FieldErrors {
   const errors: FieldErrors = {};
@@ -39,7 +52,9 @@ export function OnboardingWizard({
     email: accountEmail,
   }));
   const [plan, setPlan] = useState<Plan>("base");
-  const [billing, setBilling] = useState<Billing>("monthly");
+  const [billing, setBilling] = useState<Billing>("annual");
+  const [planChosen, setPlanChosen] = useState(false);
+  const [pickerOpen, setPickerOpen] = useState(false);
   const [errors, setErrors] = useState<FieldErrors>({});
   const [cancelled, setCancelled] = useState(false);
   const [referralCode, setReferralCode] = useState("");
@@ -50,19 +65,22 @@ export function OnboardingWizard({
   // biome-ignore lint/correctness/useExhaustiveDependencies: mount-only hydration, accountEmail is fixed for the page's life
   useEffect(() => {
     const params = new URLSearchParams(window.location.search);
-    if (params.get("plan") === "premium") setPlan("premium");
-    if (params.get("billing") === "annual") setBilling("annual");
+    const paramPlan = params.get("plan");
+    const paramBilling = params.get("billing");
+    if (isPlan(paramPlan)) setPlan(paramPlan);
+    if (isBilling(paramBilling)) setBilling(paramBilling);
     if (params.get("cancelled") === "1") setCancelled(true);
+
+    let chosen = paramPlan !== null || paramBilling !== null;
     try {
       const saved = sessionStorage.getItem(STORAGE_KEY);
-      const parsed = saved
-        ? (JSON.parse(saved) as { basics?: unknown; billing?: Billing; plan?: Plan })
-        : null;
+      const parsed = saved ? (JSON.parse(saved) as StoredWizard) : null;
+      if (parsed?.planChosen === true) chosen = true;
       if (parsed && isBusinessBasics(parsed.basics)) {
         // A stale save from a previous login shouldn't resurrect that account's email.
         setBasics({ ...parsed.basics, email: accountEmail });
-        if (params.get("plan") == null && parsed.plan === "premium") setPlan("premium");
-        if (params.get("billing") == null && parsed.billing === "annual") setBilling("annual");
+        if (paramPlan === null && isPlan(parsed.plan)) setPlan(parsed.plan);
+        if (paramBilling === null && isBilling(parsed.billing)) setBilling(parsed.billing);
       } else {
         const tz = Intl.DateTimeFormat().resolvedOptions().timeZone;
         if (tz) setBasics((b) => ({ ...b, timezone: tz }));
@@ -70,6 +88,8 @@ export function OnboardingWizard({
     } catch {
       /* corrupted storage — start fresh */
     }
+    setPlanChosen(chosen);
+    setPickerOpen(!chosen);
     const ref = document.cookie
       .split(";")
       .map((c) => c.trim().split("="))
@@ -82,13 +102,28 @@ export function OnboardingWizard({
   useEffect(() => {
     if (!hydrated.current) return;
     try {
-      sessionStorage.setItem(STORAGE_KEY, JSON.stringify({ basics, billing, plan }));
+      sessionStorage.setItem(STORAGE_KEY, JSON.stringify({ basics, billing, plan, planChosen }));
     } catch {
       /* storage full/blocked — non-fatal */
     }
-  }, [basics, billing, plan]);
+  }, [basics, billing, plan, planChosen]);
 
   const patch = (partial: Partial<BusinessBasics>) => setBasics((b) => ({ ...b, ...partial }));
+
+  const choosePlan = (picked: Plan) => {
+    setPlan(picked);
+    setPlanChosen(true);
+    setPickerOpen(false);
+    track("plan_picked", `${picked}:${billing}`);
+  };
+
+  const dismissPicker = () => {
+    // Leaves whatever is currently selected — on the first open that is the Base default, so closing
+    // the dialog can never quietly upgrade anyone.
+    setPlanChosen(true);
+    setPickerOpen(false);
+    track("plan_picker_dismissed", `${plan}:${billing}`);
+  };
 
   const submit = async () => {
     const errs = validateBasics(basics, t);
@@ -260,54 +295,13 @@ export function OnboardingWizard({
             </select>
           </Field>
 
-          <fieldset className="m-0 border-0 p-0 text-center">
-            <legend className="sr-only">{t.planLegend}</legend>
-            <div className="inline-flex items-center gap-1 rounded-[14px] bg-cream-200 p-1 shadow-[inset_0_1px_2px_rgba(36,27,20,0.06)]">
-              {PLAN_OPTIONS.map((p) => {
-                const isActive = p === plan;
-                return (
-                  <button
-                    key={p}
-                    type="button"
-                    aria-pressed={isActive}
-                    onClick={() => setPlan(p)}
-                    className={`min-h-[38px] rounded-[10px] px-4 py-[9px] text-[13px] font-medium transition-all ${
-                      isActive ? "bg-ink text-cream" : "bg-transparent text-muted"
-                    }`}
-                  >
-                    {PLAN_LABELS[p]} — ${PRICE[p].monthly}/mo
-                  </button>
-                );
-              })}
-            </div>
-          </fieldset>
-
-          <fieldset className="m-0 border-0 p-0 text-center">
-            <legend className="sr-only">{t.billingLegend}</legend>
-            <div className="inline-flex items-center gap-1 rounded-[14px] bg-cream-200 p-1 shadow-[inset_0_1px_2px_rgba(36,27,20,0.06)]">
-              {(["monthly", "annual"] as const).map((period) => {
-                const isActive = period === billing;
-                return (
-                  <button
-                    key={period}
-                    type="button"
-                    aria-pressed={isActive}
-                    onClick={() => setBilling(period)}
-                    className={`min-h-[38px] rounded-[10px] px-4 py-[9px] text-[13px] font-medium transition-all ${
-                      isActive ? "bg-ink text-cream" : "bg-transparent text-muted"
-                    }`}
-                  >
-                    {period === "annual" ? t.annual : t.monthly}
-                  </button>
-                );
-              })}
-            </div>
-            <p className="mt-2 text-[13px] text-muted-2">
-              {billing === "annual"
-                ? fill(t.noteAnnual, { price: PRICE[plan].annual })
-                : fill(t.noteMonthly, { price: PRICE[plan].monthly })}
-            </p>
-          </fieldset>
+          <PlanSummary
+            t={t}
+            pricing={dict.pricing}
+            plan={plan}
+            billing={billing}
+            onChange={() => setPickerOpen(true)}
+          />
 
           <Field
             label={t.referral}
@@ -364,6 +358,16 @@ export function OnboardingWizard({
         }}
         t={t}
         form={dict.callForm}
+      />
+
+      <PlanPickerModal
+        open={pickerOpen}
+        t={dict.pricing}
+        locale={locale}
+        billing={billing}
+        onBillingChange={setBilling}
+        onChoose={choosePlan}
+        onDismiss={dismissPicker}
       />
     </div>
   );

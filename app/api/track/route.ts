@@ -6,6 +6,8 @@ const EVENTS = new Set([
   "demo_started",
   "demo_completed",
   "wizard_step",
+  "plan_picked",
+  "plan_picker_dismissed",
   "checkout_redirect",
   "setup_completed",
 ]);

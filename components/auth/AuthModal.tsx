@@ -1,18 +1,16 @@
 "use client";
 
 import { GoogleGlyph } from "@/components/GoogleGlyph";
+import { Modal } from "@/components/Modal";
 import { Field, type FieldErrors } from "@/components/onboarding/Field";
 import { inputCls } from "@/components/onboarding/fieldStyles";
 import type { Dict, Locale } from "@/lib/i18n/dict";
 import { EMAIL_RE } from "@/lib/onboarding";
 import type { Billing, Plan } from "@/lib/plans";
 import { APP_URL } from "@/lib/site";
-import { useEffect, useId, useRef, useState } from "react";
+import { useEffect, useId, useState } from "react";
 
 export type AuthTab = "signup" | "signin";
-
-const FOCUSABLE =
-  'a[href], button:not([disabled]), input:not([disabled]), [tabindex]:not([tabindex="-1"])';
 
 function errorFromStatus(status: number, t: Dict["auth"]): string {
   if (status === 429) return t.errRateLimited;
@@ -360,7 +358,6 @@ export function AuthModal({
   t: Dict["auth"];
   locale: Locale;
 }) {
-  const dialogRef = useRef<HTMLDivElement>(null);
   const [forgotOpen, setForgotOpen] = useState(false);
   const titleId = useId();
 
@@ -370,163 +367,115 @@ export function AuthModal({
     if (open) setForgotOpen(false);
   }, [open]);
 
-  useEffect(() => {
-    if (!open) return;
-    const previouslyFocused = document.activeElement as HTMLElement | null;
-    const dialog = dialogRef.current;
-    const focusables = () => Array.from(dialog?.querySelectorAll<HTMLElement>(FOCUSABLE) ?? []);
-    focusables()[0]?.focus();
-
-    const onKeyDown = (e: KeyboardEvent) => {
-      if (e.key === "Escape") {
-        e.preventDefault();
-        onClose();
-        return;
-      }
-      if (e.key !== "Tab") return;
-      const items = focusables();
-      if (items.length === 0) return;
-      const first = items[0];
-      const last = items[items.length - 1];
-      if (e.shiftKey && document.activeElement === first) {
-        e.preventDefault();
-        last.focus();
-      } else if (!e.shiftKey && document.activeElement === last) {
-        e.preventDefault();
-        first.focus();
-      }
-    };
-    document.addEventListener("keydown", onKeyDown);
-    document.body.style.overflow = "hidden";
-    return () => {
-      document.removeEventListener("keydown", onKeyDown);
-      document.body.style.overflow = "";
-      previouslyFocused?.focus();
-    };
-  }, [open, onClose]);
-
-  if (!open) return null;
-
   return (
-    <div className="fixed inset-0 z-[100] flex items-center justify-center p-[18px]">
-      <button
-        type="button"
-        tabIndex={-1}
-        aria-hidden="true"
-        onClick={onClose}
-        className="absolute inset-0 bg-ink/50 backdrop-blur-sm"
-      />
-      <div
-        ref={dialogRef}
-        // biome-ignore lint/a11y/useSemanticElements: native <dialog>'s built-in focus trap/top-layer would conflict with the manual trap below
-        role="dialog"
-        aria-modal="true"
-        aria-labelledby={titleId}
-        lang={locale}
-        className="relative max-h-[calc(100vh-36px)] w-full max-w-[420px] overflow-y-auto rounded-[20px] border border-ink/10 bg-cream-100 p-7"
-      >
-        <div className="flex items-start justify-between gap-4">
-          <div className="inline-flex items-center gap-1 rounded-[12px] bg-cream-200 p-1">
-            {(["signup", "signin"] as const).map((value) => (
-              <button
-                key={value}
-                type="button"
-                aria-pressed={tab === value}
-                onClick={() => {
-                  setForgotOpen(false);
-                  onTabChange(value);
-                }}
-                className={`min-h-[36px] rounded-[9px] px-4 py-[8px] text-[13px] font-medium transition-all ${
-                  tab === value ? "bg-ink text-cream" : "bg-transparent text-muted"
-                }`}
-              >
-                {value === "signup" ? t.tabSignup : t.tabSignin}
-              </button>
-            ))}
-          </div>
-          <button
-            type="button"
-            onClick={onClose}
-            aria-label={t.close}
-            className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full text-muted focus-visible:outline focus-visible:outline-2 focus-visible:outline-ink"
-          >
-            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" aria-hidden="true">
-              <path
-                d="M6 6l12 12M18 6L6 18"
-                stroke="currentColor"
-                strokeWidth="2"
-                strokeLinecap="round"
-              />
-            </svg>
-          </button>
-        </div>
-
-        <h2 id={titleId} className="mt-5 font-display text-[24px] font-light tracking-[-0.02em]">
-          {forgotOpen ? t.forgotTitle : tab === "signup" ? t.signupTitle : t.signinTitle}
-        </h2>
-        {!forgotOpen && (
-          <p className="mt-1 text-[13.5px] leading-[1.5] text-muted">
-            {tab === "signup" ? t.signupSubtitle : t.signinSubtitle}
-          </p>
-        )}
-
-        {forgotOpen ? (
-          <div className="mt-6">
-            <ForgotPassword t={t} onBack={() => setForgotOpen(false)} />
-          </div>
-        ) : (
-          <>
-            <a
-              href="/api/auth/google/start"
-              className="mt-6 inline-flex min-h-[50px] w-full items-center justify-center gap-[10px] rounded-[13px] border border-ink/15 bg-white px-6 py-[14px] text-[15px] font-medium text-ink no-underline"
+    <Modal
+      open={open}
+      onClose={onClose}
+      labelledBy={titleId}
+      locale={locale}
+      className="relative max-h-[calc(100vh-36px)] w-full max-w-[420px] overflow-y-auto rounded-[20px] border border-ink/10 bg-cream-100 p-7"
+    >
+      <div className="flex items-start justify-between gap-4">
+        <div className="inline-flex items-center gap-1 rounded-[12px] bg-cream-200 p-1">
+          {(["signup", "signin"] as const).map((value) => (
+            <button
+              key={value}
+              type="button"
+              aria-pressed={tab === value}
+              onClick={() => {
+                setForgotOpen(false);
+                onTabChange(value);
+              }}
+              className={`min-h-[36px] rounded-[9px] px-4 py-[8px] text-[13px] font-medium transition-all ${
+                tab === value ? "bg-ink text-cream" : "bg-transparent text-muted"
+              }`}
             >
-              <GoogleGlyph />
-              {t.google}
-            </a>
-
-            <div className="my-5 flex items-center gap-3 text-[12px] uppercase tracking-[0.1em] text-muted-3">
-              <span className="h-px flex-1 bg-ink/10" />
-              {t.or}
-              <span className="h-px flex-1 bg-ink/10" />
-            </div>
-
-            {tab === "signup" ? (
-              <>
-                <SignupForm t={t} plan={plan} billing={billing} />
-                <p className="mt-5 text-center text-[13px] leading-[1.55] text-muted-2">
-                  {t.hasAccount}
-                  <button
-                    type="button"
-                    onClick={() => onTabChange("signin")}
-                    className="font-medium text-teal"
-                  >
-                    {t.signInLink}
-                  </button>
-                </p>
-              </>
-            ) : (
-              <>
-                <SigninForm
-                  t={t}
-                  plan={plan}
-                  billing={billing}
-                  onForgot={() => setForgotOpen(true)}
-                />
-                <p className="mt-5 text-center text-[13px] leading-[1.55] text-muted-2">
-                  {t.noAccount}
-                  <button
-                    type="button"
-                    onClick={() => onTabChange("signup")}
-                    className="font-medium text-teal"
-                  >
-                    {t.signUpLink}
-                  </button>
-                </p>
-              </>
-            )}
-          </>
-        )}
+              {value === "signup" ? t.tabSignup : t.tabSignin}
+            </button>
+          ))}
+        </div>
+        <button
+          type="button"
+          onClick={onClose}
+          aria-label={t.close}
+          className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full text-muted focus-visible:outline focus-visible:outline-2 focus-visible:outline-ink"
+        >
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+            <path
+              d="M6 6l12 12M18 6L6 18"
+              stroke="currentColor"
+              strokeWidth="2"
+              strokeLinecap="round"
+            />
+          </svg>
+        </button>
       </div>
-    </div>
+
+      <h2 id={titleId} className="mt-5 font-display text-[24px] font-light tracking-[-0.02em]">
+        {forgotOpen ? t.forgotTitle : tab === "signup" ? t.signupTitle : t.signinTitle}
+      </h2>
+      {!forgotOpen && (
+        <p className="mt-1 text-[13.5px] leading-[1.5] text-muted">
+          {tab === "signup" ? t.signupSubtitle : t.signinSubtitle}
+        </p>
+      )}
+
+      {forgotOpen ? (
+        <div className="mt-6">
+          <ForgotPassword t={t} onBack={() => setForgotOpen(false)} />
+        </div>
+      ) : (
+        <>
+          <a
+            href="/api/auth/google/start"
+            className="mt-6 inline-flex min-h-[50px] w-full items-center justify-center gap-[10px] rounded-[13px] border border-ink/15 bg-white px-6 py-[14px] text-[15px] font-medium text-ink no-underline"
+          >
+            <GoogleGlyph />
+            {t.google}
+          </a>
+
+          <div className="my-5 flex items-center gap-3 text-[12px] uppercase tracking-[0.1em] text-muted-3">
+            <span className="h-px flex-1 bg-ink/10" />
+            {t.or}
+            <span className="h-px flex-1 bg-ink/10" />
+          </div>
+
+          {tab === "signup" ? (
+            <>
+              <SignupForm t={t} plan={plan} billing={billing} />
+              <p className="mt-5 text-center text-[13px] leading-[1.55] text-muted-2">
+                {t.hasAccount}
+                <button
+                  type="button"
+                  onClick={() => onTabChange("signin")}
+                  className="font-medium text-teal"
+                >
+                  {t.signInLink}
+                </button>
+              </p>
+            </>
+          ) : (
+            <>
+              <SigninForm
+                t={t}
+                plan={plan}
+                billing={billing}
+                onForgot={() => setForgotOpen(true)}
+              />
+              <p className="mt-5 text-center text-[13px] leading-[1.55] text-muted-2">
+                {t.noAccount}
+                <button
+                  type="button"
+                  onClick={() => onTabChange("signup")}
+                  className="font-medium text-teal"
+                >
+                  {t.signUpLink}
+                </button>
+              </p>
+            </>
+          )}
+        </>
+      )}
+    </Modal>
   );
 }
