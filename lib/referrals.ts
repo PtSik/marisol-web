@@ -1,7 +1,8 @@
 import { getLead } from "@/lib/leads";
 import { type NotifyEnv, notifyTeam } from "@/lib/notify";
-import { overRateLimit } from "@/lib/rateLimit";
-import { createCustomerBalanceCredit, getSubscription } from "@/lib/stripe";
+import type { PayoutMethod } from "@/lib/payout";
+import { patchAccount } from "@/lib/portalApi";
+import { getSubscription } from "@/lib/stripe";
 import { type VoiceAgentEnv, voiceAgentFetch } from "@/lib/voiceAgent";
 
 export const REF_COOKIE = "marisol_ref";
@@ -14,8 +15,7 @@ const LIVE_SUBSCRIPTION = new Set(["active", "trialing", "past_due"]);
 export type ReferralStatus =
   | "pending"
   | "qualified"
-  | "crediting"
-  | "credited"
+  | "claimable"
   | "payout_requested"
   | "paid_out"
   | "void";
@@ -33,12 +33,18 @@ export interface Referral {
   qualified_at?: string | null;
   mature_at?: string | null;
   settled_at?: string | null;
-  referrer?: { id: string; email: string; lead_id?: string | null; referral_code: string } | null;
+  referrer?: {
+    id: string;
+    email: string;
+    lead_id?: string | null;
+    referral_code: string;
+    payout_method?: string | null;
+    payout_handle?: string | null;
+  } | null;
 }
 
 export interface ReferralEnv extends VoiceAgentEnv, NotifyEnv {
   LEADS_KV?: KVNamespace;
-  RATE_LIMIT_KV?: KVNamespace;
   STRIPE_SECRET_KEY?: string;
 }
 
@@ -120,25 +126,43 @@ export async function voidReferral(env: VoiceAgentEnv, leadId: string): Promise<
   }
 }
 
-// Cash is the manual track: we flag the credited referrals and settle them by hand in /admin.
-export async function requestCashPayout(env: VoiceAgentEnv, accountId: string): Promise<number> {
-  const credited = await listReferrals(env, { referrer: accountId, status: "credited" });
-  let requested = 0;
-  for (const referral of credited) {
+// Every reward is a manual send: the referrer claims it with a handle, we wire the cash by hand
+// and mark it paid in /admin. Returns the cents actually claimed — a second click finds nothing
+// claimable left, because the compare-and-set on each referral only lets one claim win.
+export async function claimReferralPayout(
+  env: ReferralEnv,
+  account: { id: string; email: string },
+  method: PayoutMethod,
+  handle: string,
+): Promise<number> {
+  await patchAccount(env, account.id, { payout_method: method, payout_handle: handle });
+
+  const claimable = await listReferrals(env, { referrer: account.id, status: "claimable" });
+  let claimedCents = 0;
+  for (const referral of claimable) {
     const updated = await patchReferral(env, referral.id, {
       status: "payout_requested",
-      payout_method: "cash",
-      expected_status: "credited",
+      payout_method: method,
+      expected_status: "claimable",
     });
-    if (updated) requested += 1;
+    if (updated) claimedCents += referral.amount_cents;
   }
-  return requested;
+  if (claimedCents === 0) return 0;
+
+  await notifyTeam(env, `💵 Referral payout claimed — ${account.email}`, {
+    accountId: account.id,
+    email: account.email,
+    method,
+    handle,
+    send: `$${claimedCents / 100}`,
+    note: "Send the cash by hand, then mark it paid out in /admin.",
+  });
+  return claimedCents;
 }
 
 export async function markPaidOut(env: VoiceAgentEnv, id: string): Promise<boolean> {
   const updated = await patchReferral(env, id, {
     status: "paid_out",
-    payout_method: "cash",
     settled_at: new Date().toISOString(),
     expected_status: "payout_requested",
   });
@@ -160,82 +184,18 @@ async function subscriptionLiveness(env: ReferralEnv, leadId?: string | null): P
   return LIVE_SUBSCRIPTION.has(subscription.status) ? "live" : "dead";
 }
 
-async function referrerCustomerId(env: ReferralEnv, referral: Referral): Promise<string | null> {
-  const leadId = referral.referrer?.lead_id;
-  if (!leadId) return null;
-  const lead = await getLead(env.LEADS_KV, leadId);
-  return lead?.stripeCustomerId ?? null;
-}
-
+// Maturity just makes the reward claimable — no money moves until the referrer asks for it,
+// so there is no credit to reverse and nothing to double-pay.
 async function settleOne(env: ReferralEnv, referral: Referral): Promise<void> {
   const referred = await subscriptionLiveness(env, referral.referred_lead_id);
   if (referred === "unknown") return;
-  if (referred === "dead") {
-    await patchReferral(env, referral.id, {
-      status: "void",
-      settled_at: new Date().toISOString(),
-      expected_status: "qualified",
-    });
-    return;
-  }
-
-  // The claim is the lock: whoever wins the compare-and-set books the credit, everyone else
-  // gets a 409 and walks away, so two webhooks landing together can't pay $200 twice.
-  const claimed = await patchReferral(env, referral.id, {
-    status: "crediting",
-    expected_status: "qualified",
-  });
-  if (!claimed) return;
-
-  const customerId = await referrerCustomerId(env, referral);
-  if (!customerId || !env.STRIPE_SECRET_KEY) {
-    await patchReferral(env, referral.id, { status: "qualified", expected_status: "crediting" });
-    // Settlement retries on every webhook, so the alert is throttled to one a week per referral.
-    const alerted = await overRateLimit(
-      env.RATE_LIMIT_KV,
-      `refalert:${referral.id}`,
-      1,
-      7 * 24 * 60 * 60,
-    );
-    if (!alerted) {
-      await notifyTeam(env, "💰 Referral matured but has no Stripe customer — pay it manually", {
-        referralId: referral.id,
-        referrer: referral.referrer?.email,
-        referredLeadId: referral.referred_lead_id,
-        amount: `$${referral.amount_cents / 100}`,
-      });
-    }
-    return;
-  }
-
-  const transaction = await createCustomerBalanceCredit(env.STRIPE_SECRET_KEY, {
-    customerId,
-    amountCents: referral.amount_cents,
-    description: `Marisol referral reward (${referral.referred_lead_id})`,
-    idempotencyKey: `referral:${referral.id}`,
-  });
-  if (!transaction) {
-    await patchReferral(env, referral.id, { status: "qualified", expected_status: "crediting" });
-    return;
-  }
-
-  await patchReferral(env, referral.id, {
-    status: "credited",
-    payout_method: "credit",
-    payout_ref: transaction.id,
-    settled_at: new Date().toISOString(),
-    expected_status: "crediting",
-  });
-
-  // Credit still goes out to a churned referrer — they earned it — but an unused balance is
-  // worthless to them, so the team hears about it and can offer cash.
-  if ((await subscriptionLiveness(env, referral.referrer?.lead_id)) === "dead") {
-    await notifyTeam(env, "💰 Referral credited to a client with no live subscription", {
-      referralId: referral.id,
-      referrer: referral.referrer?.email,
-      note: "The $200 sits on their Stripe balance — they may want it as cash instead.",
-    });
-  }
+  await patchReferral(
+    env,
+    referral.id,
+    referred === "dead"
+      ? { status: "void", settled_at: new Date().toISOString(), expected_status: "qualified" }
+      : { status: "claimable", expected_status: "qualified" },
+  );
 }
 
 // Runs on every Stripe webhook and every /portal/referrals render, which is what replaces a cron.

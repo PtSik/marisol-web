@@ -2,6 +2,7 @@ import { env } from "cloudflare:workers";
 import { LogoMark } from "@/components/Logo";
 import { ADMIN_COOKIE, isAdminCookieValid } from "@/lib/adminAuth";
 import { type CallLead, type CheckoutLead, listLeads } from "@/lib/leads";
+import { PAYOUT_LABEL, isPayoutMethod } from "@/lib/payout";
 import { type Referral, listReferrals } from "@/lib/referrals";
 import { siteHref } from "@/lib/site";
 import { voiceAgentFetch } from "@/lib/voiceAgent";
@@ -190,11 +191,14 @@ function CalendarInviteAction({ lead, connected }: { lead: CheckoutLead; connect
   );
 }
 
+function payoutLabel(method?: string | null): string {
+  return isPayoutMethod(method) ? PAYOUT_LABEL[method] : (method ?? "cash");
+}
+
 const REFERRAL_TONE: Record<Referral["status"], Tone> = {
   pending: "muted",
   qualified: "amber",
-  crediting: "amber",
-  credited: "teal",
+  claimable: "teal",
   payout_requested: "amber",
   paid_out: "teal",
   void: "red",
@@ -227,16 +231,18 @@ function ReferralTile({ referral }: { referral: Referral }) {
       </dl>
       {referral.status === "payout_requested" && (
         <form method="post" action={`/api/admin/referrals/${referral.id}/payout`} className="mt-3">
-          <p className="mb-1.5 text-sm font-medium">Cash to send: ${referral.amount_cents / 100}</p>
+          <p className="mb-1.5 text-sm font-medium">
+            Send ${referral.amount_cents / 100} via{" "}
+            {payoutLabel(referral.payout_method ?? referral.referrer?.payout_method)} —{" "}
+            {referral.referrer?.payout_handle ?? "no handle on file"}
+          </p>
           <button
             type="submit"
             className="w-full rounded-[10px] border border-teal/30 bg-teal/10 px-4 py-2 text-sm font-medium text-teal"
           >
             Mark paid out
           </button>
-          <span className="mt-1.5 block text-xs text-muted">
-            Reverse the Stripe credit and wire the cash first.
-          </span>
+          <span className="mt-1.5 block text-xs text-muted">Send the cash first.</span>
         </form>
       )}
     </article>

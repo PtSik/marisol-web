@@ -15,6 +15,8 @@ export interface Account {
   lead_id?: string | null;
   referral_code: string;
   role: string;
+  payout_method?: string | null;
+  payout_handle?: string | null;
 }
 
 export interface Shop {

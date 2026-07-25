@@ -165,42 +165,6 @@ export async function createBillingPortalSession(
   return body?.url ?? null;
 }
 
-export interface StripeBalanceTransaction {
-  id: string;
-  amount?: number;
-}
-
-// A negative balance transaction is a credit: Stripe subtracts it from the client's next invoice.
-// The idempotency key makes a retried settlement return the original transaction, never a second one.
-export async function createCustomerBalanceCredit(
-  secretKey: string,
-  {
-    customerId,
-    amountCents,
-    description,
-    idempotencyKey,
-  }: { customerId: string; amountCents: number; description: string; idempotencyKey: string },
-): Promise<StripeBalanceTransaction | null> {
-  const res = await fetch(
-    `https://api.stripe.com/v1/customers/${encodeURIComponent(customerId)}/balance_transactions`,
-    {
-      method: "POST",
-      headers: {
-        Authorization: `Bearer ${secretKey}`,
-        "Content-Type": "application/x-www-form-urlencoded",
-        "Idempotency-Key": idempotencyKey,
-      },
-      body: new URLSearchParams({
-        amount: String(-Math.abs(amountCents)),
-        currency: "usd",
-        description,
-      }),
-    },
-  ).catch(() => null);
-  if (!res?.ok) return null;
-  return (await res.json().catch(() => null)) as StripeBalanceTransaction | null;
-}
-
 // The referral code doubles as a Stripe promotion code, so we look it up by its human code to get
 // the promo id Checkout needs. `active=true` skips codes we've since archived.
 export async function findPromotionCode(

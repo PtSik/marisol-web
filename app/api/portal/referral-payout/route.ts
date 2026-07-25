@@ -1,8 +1,8 @@
 import { env } from "cloudflare:workers";
-import { notifyTeam } from "@/lib/notify";
+import { isPayoutMethod, normalisePayoutHandle } from "@/lib/payout";
 import { type PortalEnv, findAccountByEmail } from "@/lib/portalApi";
 import { overRateLimit } from "@/lib/rateLimit";
-import { listReferrals, requestCashPayout } from "@/lib/referrals";
+import { claimReferralPayout } from "@/lib/referrals";
 import { getSession, sessionIdFromCookies } from "@/lib/session";
 
 export const dynamic = "force-dynamic";
@@ -23,22 +23,15 @@ export async function POST(request: Request): Promise<Response> {
     return back(request, "failed");
   }
 
+  const form = await request.formData().catch(() => null);
+  const method = form?.get("method");
+  if (!isPayoutMethod(method)) return back(request, "invalid");
+  const handle = normalisePayoutHandle(method, form?.get("handle"));
+  if (!handle) return back(request, "invalid");
+
   const account = await findAccountByEmail(cfEnv, session.email);
   if (!account) return back(request, "failed");
 
-  const credited = await listReferrals(cfEnv, { referrer: account.id, status: "credited" });
-  if (credited.length === 0) return back(request, "none");
-  const cashOwed = credited.reduce((sum, r) => sum + r.amount_cents, 0);
-
-  const requested = await requestCashPayout(cfEnv, account.id);
-  if (requested === 0) return back(request, "none");
-
-  await notifyTeam(cfEnv, `💵 Cash payout requested — ${session.email}`, {
-    accountId: account.id,
-    email: session.email,
-    referrals: requested,
-    cashToSend: `$${cashOwed / 100}`,
-    note: "Reverse the Stripe credit, wire the cash, then mark it paid out in /admin.",
-  });
-  return back(request, "requested");
+  const claimedCents = await claimReferralPayout(cfEnv, account, method, handle);
+  return back(request, claimedCents > 0 ? "requested" : "none");
 }

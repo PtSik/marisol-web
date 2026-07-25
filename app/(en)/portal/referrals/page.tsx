@@ -1,4 +1,5 @@
 import { env } from "cloudflare:workers";
+import { ClaimPayoutForm } from "@/components/portal/ClaimPayoutForm";
 import { PortalHeading, PortalNotice } from "@/components/portal/PortalHeading";
 import { CopyField } from "@/components/portal/ReferralLink";
 import { type PortalEnv, findAccountByEmail } from "@/lib/portalApi";
@@ -10,20 +11,19 @@ export const dynamic = "force-dynamic";
 
 const STATUS_LABEL: Record<Referral["status"], string> = {
   pending: "Signed up — waiting for their first payment",
-  qualified: "Paid — reward lands 30 days after their first invoice",
-  crediting: "Paying out…",
-  credited: "$200 credited to your account",
-  payout_requested: "Cash payout requested",
+  qualified: "Paid — reward unlocks 30 days after their first invoice",
+  claimable: "$200 ready to claim",
+  payout_requested: "Payout on its way",
   paid_out: "Paid out in cash",
   void: "Cancelled before the reward matured",
 };
 
 const EARNED: ReadonlySet<Referral["status"]> = new Set([
-  "credited",
+  "claimable",
   "payout_requested",
   "paid_out",
 ]);
-const IN_FLIGHT: ReadonlySet<Referral["status"]> = new Set(["pending", "qualified", "crediting"]);
+const IN_FLIGHT: ReadonlySet<Referral["status"]> = new Set(["pending", "qualified"]);
 
 function fmtDate(iso?: string | null): string {
   if (!iso) return "";
@@ -46,8 +46,9 @@ function Tile({ label, value, hint }: { label: string; value: string; hint?: str
 }
 
 const PAYOUT_NOTICE: Record<string, string> = {
-  requested: "Cash payout requested — we'll email you once the transfer is on its way.",
-  none: "Nothing to pay out in cash yet.",
+  requested: "Claimed — we'll email you once the money is on its way.",
+  none: "Nothing to claim yet.",
+  invalid: "That handle doesn't look right for the method you picked. Check it and try again.",
   failed: "Couldn't file that request. Try again, or email us.",
 };
 
@@ -69,11 +70,10 @@ export default async function PortalReferralsPage({
   const earnedCents = referrals
     .filter((r) => EARNED.has(r.status))
     .reduce((sum, r) => sum + r.amount_cents, 0);
-  const creditedCents = referrals
-    .filter((r) => r.status === "credited")
+  const claimableCents = referrals
+    .filter((r) => r.status === "claimable")
     .reduce((sum, r) => sum + r.amount_cents, 0);
   const inFlight = referrals.filter((r) => IN_FLIGHT.has(r.status)).length;
-  const creditable = creditedCents > 0;
 
   return (
     <>
@@ -83,7 +83,7 @@ export default async function PortalReferralsPage({
             Refer a shop, earn <span className="text-teal">$200</span>.
           </>
         }
-        lead="Send another owner your link. Once they've been a paying client for 30 days, you get $200 — as account credit, or as cash if you'd rather. Their first month is 10% off, too."
+        lead="Send another owner your link. Once they've been a paying client for 30 days, claim your $200 — paid in cash to your PayPal, Venmo or Zelle. Their first month is 10% off, too."
       />
 
       {payout && PAYOUT_NOTICE[payout] && (
@@ -116,7 +116,7 @@ export default async function PortalReferralsPage({
             <Tile
               label="Earned"
               value={`$${earnedCents / 100}`}
-              hint={creditable ? "Applied to your next invoice" : undefined}
+              hint={claimableCents > 0 ? `$${claimableCents / 100} ready to claim` : undefined}
             />
             <Tile
               label="In progress"
@@ -125,18 +125,12 @@ export default async function PortalReferralsPage({
             />
           </div>
 
-          {creditable && (
-            <form method="post" action="/api/portal/referral-payout" className="mt-4">
-              <button
-                type="submit"
-                className="inline-flex min-h-[50px] w-full items-center justify-center rounded-[13px] border border-ink/15 px-7 py-[14px] text-[15px] font-medium sm:w-auto"
-              >
-                Take ${creditedCents / 100} in cash instead
-              </button>
-              <p className="mt-2 text-[13px] leading-[1.5] text-muted-2">
-                We'll wire it and remove the matching credit from your account.
-              </p>
-            </form>
+          {claimableCents > 0 && (
+            <ClaimPayoutForm
+              amountCents={claimableCents}
+              savedMethod={account.payout_method}
+              savedHandle={account.payout_handle}
+            />
           )}
 
           {referrals.length > 0 && (
