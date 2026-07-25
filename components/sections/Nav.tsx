@@ -12,13 +12,24 @@ export function Nav({
   lang,
   locale,
   authed,
-}: { t: Dict["nav"]; lang: Dict["lang"]; locale: Locale; authed: boolean }) {
+  home = "",
+  path = "",
+}: {
+  t: Dict["nav"];
+  lang: Dict["lang"];
+  locale: Locale;
+  authed: boolean;
+  home?: string;
+  path?: string;
+}) {
   const { openSignup, openSignin } = useAuthModal();
-  const LINKS = [
-    { href: "#demo", label: t.demo },
-    { href: "#how", label: t.how },
-    { href: "#pricing", label: t.pricing },
-    { href: "#faq", label: t.faq },
+  const localeBase = locale === "es" ? "/es" : "";
+  const LINKS: { href: string; label: string; current?: boolean }[] = [
+    { href: `${home}#demo`, label: t.demo },
+    { href: `${home}#how`, label: t.how },
+    { href: `${home}#pricing`, label: t.pricing },
+    { href: `${localeBase}/referrals`, label: t.referrals, current: path === "/referrals" },
+    { href: `${home}#faq`, label: t.faq },
   ];
 
   const menuRef = useRef<HTMLDetailsElement>(null);
@@ -35,8 +46,8 @@ export function Nav({
 
   return (
     <>
-      <div className="relative z-[60] hidden justify-end px-[26px] pt-[14px] md:flex min-[1340px]:fixed min-[1340px]:inset-x-0 min-[1340px]:top-[14px] min-[1340px]:pt-0 min-[1340px]:pointer-events-none">
-        <LangSwitch locale={locale} t={lang} className="pointer-events-auto" />
+      <div className="relative z-[60] hidden justify-end px-[26px] pt-[14px] md:flex min-[1340px]:absolute min-[1340px]:inset-x-0 min-[1340px]:top-[14px] min-[1340px]:pt-0 min-[1340px]:pointer-events-none">
+        <LangSwitch locale={locale} t={lang} path={path} className="pointer-events-auto" />
       </div>
       <nav
         id="top"
@@ -44,16 +55,21 @@ export function Nav({
       >
         <div className="flex w-full items-center justify-between gap-2 rounded-[18px] border border-ink/10 bg-cream/80 px-4 py-3 backdrop-blur-md sm:gap-5 sm:px-5">
           <a
-            href="#top"
+            href={`${home}#top`}
             className="flex items-center gap-[7px] whitespace-nowrap font-display text-[17px] font-medium tracking-tight no-underline sm:text-[19px] sm:font-normal"
           >
             <LogoMark className="h-5 w-5 shrink-0 rounded-[3.5px]" />
             Marisol
           </a>
 
-          <div className="hidden items-center gap-8 text-sm text-muted md:flex">
+          <div className="hidden items-center gap-6 text-sm text-muted md:flex lg:gap-8">
             {LINKS.map((l) => (
-              <a key={l.href} href={l.href} className="no-underline">
+              <a
+                key={l.href}
+                href={l.href}
+                aria-current={l.current ? "page" : undefined}
+                className={`no-underline ${l.current ? "text-ink" : ""}`}
+              >
                 {l.label}
               </a>
             ))}
@@ -96,6 +112,7 @@ export function Nav({
                     key={l.href}
                     href={l.href}
                     onClick={closeMenu}
+                    aria-current={l.current ? "page" : undefined}
                     className="flex min-h-[44px] items-center rounded-[10px] px-[14px] py-3 text-[15px] text-ink no-underline"
                   >
                     {l.label}
@@ -114,7 +131,7 @@ export function Nav({
                       {t.logIn}
                     </button>
                   )}
-                  <LangMenuItem locale={locale} t={lang} onSelect={closeMenu} />
+                  <LangMenuItem locale={locale} t={lang} path={path} onSelect={closeMenu} />
                 </div>
               </div>
             </details>

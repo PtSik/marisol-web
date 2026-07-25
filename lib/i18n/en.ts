@@ -15,6 +15,7 @@ export const en = {
     demo: "Live demo",
     how: "How it works",
     pricing: "Pricing",
+    referrals: "Referrals",
     faq: "FAQ",
     getStarted: "Get started",
     logIn: "Log in",
@@ -540,6 +541,85 @@ export const en = {
     carrierBefore: "Codes differ between carriers — if these don't work, ",
     carrierLink: "email us",
     carrierAfter: " and we'll set it up with you. We've also sent all of this to your inbox.",
+  },
+  referralsPage: {
+    meta: {
+      title: "Referral program — earn $200 per shop | Marisol",
+      description:
+        "Send another shop owner your Marisol link. When they've been a paying client for 30 days, claim $200 in cash — and their first month is 10% off.",
+    },
+    eyebrow: "Referral program",
+    title: { before: "Earn ", accent: "$200", after: " for every shop you send us." },
+    lead: "Every Marisol client gets a personal link. Send it to another owner — once they've been a paying client for 30 days, you claim $200 in cash. Their first month is 10% off.",
+    ctaClient: "Get your referral link",
+    ctaGuest: "Start your free trial",
+    ctaTerms: "Read the terms",
+    stats: [
+      { value: "$200", label: "paid in cash" },
+      { value: "10%", label: "off their first month" },
+      { value: "30 days", label: "of paid service before it's yours" },
+      { value: "No cap", label: "refer as many as you like" },
+    ],
+    stepsTitle: "From your link to your payout in three steps.",
+    steps: [
+      {
+        title: "Share your link",
+        body: "Your code and link live in your portal. Text it, email it, or just give them the code — they enter it at checkout.",
+      },
+      {
+        title: "They start",
+        body: "Your link tags their signup for 30 days. When they subscribe, their first month is 10% off.",
+      },
+      {
+        title: "Claim your $200",
+        body: "Once they've paid for 30 days, the reward turns claimable. Pick PayPal, Venmo or Zelle and we send the cash.",
+      },
+    ],
+    whyTitle: "Why owners actually send it.",
+    why: [
+      {
+        title: "Cash, not credit",
+        body: "The $200 lands in your PayPal, Venmo or Zelle. It isn't a discount you have to stay subscribed to use.",
+      },
+      {
+        title: "No cap",
+        body: "Three shops, $600. There's no limit, no tier to unlock, no application to fill in.",
+      },
+      {
+        title: "They win too",
+        body: "10% off their first month on top of the {days}-day free trial, so you're passing on a deal, not asking a favour.",
+      },
+    ],
+    faqTitle: "The rules, in plain English.",
+    faq: [
+      {
+        q: "Who can refer?",
+        a: "Any Marisol client. Your code and link appear in the portal as soon as your salon is live.",
+      },
+      {
+        q: "When do I get paid?",
+        a: "30 days after their first paid invoice. The free trial doesn't count — the clock starts when they actually pay.",
+      },
+      {
+        q: "What if they cancel?",
+        a: "If they cancel or get refunded before those 30 days are up, the reward is void. Once it turns claimable, it's yours to keep.",
+      },
+      {
+        q: "How does the money reach me?",
+        a: "You claim it in the portal with a PayPal, Venmo or Zelle handle. We send it by hand and mark it paid — usually within a few business days.",
+      },
+      {
+        q: "Can I refer my own second location?",
+        a: "No — a second salon on your own account is billed as an extra location, not a referral. The program is for shops you don't own.",
+      },
+      {
+        q: "Is there a limit?",
+        a: "None. Refer three shops and claim $600; refer ten and claim $2,000.",
+      },
+    ],
+    ctaTitle: "Know a shop that's missing calls?",
+    ctaBody: "Send them your link. They stop losing bookings, you get $200.",
+    termsLine: "Full terms",
   },
   footer: {
     tagline: "The AI front desk for barbershops, spas, salons, grooming studios and many more.",

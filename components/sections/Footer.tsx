@@ -1,8 +1,15 @@
 import { LogoMark } from "@/components/Logo";
-import type { Dict } from "@/lib/i18n/dict";
+import type { Dict, Locale } from "@/lib/i18n/dict";
 import { DEMO_PHONE, telHref } from "@/lib/site";
 
-export function Footer({ t, nav }: { t: Dict["footer"]; nav: Dict["nav"] }) {
+export function Footer({
+  t,
+  nav,
+  locale,
+  home = "",
+}: { t: Dict["footer"]; nav: Dict["nav"]; locale: Locale; home?: string }) {
+  const localeBase = locale === "es" ? "/es" : "";
+
   return (
     <footer className="border-t border-cream-200 bg-cream-100">
       <div className="mx-auto flex max-w-content flex-col gap-10 px-[22px] py-[clamp(34px,5vw,56px)] md:flex-row md:items-start md:justify-between">
@@ -26,16 +33,19 @@ export function Footer({ t, nav }: { t: Dict["footer"]; nav: Dict["nav"] }) {
             <span className="mb-[2px] text-[11.5px] uppercase tracking-[0.12em] text-muted-4">
               {t.product}
             </span>
-            <a href="#demo" className="no-underline">
+            <a href={`${home}#demo`} className="no-underline">
               {nav.demo}
             </a>
-            <a href="#how" className="no-underline">
+            <a href={`${home}#how`} className="no-underline">
               {nav.how}
             </a>
-            <a href="#pricing" className="no-underline">
+            <a href={`${home}#pricing`} className="no-underline">
               {nav.pricing}
             </a>
-            <a href="#faq" className="no-underline">
+            <a href={`${localeBase}/referrals`} className="no-underline">
+              {nav.referrals}
+            </a>
+            <a href={`${home}#faq`} className="no-underline">
               {nav.faq}
             </a>
           </nav>

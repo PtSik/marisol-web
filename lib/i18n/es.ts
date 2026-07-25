@@ -17,6 +17,7 @@ export const es: Dict = {
     demo: "Demo en vivo",
     how: "Cómo funciona",
     pricing: "Precios",
+    referrals: "Recomienda",
     faq: "Preguntas",
     getStarted: "Empezar",
     logIn: "Iniciar sesión",
@@ -549,6 +550,85 @@ export const es: Dict = {
     carrierBefore: "Los códigos cambian según la compañía — si estos no funcionan, ",
     carrierLink: "escríbenos",
     carrierAfter: " y lo configuramos contigo. También te mandamos todo esto a tu correo.",
+  },
+  referralsPage: {
+    meta: {
+      title: "Programa de recomendaciones — gana $200 por negocio | Marisol",
+      description:
+        "Envía tu enlace de Marisol a otro dueño. Cuando lleve 30 días como cliente de pago, reclamas $200 en efectivo — y su primer mes tiene un 10% de descuento.",
+    },
+    eyebrow: "Programa de recomendaciones",
+    title: { before: "Gana ", accent: "$200", after: " por cada negocio que nos recomiendes." },
+    lead: "Cada cliente de Marisol tiene un enlace personal. Envíaselo a otro dueño — cuando lleve 30 días como cliente de pago, reclamas $200 en efectivo. Su primer mes tiene un 10% de descuento.",
+    ctaClient: "Consigue tu enlace",
+    ctaGuest: "Empieza tu prueba gratis",
+    ctaTerms: "Lee las condiciones",
+    stats: [
+      { value: "$200", label: "pagado en efectivo" },
+      { value: "10%", label: "en su primer mes" },
+      { value: "30 días", label: "de servicio pagado antes de ser tuyo" },
+      { value: "Sin límite", label: "recomienda los que quieras" },
+    ],
+    stepsTitle: "De tu enlace a tu pago en tres pasos.",
+    steps: [
+      {
+        title: "Comparte tu enlace",
+        body: "Tu código y tu enlace están en tu portal. Mándalo por mensaje, por correo, o dale el código — lo introduce al pagar.",
+      },
+      {
+        title: "Se suscriben",
+        body: "Tu enlace marca su registro durante 30 días. Al suscribirse, su primer mes tiene un 10% de descuento.",
+      },
+      {
+        title: "Reclama tus $200",
+        body: "Cuando lleven 30 días pagando, la recompensa queda disponible. Elige PayPal, Venmo o Zelle y te enviamos el efectivo.",
+      },
+    ],
+    whyTitle: "Por qué los dueños lo comparten.",
+    why: [
+      {
+        title: "Efectivo, no crédito",
+        body: "Los $200 llegan a tu PayPal, Venmo o Zelle. No es un descuento que solo sirve si sigues suscrito.",
+      },
+      {
+        title: "Sin límite",
+        body: "Tres negocios, $600. Sin topes, sin niveles que desbloquear, sin solicitud que rellenar.",
+      },
+      {
+        title: "Ellos también ganan",
+        body: "10% en su primer mes además de la prueba gratis de {days} días: pasas una oferta, no pides un favor.",
+      },
+    ],
+    faqTitle: "Las reglas, en pocas palabras.",
+    faq: [
+      {
+        q: "¿Quién puede recomendar?",
+        a: "Cualquier cliente de Marisol. Tu código y tu enlace aparecen en el portal en cuanto tu salón está activo.",
+      },
+      {
+        q: "¿Cuándo cobro?",
+        a: "30 días después de su primera factura pagada. La prueba gratis no cuenta: el reloj empieza cuando pagan de verdad.",
+      },
+      {
+        q: "¿Y si cancelan?",
+        a: "Si cancelan o reciben un reembolso antes de esos 30 días, la recompensa se anula. Una vez disponible, es tuya.",
+      },
+      {
+        q: "¿Cómo me llega el dinero?",
+        a: "La reclamas en el portal con tu usuario de PayPal, Venmo o Zelle. Lo enviamos a mano y lo marcamos como pagado, normalmente en pocos días hábiles.",
+      },
+      {
+        q: "¿Puedo recomendar mi propio segundo local?",
+        a: "No — un segundo salón en tu propia cuenta se factura como local adicional, no como recomendación. El programa es para negocios que no son tuyos.",
+      },
+      {
+        q: "¿Hay un límite?",
+        a: "Ninguno. Recomienda tres negocios y reclama $600; recomienda diez y reclama $2,000.",
+      },
+    ],
+    ctaTitle: "¿Conoces un negocio que pierde llamadas?",
+    ctaBody: "Mándales tu enlace. Dejan de perder citas y tú ganas $200.",
+    termsLine: "Condiciones completas",
   },
   footer: {
     tagline: "La recepción con IA para barberías, spas, salones, peluquerías caninas y muchos más.",

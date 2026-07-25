@@ -9,7 +9,7 @@ export const metadata = {
 
 export default function TermsPage() {
   return (
-    <LegalShell title="Terms of Service" updated="July 23, 2026">
+    <LegalShell title="Terms of Service" updated="July 25, 2026">
       <p>
         These terms govern your use of the Marisol AI receptionist service provided by Kaijiro Labs
         ("Marisol", "we"). By subscribing, you agree to them.
@@ -57,6 +57,26 @@ export default function TermsPage() {
         You can cancel anytime through the Stripe customer portal — no notice period, no
         cancellation fee. Your receptionist stays active until the end of the period you have
         already paid for, and you keep your phone number.
+      </p>
+
+      <h2 id="referrals">Referral program</h2>
+      <p>
+        Every active client gets a personal referral code and link in the portal. If a new client
+        signs up through your link or enters your code at checkout, their first month is 10% off and
+        you earn a $200 reward once they have been a paying client for 30 days. The free trial does
+        not count towards those 30 days — the clock starts at their first paid invoice.
+      </p>
+      <p>
+        If the referred client cancels or is refunded before the 30 days are up, the reward is void.
+        Once it becomes claimable it stays yours. You cannot refer yourself: a second salon on your
+        own account is billed as an extra location, not a referral, and referrals we identify as
+        self-referrals are voided.
+      </p>
+      <p>
+        Rewards are paid in cash. You request the payout from the portal with a PayPal, Venmo or
+        Zelle handle and we send it manually, normally within a few business days. There is no limit
+        on how many shops you refer. We may change or end the program at any time; rewards that are
+        already claimable when we do are still honoured.
       </p>
 
       <h2>Acceptable use</h2>
