@@ -1,4 +1,5 @@
 import { LogoMark } from "@/components/Logo";
+import { siteHref } from "@/lib/site";
 import type { ReactNode } from "react";
 
 export function LegalShell({
@@ -11,13 +12,13 @@ export function LegalShell({
       <nav className="mx-auto max-w-shell px-[22px] pt-[14px]">
         <div className="flex w-full items-center justify-between gap-5 rounded-[18px] border border-ink/10 bg-cream/80 px-5 py-3 backdrop-blur-md">
           <a
-            href="/"
+            href={siteHref()}
             className="flex items-center gap-[7px] font-display text-[22px] tracking-tight no-underline"
           >
             <LogoMark className="h-5 w-5 rounded-[3.5px]" />
             Marisol
           </a>
-          <a href="/" className="text-sm text-muted no-underline">
+          <a href={siteHref()} className="text-sm text-muted no-underline">
             ← Back to site
           </a>
         </div>

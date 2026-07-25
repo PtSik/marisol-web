@@ -3,6 +3,7 @@ import { LogoMark } from "@/components/Logo";
 import { ADMIN_COOKIE, isAdminCookieValid } from "@/lib/adminAuth";
 import { type CallLead, type CheckoutLead, listLeads } from "@/lib/leads";
 import { type Referral, listReferrals } from "@/lib/referrals";
+import { siteHref } from "@/lib/site";
 import { voiceAgentFetch } from "@/lib/voiceAgent";
 import { cookies } from "next/headers";
 import type { ReactNode } from "react";
@@ -334,7 +335,7 @@ export default async function AdminPage({
       <nav className="mx-auto max-w-shell px-[22px] pt-[14px]">
         <div className="flex w-full items-center justify-between gap-5 rounded-[18px] border border-ink/10 bg-cream/80 px-5 py-3 backdrop-blur-md">
           <a
-            href="/"
+            href={siteHref()}
             className="flex items-center gap-[7px] font-display text-[22px] tracking-tight no-underline"
           >
             <LogoMark className="h-5 w-5 rounded-[3.5px]" />

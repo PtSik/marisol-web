@@ -3,6 +3,7 @@ import { LogoMark } from "@/components/Logo";
 import { OnboardingWizard } from "@/components/onboarding/OnboardingWizard";
 import { LOCALE_PATH, getDict, parseLocale } from "@/lib/i18n/dict";
 import { getSession, sessionIdFromCookies } from "@/lib/session";
+import { siteHref } from "@/lib/site";
 import { redirect } from "next/navigation";
 
 export const dynamic = "force-dynamic";
@@ -33,13 +34,13 @@ export default async function OnboardingPage({ searchParams }: OnboardingProps) 
       <nav className="mx-auto max-w-shell px-[22px] pt-[14px]">
         <div className="flex w-full items-center justify-between gap-5 rounded-[18px] border border-ink/10 bg-cream/80 px-5 py-3 backdrop-blur-md">
           <a
-            href={home}
+            href={siteHref(home)}
             className="flex items-center gap-[7px] font-display text-[22px] tracking-tight no-underline"
           >
             <LogoMark className="h-5 w-5 rounded-[3.5px]" />
             Marisol
           </a>
-          <a href={home} className="text-sm text-muted no-underline">
+          <a href={siteHref(home)} className="text-sm text-muted no-underline">
             {t.back}
           </a>
         </div>

@@ -2,7 +2,7 @@ import { GoogleGlyph } from "@/components/GoogleGlyph";
 import { LogoMark } from "@/components/Logo";
 import { SignInPanel } from "@/components/auth/SignInPanel";
 import { en } from "@/lib/i18n/en";
-import { SALES_EMAIL, SALES_EMAIL_HREF } from "@/lib/site";
+import { SALES_EMAIL, SALES_EMAIL_HREF, siteHref } from "@/lib/site";
 
 export const dynamic = "force-dynamic";
 
@@ -32,7 +32,7 @@ export default async function LoginPage({
     <main className="mx-auto flex min-h-[80vh] max-w-shell items-center justify-center px-[22px]">
       <div className="w-full max-w-[400px] rounded-[20px] border border-ink/10 bg-cream-100 p-8">
         <a
-          href="/"
+          href={siteHref()}
           className="flex items-center gap-[7px] font-display text-[22px] tracking-tight no-underline"
         >
           <LogoMark className="h-5 w-5 rounded-[3.5px]" />
@@ -68,7 +68,7 @@ export default async function LoginPage({
 
         <p className="mt-5 text-center text-[13px] leading-[1.55] text-muted-2">
           {t.noAccount}
-          <a href="/" className="font-medium text-teal">
+          <a href={siteHref()} className="font-medium text-teal">
             {t.signUpLink}
           </a>
         </p>

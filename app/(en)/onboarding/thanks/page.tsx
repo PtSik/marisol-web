@@ -16,7 +16,7 @@ import { getLead } from "@/lib/leads";
 import { VERTICAL_IDS, type Vertical } from "@/lib/onboarding";
 import { TRIAL_DAYS } from "@/lib/plans";
 import { getSession, sessionIdFromCookies } from "@/lib/session";
-import { CUSTOMER_PORTAL_URL, SALES_EMAIL_HREF } from "@/lib/site";
+import { CUSTOMER_PORTAL_URL, SALES_EMAIL_HREF, siteHref } from "@/lib/site";
 import { SESSION_ID_RE, checkoutSettled, getCheckoutSession } from "@/lib/stripe";
 import { redirect } from "next/navigation";
 import type { ReactNode } from "react";
@@ -58,7 +58,7 @@ function Shell({ locale, children }: { locale: Locale; children: ReactNode }) {
       <nav className="mx-auto max-w-shell px-[22px] pt-[14px]">
         <div className="flex w-full items-center justify-between gap-5 rounded-[18px] border border-ink/10 bg-cream/80 px-5 py-3 backdrop-blur-md">
           <a
-            href={home}
+            href={siteHref(home)}
             className="flex items-center gap-[7px] font-display text-[22px] tracking-tight no-underline"
           >
             <LogoMark className="h-5 w-5 rounded-[3.5px]" />
@@ -108,7 +108,7 @@ function ContactLine({
         {t.contactEmail}
       </a>
       {t.contactMiddle}
-      <a href={LOCALE_PATH[locale]} className="font-medium text-teal">
+      <a href={siteHref(LOCALE_PATH[locale])} className="font-medium text-teal">
         {t.contactBack}
       </a>
       .

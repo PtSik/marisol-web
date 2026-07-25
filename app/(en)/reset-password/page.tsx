@@ -1,6 +1,7 @@
 import { LogoMark } from "@/components/Logo";
 import { ResetPasswordForm } from "@/components/auth/ResetPasswordForm";
 import { getDict } from "@/lib/i18n/dict";
+import { siteHref } from "@/lib/site";
 
 export const dynamic = "force-dynamic";
 
@@ -22,7 +23,7 @@ export default async function ResetPasswordPage({
     <main className="mx-auto flex min-h-[80vh] max-w-shell items-center justify-center px-[22px]">
       <div className="w-full max-w-[400px] rounded-[20px] border border-ink/10 bg-cream-100 p-8">
         <a
-          href="/"
+          href={siteHref()}
           className="flex items-center gap-[7px] font-display text-[22px] tracking-tight no-underline"
         >
           <LogoMark className="h-5 w-5 rounded-[3.5px]" />

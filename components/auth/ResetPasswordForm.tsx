@@ -57,7 +57,7 @@ export function ResetPasswordForm({ token, t }: { token: string; t: Dict["auth"]
       <div className="mt-5">
         <p className="text-[14.5px] leading-[1.55] text-muted">{t.resetSuccess}</p>
         <a
-          href="/"
+          href="/login"
           className="mt-6 inline-flex min-h-[50px] w-full items-center justify-center rounded-[13px] bg-ink px-6 py-[14px] text-[15px] font-medium text-cream no-underline"
         >
           {t.resetSuccessCta}
