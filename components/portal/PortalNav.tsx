@@ -2,16 +2,65 @@
 
 import { LogoMark } from "@/components/Logo";
 import { usePathname } from "next/navigation";
+import { useRef } from "react";
 
 const LINKS = [
   { href: "/portal", label: "Overview" },
+  { href: "/portal/salons", label: "Salons" },
   { href: "/portal/setup", label: "Setup" },
   { href: "/portal/calendar", label: "Calendar" },
   { href: "/portal/billing", label: "Billing" },
   { href: "/portal/referrals", label: "Refer & earn" },
 ];
 
-export function PortalNav({ email }: { email: string }) {
+export interface NavShop {
+  id: string;
+  name: string;
+}
+
+function SalonSwitcher({ shops, activeShopId }: { shops: NavShop[]; activeShopId?: string }) {
+  const pathname = usePathname();
+  const formRef = useRef<HTMLFormElement>(null);
+
+  if (shops.length < 2) return null;
+
+  return (
+    <form
+      ref={formRef}
+      method="post"
+      action="/api/portal/switch-salon"
+      className="order-2 sm:order-none"
+    >
+      <input type="hidden" name="return_to" value={pathname} />
+      <label className="sr-only" htmlFor="salon-switcher">
+        Switch salon
+      </label>
+      <select
+        id="salon-switcher"
+        name="shop_id"
+        defaultValue={activeShopId}
+        onChange={() => formRef.current?.requestSubmit()}
+        className="rounded-[10px] border border-ink/15 bg-cream px-3 py-1.5 text-[14px] font-medium"
+      >
+        {shops.map((shop) => (
+          <option key={shop.id} value={shop.id}>
+            {shop.name}
+          </option>
+        ))}
+      </select>
+    </form>
+  );
+}
+
+export function PortalNav({
+  email,
+  shops = [],
+  activeShopId,
+}: {
+  email: string;
+  shops?: NavShop[];
+  activeShopId?: string;
+}) {
   const pathname = usePathname();
 
   return (
@@ -42,12 +91,15 @@ export function PortalNav({ email }: { email: string }) {
             );
           })}
         </ul>
-        <form method="post" action="/api/auth/logout" className="flex items-center gap-3">
-          <span className="hidden text-[13px] text-muted-2 sm:inline">{email}</span>
-          <button type="submit" className="text-[14px] font-medium text-teal">
-            Sign out
-          </button>
-        </form>
+        <div className="flex items-center gap-3">
+          <SalonSwitcher shops={shops} activeShopId={activeShopId} />
+          <form method="post" action="/api/auth/logout" className="flex items-center gap-3">
+            <span className="hidden text-[13px] text-muted-2 sm:inline">{email}</span>
+            <button type="submit" className="text-[14px] font-medium text-teal">
+              Sign out
+            </button>
+          </form>
+        </div>
       </div>
     </nav>
   );

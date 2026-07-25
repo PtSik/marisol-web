@@ -5,6 +5,9 @@ import { redirect } from "next/navigation";
 export const PORTAL_COOKIE = "marisol_session";
 export const OAUTH_STATE_COOKIE = "marisol_oauth";
 export const CHECKOUT_COOKIE = "marisol_checkout";
+// Which salon the portal is currently showing. Only ever honoured after it is checked against the
+// account's own shops, so a forged value buys nothing — it just falls back to the first salon.
+export const SHOP_COOKIE = "marisol_shop";
 
 const SESSION_TTL_SECONDS = 30 * 24 * 60 * 60;
 const STATE_TTL_SECONDS = 600;
@@ -96,6 +99,7 @@ export const stateCookie = (payload: OauthState) =>
 export const clearedStateCookie = () => cookie(OAUTH_STATE_COOKIE, "", 0);
 export const checkoutCookie = (sessionId: string) =>
   cookie(CHECKOUT_COOKIE, sessionId, CHECKOUT_TTL_SECONDS);
+export const shopCookie = (shopId: string) => cookie(SHOP_COOKIE, shopId, SESSION_TTL_SECONDS);
 
 // Falls back to "bare string ⇒ login" so a state cookie minted before this deploy still validates.
 export function parseOauthState(raw: string | undefined): OauthState | null {
@@ -118,6 +122,11 @@ export function parseOauthState(raw: string | undefined): OauthState | null {
 export async function sessionIdFromCookies(): Promise<string | undefined> {
   const jar = await cookies();
   return jar.get(PORTAL_COOKIE)?.value;
+}
+
+export async function shopIdFromCookies(): Promise<string | undefined> {
+  const jar = await cookies();
+  return jar.get(SHOP_COOKIE)?.value;
 }
 
 // Every /portal page starts here: no session (or one KV expired out from under the cookie)

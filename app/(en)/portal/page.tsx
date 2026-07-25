@@ -4,8 +4,8 @@ import { PortalHeading, PortalNotice } from "@/components/portal/PortalHeading";
 import { en } from "@/lib/i18n/en";
 import { getLead } from "@/lib/leads";
 import { PLAN_LABELS } from "@/lib/plans";
-import { type PortalEnv, getShop } from "@/lib/portalApi";
-import { requirePortalSession } from "@/lib/session";
+import type { PortalEnv } from "@/lib/portalApi";
+import { getPortalContext } from "@/lib/portalContext";
 import { SALES_EMAIL_HREF } from "@/lib/site";
 import type { ReactNode } from "react";
 
@@ -25,9 +25,8 @@ function Tile({ label, value, hint }: { label: string; value: string; hint?: Rea
 
 export default async function PortalOverviewPage() {
   const cfEnv = env as unknown as PortalEnv;
-  const session = await requirePortalSession(cfEnv);
-  const lead = session.leadId ? await getLead(cfEnv.LEADS_KV, session.leadId) : null;
-  const shop = session.shopId ? await getShop(cfEnv, session.shopId) : null;
+  const { activeShop: shop, activeLeadId } = await getPortalContext(cfEnv);
+  const lead = activeLeadId ? await getLead(cfEnv.LEADS_KV, activeLeadId) : null;
 
   const businessName = lead?.basics.businessName ?? shop?.name ?? "your shop";
   const number = lead?.assignedNumber ?? shop?.twilio_number;

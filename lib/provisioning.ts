@@ -1,4 +1,4 @@
-import type { CheckoutLead } from "@/lib/leads";
+import { type CheckoutLead, putLeadIdForShop } from "@/lib/leads";
 import { notifyTeam, sendClientWelcome, sendProvisionAlert } from "@/lib/notify";
 import type { DayId, ServiceEntry, SetupDetails, WeekHours } from "@/lib/onboarding";
 import { createAccount, patchAccount } from "@/lib/portalApi";
@@ -13,6 +13,7 @@ import {
 import { type VoiceAgentEnv, voiceAgentFetch } from "@/lib/voiceAgent";
 
 export interface ProvisioningEnv extends VoiceAgentEnv {
+  LEADS_KV?: KVNamespace;
   GROOMING_AGENT_ID?: string;
   TWILIO_ACCOUNT_SID?: string;
   TWILIO_AUTH_TOKEN?: string;
@@ -174,6 +175,51 @@ export interface ProvisionResult {
   reason?: string;
 }
 
+// The first salon of an account: create (or, for a gate-claimed lead, reuse) the portal login and
+// mint its referral promo code. Returns the account id the shop should link to, or undefined if the
+// account couldn't be created — the shop stays live regardless, so failures alert rather than roll back.
+async function resolveFirstSalonAccount(
+  env: ProvisioningEnv,
+  lead: CheckoutLead,
+  shopId: string,
+): Promise<string | undefined> {
+  // A lead claimed at the gate already has an account (keyed on the client's Google email, which may
+  // differ from the order email) — attach the shop to *that* account rather than a second by order
+  // email. Unclaimed leads (the escape hatch) fall back to create-by-email.
+  const account = lead.claimedAccountId
+    ? await patchAccount(env, lead.claimedAccountId, { shop_id: shopId })
+    : await createAccount(env, { email: lead.basics.email, shop_id: shopId, lead_id: lead.id });
+  if (!account) {
+    await notifyTeam(env, `🔑 Portal account failed: ${lead.basics.businessName}`, {
+      email: lead.basics.email,
+      shopId,
+      leadId: lead.id,
+      claimedAccountId: lead.claimedAccountId,
+    });
+    return undefined;
+  }
+  // create is idempotent by email: an account that already existed came back without a shop_id.
+  if (account.shop_id !== shopId) await patchAccount(env, account.id, { shop_id: shopId });
+
+  // The promo code lets people this client refers redeem their code for 10% off. Live without it,
+  // so a failure is an alert, not a rollback.
+  if (env.STRIPE_SECRET_KEY && env.STRIPE_REFERRAL_COUPON) {
+    const promo = await createReferralPromoCode(env.STRIPE_SECRET_KEY, {
+      code: account.referral_code,
+      couponId: env.STRIPE_REFERRAL_COUPON,
+      accountId: account.id,
+    });
+    if (!promo) {
+      await notifyTeam(env, `🎟️ Referral promo code failed: ${lead.basics.businessName}`, {
+        email: lead.basics.email,
+        referralCode: account.referral_code,
+        accountId: account.id,
+      });
+    }
+  }
+  return account.id;
+}
+
 export async function provisionLead(
   env: ProvisioningEnv,
   lead: CheckoutLead,
@@ -208,46 +254,18 @@ export async function provisionLead(
       await sendProvisionAlert(env, lead, "admin POST /shops failed");
       return { ok: false, reason: "admin POST /shops failed" };
     }
-    // The portal account is what lets the client come back and edit their own setup. The shop
-    // is already live without it, so a failure here is an alert, not a rollback.
-    // A lead claimed at the gate already has an account (keyed on the client's Google email, which
-    // may differ from the order email) — attach the shop to *that* account rather than creating a
-    // second one by order email. Unclaimed leads (the escape hatch) fall back to create-by-email.
-    const account = lead.claimedAccountId
-      ? await patchAccount(env, lead.claimedAccountId, { shop_id: shop.id })
-      : await createAccount(env, {
-          email: lead.basics.email,
-          shop_id: shop.id,
-          lead_id: lead.id,
-        });
-    if (!account) {
-      await notifyTeam(env, `🔑 Portal account failed: ${lead.basics.businessName}`, {
-        email: lead.basics.email,
-        shopId: shop.id,
-        leadId: lead.id,
-        claimedAccountId: lead.claimedAccountId,
-      });
-    } else if (account.shop_id !== shop.id) {
-      // create is idempotent by email: an account that already existed came back without a shop_id.
-      await patchAccount(env, account.id, { shop_id: shop.id });
-    }
+    // The portal resolves a salon that isn't the account's first one through this index.
+    await putLeadIdForShop(env.LEADS_KV, shop.id, lead.id);
+    // An additional location joins the account that already owns this owner's other salons: never
+    // a second createAccount (it would collide on accounts.email UNIQUE and split the owner across
+    // two logins), never displacing the account's primary shop_id, no second referral promo.
+    const accountId = lead.additionalLocation
+      ? lead.accountId
+      : await resolveFirstSalonAccount(env, lead, shop.id);
 
-    // The promo code lets people this client refers redeem their code for 10% off. The shop and
-    // the account are already live without it, so a failure here is an alert, not a rollback.
-    if (account && env.STRIPE_SECRET_KEY && env.STRIPE_REFERRAL_COUPON) {
-      const promo = await createReferralPromoCode(env.STRIPE_SECRET_KEY, {
-        code: account.referral_code,
-        couponId: env.STRIPE_REFERRAL_COUPON,
-        accountId: account.id,
-      });
-      if (!promo) {
-        await notifyTeam(env, `🎟️ Referral promo code failed: ${lead.basics.businessName}`, {
-          email: lead.basics.email,
-          referralCode: account.referral_code,
-          accountId: account.id,
-        });
-      }
-    }
+    // shops.account_id is the authority for "these salons are the same person" — the portal reads
+    // it to list and switch between them, so every provisioned shop gets linked.
+    if (accountId) await patchShop(env, shop.id, { account_id: accountId });
 
     const welcomed = await sendClientWelcome(env, {
       email: lead.basics.email,

@@ -2,6 +2,7 @@ import { env } from "cloudflare:workers";
 import { getLead, putLead } from "@/lib/leads";
 import { type SetupDetails, TIMEZONE_IDS, validateSetupPayload } from "@/lib/onboarding";
 import type { PortalEnv } from "@/lib/portalApi";
+import { resolveAccountShops } from "@/lib/portalContext";
 import { patchShop, toShopHours, toShopServices, toShopStaff } from "@/lib/provisioning";
 import { overRateLimit } from "@/lib/rateLimit";
 import { getSession, sessionIdFromCookies } from "@/lib/session";
@@ -39,7 +40,10 @@ export async function POST(request: Request): Promise<Response> {
     return Response.json({ error: "invalid timezone" }, { status: 400 });
   }
 
-  const lead = session.leadId ? await getLead(cfEnv.LEADS_KV, session.leadId) : null;
+  // The salon the switcher is pointed at — resolved against the account's own shops, so the edit
+  // can only ever land on a location this owner holds.
+  const { activeShopId, activeLeadId } = await resolveAccountShops(cfEnv, session);
+  const lead = activeLeadId ? await getLead(cfEnv.LEADS_KV, activeLeadId) : null;
   if (!lead) return Response.json({ error: "no setup on file" }, { status: 404 });
 
   lead.setup = setup;
@@ -48,8 +52,8 @@ export async function POST(request: Request): Promise<Response> {
 
   // The shop row is derived from the lead, so a failed PATCH means the two have drifted —
   // the client has to see that, not a green tick over stale agent config.
-  const shopUpdated = session.shopId
-    ? await patchShop(cfEnv, session.shopId, {
+  const shopUpdated = activeShopId
+    ? await patchShop(cfEnv, activeShopId, {
         hours_json: JSON.stringify(toShopHours(setup.hours)),
         services_json: JSON.stringify(toShopServices(setup.services)),
         staff_json: JSON.stringify(toShopStaff(setup)),

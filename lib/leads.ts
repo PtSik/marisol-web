@@ -15,6 +15,11 @@ export interface CheckoutLead {
   locale?: Locale;
   basics: BusinessBasics;
   status: LeadStatus;
+  /* an extra salon added from the portal: it skips checkout and joins an existing account */
+  additionalLocation?: boolean;
+  /* the account this salon belongs to — set for additional locations so provisioning attaches
+     the shop to the owner's existing portal login instead of minting a second one */
+  accountId?: string;
   stripeSessionId?: string;
   stripeCustomerId?: string;
   stripeSubscriptionId?: string;
@@ -47,6 +52,31 @@ export interface CallLead {
 export type StoredLead = CheckoutLead | CallLead;
 
 export const leadKey = (id: string) => `lead:${id}`;
+
+// Reverse index: a salon's shop_id → the lead it was provisioned from. The account's first salon
+// is already reachable through the session's leadId; additional salons are looked up here so every
+// portal page can load the selected salon's own hours, plan and forwarding.
+export const shopLeadKey = (shopId: string) => `shopLead:${shopId}`;
+
+export async function getLeadIdForShop(
+  kv: KVNamespace | undefined,
+  shopId: string,
+): Promise<string | null> {
+  if (!kv) return null;
+  try {
+    return await kv.get(shopLeadKey(shopId));
+  } catch {
+    return null;
+  }
+}
+
+export async function putLeadIdForShop(
+  kv: KVNamespace | undefined,
+  shopId: string,
+  leadId: string,
+): Promise<void> {
+  await kv?.put(shopLeadKey(shopId), leadId).catch(() => {});
+}
 
 export async function getLead(
   kv: KVNamespace | undefined,

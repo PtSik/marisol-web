@@ -41,6 +41,8 @@
     "STRIPE_PRICE_ANNUAL": "price_1TrFSg8DgPA5sdCxyTCNgwlx",
     "STRIPE_PRICE_PREMIUM_MONTHLY": "price_1TrFSg8DgPA5sdCxmnrDsTXD",
     "STRIPE_PRICE_PREMIUM_ANNUAL": "price_1TrFSh8DgPA5sdCxEKh9SPqJ",
+    "STRIPE_PRICE_EXTRA_LOCATION_MONTHLY": "price_1TwgHM8DgPA5sdCxs9YVejFx",
+    "STRIPE_PRICE_EXTRA_LOCATION_ANNUAL": "price_1TwgHM8DgPA5sdCx7ceLTiYx",
     "RESEND_FROM": "Marisol Leads <leads@getmarisol.com>",
     "CLIENT_EMAIL_FROM": "Marisol <hello@getmarisol.com>",
     "GROOMING_AGENT_ID": "agent_2501ktmhtm2wf8789jqdtkbj7jdr",

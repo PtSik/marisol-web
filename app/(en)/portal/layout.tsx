@@ -1,7 +1,7 @@
 import { env } from "cloudflare:workers";
-import { PortalNav } from "@/components/portal/PortalNav";
+import { type NavShop, PortalNav } from "@/components/portal/PortalNav";
 import type { PortalEnv } from "@/lib/portalApi";
-import { requirePortalSession } from "@/lib/session";
+import { getPortalContext } from "@/lib/portalContext";
 import type { ReactNode } from "react";
 
 export const dynamic = "force-dynamic";
@@ -13,11 +13,16 @@ export const metadata = {
 
 export default async function PortalLayout({ children }: { children: ReactNode }) {
   const cfEnv = env as unknown as PortalEnv;
-  const session = await requirePortalSession(cfEnv);
+  const { session, shops, activeShopId } = await getPortalContext(cfEnv);
+
+  const navShops: NavShop[] = shops.map((shop) => ({
+    id: shop.id,
+    name: shop.name ?? shop.twilio_number ?? "Salon",
+  }));
 
   return (
     <>
-      <PortalNav email={session.email} />
+      <PortalNav email={session.email} shops={navShops} activeShopId={activeShopId} />
       <main className="mx-auto max-w-[760px] px-[22px] pb-[clamp(48px,7vw,88px)] pt-[clamp(28px,4vw,44px)]">
         {children}
       </main>

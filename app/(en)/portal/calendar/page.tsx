@@ -1,19 +1,16 @@
 import { env } from "cloudflare:workers";
 import { PortalHeading, PortalNotice } from "@/components/portal/PortalHeading";
-import { type PortalEnv, getShop } from "@/lib/portalApi";
+import type { PortalEnv } from "@/lib/portalApi";
+import { getPortalContext } from "@/lib/portalContext";
 import { buildCalendarConnectUrl } from "@/lib/provisioning";
-import { requirePortalSession } from "@/lib/session";
 import { SALES_EMAIL_HREF } from "@/lib/site";
 
 export const dynamic = "force-dynamic";
 
 export default async function PortalCalendarPage() {
   const cfEnv = env as unknown as PortalEnv;
-  const session = await requirePortalSession(cfEnv);
-  const shop = session.shopId ? await getShop(cfEnv, session.shopId) : null;
-  const connectUrl = session.shopId
-    ? await buildCalendarConnectUrl(cfEnv, session.shopId)
-    : undefined;
+  const { activeShop: shop, activeShopId } = await getPortalContext(cfEnv);
+  const connectUrl = activeShopId ? await buildCalendarConnectUrl(cfEnv, activeShopId) : undefined;
 
   const connected = shop?.integration === "google_calendar";
   const writeCalendar = shop?.calendar_routing?.write_calendar_id;

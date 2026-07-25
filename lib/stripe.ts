@@ -81,6 +81,72 @@ export async function swapSubscriptionPrice(
   return (await res.json().catch(() => null)) as StripeSubscription | null;
 }
 
+// Sets the extra-location line item on an existing subscription to an absolute quantity, prorated
+// to the current period. Absolute (not a delta) so it's idempotent and doubles as the removal path:
+// re-derive the salon count and set it, whether a location was added or dropped. Picks the price
+// that matches the subscription's own interval — Stripe forbids mixing monthly and yearly items.
+export async function setSubscriptionExtraLocations(
+  secretKey: string,
+  {
+    subscription,
+    monthlyPriceId,
+    annualPriceId,
+    quantity,
+  }: {
+    subscription: StripeSubscription;
+    monthlyPriceId: string;
+    annualPriceId: string;
+    quantity: number;
+  },
+): Promise<boolean> {
+  const items = subscription.items?.data ?? [];
+  const extraPriceIds = new Set([monthlyPriceId, annualPriceId]);
+  const existing = items.find((it) => it.price?.id && extraPriceIds.has(it.price.id));
+  const baseInterval = items.find((it) => !it.price?.id || !extraPriceIds.has(it.price.id))?.price
+    ?.recurring?.interval;
+  const priceId = baseInterval === "year" ? annualPriceId : monthlyPriceId;
+
+  const headers = {
+    Authorization: `Bearer ${secretKey}`,
+    "Content-Type": "application/x-www-form-urlencoded",
+  };
+
+  if (!existing && quantity <= 0) return true;
+
+  if (existing && quantity <= 0) {
+    const res = await fetch(`https://api.stripe.com/v1/subscription_items/${existing.id}`, {
+      method: "DELETE",
+      headers,
+      body: new URLSearchParams({ proration_behavior: "create_prorations" }),
+    }).catch(() => null);
+    return res?.ok ?? false;
+  }
+
+  if (existing) {
+    const res = await fetch(`https://api.stripe.com/v1/subscription_items/${existing.id}`, {
+      method: "POST",
+      headers,
+      body: new URLSearchParams({
+        quantity: String(quantity),
+        proration_behavior: "create_prorations",
+      }),
+    }).catch(() => null);
+    return res?.ok ?? false;
+  }
+
+  const res = await fetch("https://api.stripe.com/v1/subscription_items", {
+    method: "POST",
+    headers,
+    body: new URLSearchParams({
+      subscription: subscription.id,
+      price: priceId,
+      quantity: String(quantity),
+      proration_behavior: "create_prorations",
+    }),
+  }).catch(() => null);
+  return res?.ok ?? false;
+}
+
 export async function createBillingPortalSession(
   secretKey: string,
   customerId: string,

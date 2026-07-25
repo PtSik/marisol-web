@@ -72,3 +72,10 @@ export async function getShop(env: VoiceAgentEnv, shopId: string): Promise<Shop 
   const res = await voiceAgentFetch(env, `/admin/shops/${shopId}`).catch(() => null);
   return jsonOf<Shop>(res, "shop");
 }
+
+// The set of salons an account owns — the authority for which shop_id a signed-in client is
+// allowed to act on. Anything not in this list is someone else's, so never honour it.
+export async function listAccountShops(env: VoiceAgentEnv, accountId: string): Promise<Shop[]> {
+  const res = await voiceAgentFetch(env, `/admin/accounts/${accountId}/shops`).catch(() => null);
+  return (await jsonOf<Shop[]>(res, "shops")) ?? [];
+}

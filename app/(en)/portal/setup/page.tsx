@@ -5,15 +5,15 @@ import { en } from "@/lib/i18n/en";
 import { getLead } from "@/lib/leads";
 import { defaultSetup } from "@/lib/onboarding";
 import type { PortalEnv } from "@/lib/portalApi";
-import { requirePortalSession } from "@/lib/session";
+import { getPortalContext } from "@/lib/portalContext";
 import { SALES_EMAIL_HREF } from "@/lib/site";
 
 export const dynamic = "force-dynamic";
 
 export default async function PortalSetupPage() {
   const cfEnv = env as unknown as PortalEnv;
-  const session = await requirePortalSession(cfEnv);
-  const lead = session.leadId ? await getLead(cfEnv.LEADS_KV, session.leadId) : null;
+  const { activeLeadId } = await getPortalContext(cfEnv);
+  const lead = activeLeadId ? await getLead(cfEnv.LEADS_KV, activeLeadId) : null;
 
   if (!lead) {
     return (
