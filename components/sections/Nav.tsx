@@ -2,10 +2,18 @@
 
 import { LangSwitch } from "@/components/LangSwitch";
 import { LogoMark } from "@/components/Logo";
+import { useAuthModal } from "@/components/auth/AuthModalProvider";
 import type { Dict, Locale } from "@/lib/i18n/dict";
+import { APP_URL } from "@/lib/site";
 import { useEffect, useRef } from "react";
 
-export function Nav({ t, lang, locale }: { t: Dict["nav"]; lang: Dict["lang"]; locale: Locale }) {
+export function Nav({
+  t,
+  lang,
+  locale,
+  authed,
+}: { t: Dict["nav"]; lang: Dict["lang"]; locale: Locale; authed: boolean }) {
+  const { openSignup, openSignin } = useAuthModal();
   const LINKS = [
     { href: "#demo", label: t.demo },
     { href: "#how", label: t.how },
@@ -45,12 +53,15 @@ export function Nav({ t, lang, locale }: { t: Dict["nav"]; lang: Dict["lang"]; l
         </div>
 
         <div className="flex items-center gap-2">
-          <a
-            href="/login"
-            className="order-4 hidden whitespace-nowrap px-1 text-sm text-muted no-underline md:order-none md:inline"
-          >
-            {t.signIn}
-          </a>
+          {!authed && (
+            <button
+              type="button"
+              onClick={openSignin}
+              className="order-4 hidden whitespace-nowrap px-1 text-sm text-muted md:order-none md:inline"
+            >
+              {t.logIn}
+            </button>
+          )}
           <LangSwitch locale={locale} t={lang} className="order-3 md:order-none" />
           <details ref={menuRef} className="relative order-2 md:hidden">
             <summary
@@ -84,22 +95,37 @@ export function Nav({ t, lang, locale }: { t: Dict["nav"]; lang: Dict["lang"]; l
                   {l.label}
                 </a>
               ))}
-              <a
-                href="/login"
-                onClick={closeMenu}
-                className="mt-1 flex min-h-[44px] items-center rounded-[10px] border-t border-ink/10 px-[14px] py-3 text-[15px] text-muted no-underline"
-              >
-                {t.signIn}
-              </a>
+              {!authed && (
+                <button
+                  type="button"
+                  onClick={() => {
+                    closeMenu();
+                    openSignin();
+                  }}
+                  className="mt-1 flex min-h-[44px] items-center rounded-[10px] border-t border-ink/10 px-[14px] py-3 text-left text-[15px] text-muted"
+                >
+                  {t.logIn}
+                </button>
+              )}
             </div>
           </details>
 
-          <a
-            href="#demo"
-            className="order-1 inline-flex min-h-[40px] items-center justify-center whitespace-nowrap rounded-xl bg-ink px-[14px] py-[8px] text-[13px] font-medium text-cream no-underline sm:min-h-[44px] sm:px-[18px] sm:py-[11px] sm:text-sm"
-          >
-            {t.cta}
-          </a>
+          {authed ? (
+            <a
+              href={`${APP_URL}/portal`}
+              className="order-1 inline-flex min-h-[40px] items-center justify-center whitespace-nowrap rounded-xl bg-ink px-[14px] py-[8px] text-[13px] font-medium text-cream no-underline sm:min-h-[44px] sm:px-[18px] sm:py-[11px] sm:text-sm"
+            >
+              {t.dashboard}
+            </a>
+          ) : (
+            <button
+              type="button"
+              onClick={() => openSignup()}
+              className="order-1 inline-flex min-h-[40px] items-center justify-center whitespace-nowrap rounded-xl bg-ink px-[14px] py-[8px] text-[13px] font-medium text-cream sm:min-h-[44px] sm:px-[18px] sm:py-[11px] sm:text-sm"
+            >
+              {t.getStarted}
+            </button>
+          )}
         </div>
       </div>
     </nav>

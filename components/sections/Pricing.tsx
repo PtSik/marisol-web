@@ -1,10 +1,11 @@
 "use client";
 
+import { useAuthModal } from "@/components/auth/AuthModalProvider";
 import { Reveal } from "@/components/motion/Reveal";
-import { type Dict, type Locale, fill, onboardingHref } from "@/lib/i18n/dict";
-import { PRICE, TRIAL_DAYS, premiumSaving } from "@/lib/plans";
-import { SALES_EMAIL_HREF } from "@/lib/site";
-import { useState } from "react";
+import { type Dict, fill } from "@/lib/i18n/dict";
+import { type Billing, PRICE, type Plan, TRIAL_DAYS, premiumSaving } from "@/lib/plans";
+import { APP_URL, SALES_EMAIL_HREF } from "@/lib/site";
+import { type ReactNode, useState } from "react";
 
 function FeatureList({
   feats,
@@ -39,9 +40,37 @@ function FeatureList({
   );
 }
 
-export function Pricing({ t, locale }: { t: Dict["pricing"]; locale: Locale }) {
+function PlanCta({
+  authed,
+  plan,
+  billing,
+  className,
+  children,
+}: {
+  authed: boolean;
+  plan: Plan;
+  billing: Billing;
+  className: string;
+  children: ReactNode;
+}) {
+  const { openSignup } = useAuthModal();
+  if (authed) {
+    return (
+      <a href={`${APP_URL}/portal?plan=${plan}&billing=${billing}`} className={className}>
+        {children}
+      </a>
+    );
+  }
+  return (
+    <button type="button" onClick={() => openSignup(plan, billing)} className={className}>
+      {children}
+    </button>
+  );
+}
+
+export function Pricing({ t, authed }: { t: Dict["pricing"]; authed: boolean }) {
   const [annual, setAnnual] = useState(false);
-  const billing = annual ? "annual" : "monthly";
+  const billing: Billing = annual ? "annual" : "monthly";
 
   return (
     <section
@@ -99,12 +128,14 @@ export function Pricing({ t, locale }: { t: Dict["pricing"]; locale: Locale }) {
           <p className="mt-[14px] text-[14px] leading-[1.5] text-muted">{t.baseDesc}</p>
           <div className="my-[18px] mt-5 border-t border-ink/10" />
           <FeatureList feats={t.baseFeatures} check="#4F8C80" itemCls="text-[#54493e]" />
-          <a
-            href={onboardingHref(locale, { plan: "base", billing })}
+          <PlanCta
+            authed={authed}
+            plan="base"
+            billing={billing}
             className="inline-flex min-h-[50px] items-center justify-center gap-2 rounded-[13px] bg-ink px-5 py-[14px] text-[15px] font-medium text-cream no-underline"
           >
             {t.baseCta}
-          </a>
+          </PlanCta>
         </div>
 
         <div className="order-1 mx-auto flex w-full max-w-[460px] flex-col rounded-[24px] bg-ink px-[26px] pb-7 pt-[20px] text-cream shadow-[0_30px_60px_-34px_rgba(36,27,20,0.7)] md:order-2 md:max-w-none">
@@ -132,12 +163,14 @@ export function Pricing({ t, locale }: { t: Dict["pricing"]; locale: Locale }) {
             check="#7FD18F"
             itemCls="text-cream/[0.92]"
           />
-          <a
-            href={onboardingHref(locale, { plan: "premium", billing })}
+          <PlanCta
+            authed={authed}
+            plan="premium"
+            billing={billing}
             className="inline-flex min-h-[50px] items-center justify-center gap-2 rounded-[13px] bg-cream px-5 py-[14px] text-[15px] font-medium text-ink no-underline"
           >
             {t.premiumCta}
-          </a>
+          </PlanCta>
         </div>
       </div>
 

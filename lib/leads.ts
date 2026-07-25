@@ -28,11 +28,6 @@ export interface CheckoutLead {
   setupCompletedAt?: string;
   shopId?: string;
   assignedNumber?: string;
-  /* set when the client verified their identity through the Google gate after checkout */
-  claimedAt?: string;
-  /* the account the gate bound to this lead — its Google email may differ from the order email,
-     so provisioning attaches the shop to this account instead of creating one by order email */
-  claimedAccountId?: string;
   provisionedAt?: string;
   provisionError?: string;
   /* set once the client's address is a Google Cloud test user and the connect link was mailed */
@@ -76,6 +71,31 @@ export async function putLeadIdForShop(
   leadId: string,
 ): Promise<void> {
   await kv?.put(shopLeadKey(shopId), leadId).catch(() => {});
+}
+
+// Reverse index: an account → the lead that carries its subscription. Written when checkout opens,
+// before any shop exists, so a client whose provisioning is still pending can be recognised as
+// already paying — accounts.lead_id only lands once provisioning succeeds.
+export const accountLeadKey = (accountId: string) => `accountLead:${accountId}`;
+
+export async function getLeadIdForAccount(
+  kv: KVNamespace | undefined,
+  accountId: string,
+): Promise<string | null> {
+  if (!kv) return null;
+  try {
+    return await kv.get(accountLeadKey(accountId));
+  } catch {
+    return null;
+  }
+}
+
+export async function putLeadIdForAccount(
+  kv: KVNamespace | undefined,
+  accountId: string,
+  leadId: string,
+): Promise<void> {
+  await kv?.put(accountLeadKey(accountId), leadId).catch(() => {});
 }
 
 export async function getLead(

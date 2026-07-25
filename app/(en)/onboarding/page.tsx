@@ -1,6 +1,15 @@
+import { env } from "cloudflare:workers";
 import { LogoMark } from "@/components/Logo";
 import { OnboardingWizard } from "@/components/onboarding/OnboardingWizard";
 import { LOCALE_PATH, getDict, parseLocale } from "@/lib/i18n/dict";
+import { getSession, sessionIdFromCookies } from "@/lib/session";
+import { redirect } from "next/navigation";
+
+export const dynamic = "force-dynamic";
+
+interface OnboardingEnv {
+  RATE_LIMIT_KV?: KVNamespace;
+}
 
 type OnboardingProps = { searchParams: Promise<{ lang?: string }> };
 
@@ -14,6 +23,9 @@ export default async function OnboardingPage({ searchParams }: OnboardingProps) 
   const locale = parseLocale(lang);
   const home = LOCALE_PATH[locale];
   const t = getDict(locale).onboarding;
+  const { RATE_LIMIT_KV } = env as unknown as OnboardingEnv;
+  const session = await getSession(RATE_LIMIT_KV, await sessionIdFromCookies());
+  if (!session) redirect("/login");
 
   return (
     // The route lives under the English layout, so the Spanish funnel marks its own language here.
@@ -33,7 +45,7 @@ export default async function OnboardingPage({ searchParams }: OnboardingProps) 
         </div>
       </nav>
       <main className="pt-[clamp(32px,5vw,56px)]">
-        <OnboardingWizard locale={locale} />
+        <OnboardingWizard locale={locale} accountEmail={session.email} />
       </main>
     </div>
   );

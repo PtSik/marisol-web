@@ -6,7 +6,6 @@ import { inputCls } from "@/components/onboarding/fieldStyles";
 import { type Dict, type Locale, fill, getDict } from "@/lib/i18n/dict";
 import {
   type BusinessBasics,
-  EMAIL_RE,
   PHONE_RE,
   TIMEZONE_IDS,
   VERTICAL_IDS,
@@ -24,16 +23,21 @@ function validateBasics(basics: BusinessBasics, t: Dict["onboarding"]): FieldErr
   const errors: FieldErrors = {};
   if (!basics.businessName.trim()) errors.businessName = t.errBusinessName;
   if (!basics.ownerName.trim()) errors.ownerName = t.errOwnerName;
-  if (!EMAIL_RE.test(basics.email)) errors.email = t.errEmail;
   if (!PHONE_RE.test(basics.businessPhone)) errors.businessPhone = t.errBusinessPhone;
   if (!PHONE_RE.test(basics.ownerMobile)) errors.ownerMobile = t.errOwnerMobile;
   return errors;
 }
 
-export function OnboardingWizard({ locale }: { locale: Locale }) {
+export function OnboardingWizard({
+  locale,
+  accountEmail,
+}: { locale: Locale; accountEmail: string }) {
   const dict = getDict(locale);
   const t = dict.onboarding;
-  const [basics, setBasics] = useState<BusinessBasics>(() => defaultBasics());
+  const [basics, setBasics] = useState<BusinessBasics>(() => ({
+    ...defaultBasics(),
+    email: accountEmail,
+  }));
   const [plan, setPlan] = useState<Plan>("base");
   const [billing, setBilling] = useState<Billing>("monthly");
   const [errors, setErrors] = useState<FieldErrors>({});
@@ -43,6 +47,7 @@ export function OnboardingWizard({ locale }: { locale: Locale }) {
   const [submitError, setSubmitError] = useState<string | null>(null);
   const hydrated = useRef(false);
 
+  // biome-ignore lint/correctness/useExhaustiveDependencies: mount-only hydration, accountEmail is fixed for the page's life
   useEffect(() => {
     const params = new URLSearchParams(window.location.search);
     if (params.get("plan") === "premium") setPlan("premium");
@@ -54,7 +59,8 @@ export function OnboardingWizard({ locale }: { locale: Locale }) {
         ? (JSON.parse(saved) as { basics?: unknown; billing?: Billing; plan?: Plan })
         : null;
       if (parsed && isBusinessBasics(parsed.basics)) {
-        setBasics(parsed.basics);
+        // A stale save from a previous login shouldn't resurrect that account's email.
+        setBasics({ ...parsed.basics, email: accountEmail });
         if (params.get("plan") == null && parsed.plan === "premium") setPlan("premium");
         if (params.get("billing") == null && parsed.billing === "annual") setBilling("annual");
       } else {
@@ -103,7 +109,15 @@ export function OnboardingWizard({ locale }: { locale: Locale }) {
           referralCode: referralCode.trim() || undefined,
         }),
       });
-      const body = (await res.json()) as { url?: string; error?: string };
+      const body = (await res.json()) as { url?: string; error?: string; sessionId?: string };
+      // Already subscribed — the salon is still being provisioned. Finish that setup rather than
+      // showing an error next to a button that would have bought a second subscription.
+      if (res.status === 409) {
+        window.location.href = body.sessionId
+          ? `/onboarding/thanks?session_id=${encodeURIComponent(body.sessionId)}`
+          : "/portal";
+        return;
+      }
       if (!res.ok || !body.url) {
         throw new Error(body.error ?? "checkout failed");
       }
@@ -184,29 +198,17 @@ export function OnboardingWizard({ locale }: { locale: Locale }) {
             />
           </Field>
 
-          <div className="grid grid-cols-1 gap-5 sm:grid-cols-2">
-            <Field label={t.ownerName} htmlFor="ob-owner" error={errors.ownerName}>
-              <input
-                id="ob-owner"
-                className={inputCls}
-                value={basics.ownerName}
-                onChange={(e) => patch({ ownerName: e.target.value })}
-                placeholder={t.ownerNamePlaceholder}
-                autoComplete="name"
-              />
-            </Field>
-            <Field label={t.email} htmlFor="ob-email" error={errors.email}>
-              <input
-                id="ob-email"
-                type="email"
-                className={inputCls}
-                value={basics.email}
-                onChange={(e) => patch({ email: e.target.value })}
-                placeholder={t.emailPlaceholder}
-                autoComplete="email"
-              />
-            </Field>
-          </div>
+          <Field label={t.ownerName} htmlFor="ob-owner" error={errors.ownerName}>
+            <input
+              id="ob-owner"
+              className={inputCls}
+              value={basics.ownerName}
+              onChange={(e) => patch({ ownerName: e.target.value })}
+              placeholder={t.ownerNamePlaceholder}
+              autoComplete="name"
+            />
+          </Field>
+          <p className="-mt-2 text-[13px] text-muted-2">Signed in as {accountEmail}</p>
 
           <div className="grid grid-cols-1 gap-5 sm:grid-cols-2">
             <Field

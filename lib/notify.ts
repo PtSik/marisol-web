@@ -299,3 +299,51 @@ export async function sendCalendarInvite(env: NotifyEnv, c: CalendarInvite): Pro
     { html },
   );
 }
+
+export interface VerificationEmail {
+  email: string;
+  verifyUrl: string;
+}
+
+export async function sendVerificationEmail(
+  env: NotifyEnv,
+  v: VerificationEmail,
+): Promise<boolean> {
+  const { RESEND_API_KEY } = env;
+  if (!RESEND_API_KEY) return false;
+
+  const html = `<div style="font-family:Inter,Helvetica,Arial,sans-serif;max-width:560px;margin:0 auto;color:#241B14;line-height:1.55">
+  <p style="font-size:16px">Welcome to Marisol!</p>
+  <p style="font-size:16px">Confirm your email address to finish setting up your account.</p>
+  <p style="margin:20px 0 0"><a href="${v.verifyUrl}" style="display:inline-block;background:#4F8C80;color:#fff;text-decoration:none;padding:12px 22px;border-radius:10px;font-weight:600;font-size:15px">Verify email</a></p>
+  <p style="font-size:13px;color:#6F6457;margin:10px 0 0">No rush — your account already works, this is just for your records.</p>
+</div>`;
+
+  return sendEmail(RESEND_API_KEY, clientFrom(env), v.email, "Verify your email for Marisol", {
+    html,
+  });
+}
+
+export interface PasswordResetEmail {
+  email: string;
+  resetUrl: string;
+}
+
+export async function sendPasswordResetEmail(
+  env: NotifyEnv,
+  r: PasswordResetEmail,
+): Promise<boolean> {
+  const { RESEND_API_KEY } = env;
+  if (!RESEND_API_KEY) return false;
+
+  const html = `<div style="font-family:Inter,Helvetica,Arial,sans-serif;max-width:560px;margin:0 auto;color:#241B14;line-height:1.55">
+  <p style="font-size:16px">Reset your Marisol password</p>
+  <p style="font-size:16px">Click below to choose a new one. This link expires in 1 hour.</p>
+  <p style="margin:20px 0 0"><a href="${r.resetUrl}" style="display:inline-block;background:#4F8C80;color:#fff;text-decoration:none;padding:12px 22px;border-radius:10px;font-weight:600;font-size:15px">Reset password</a></p>
+  <p style="font-size:13px;color:#6F6457;margin:10px 0 0">Didn't request this? You can safely ignore this email.</p>
+</div>`;
+
+  return sendEmail(RESEND_API_KEY, clientFrom(env), r.email, "Reset your Marisol password", {
+    html,
+  });
+}

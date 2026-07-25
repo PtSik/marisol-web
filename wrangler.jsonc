@@ -11,7 +11,8 @@
   },
   "routes": [
     { "pattern": "callmarisol.com", "custom_domain": true },
-    { "pattern": "www.callmarisol.com", "custom_domain": true }
+    { "pattern": "www.callmarisol.com", "custom_domain": true },
+    { "pattern": "app.callmarisol.com", "custom_domain": true }
   ],
   "kv_namespaces": [
     {
@@ -48,6 +49,8 @@
     "GROOMING_AGENT_ID": "agent_2501ktmhtm2wf8789jqdtkbj7jdr",
     "GCAL_SHARE_EMAIL": "bookings@marisol-voice.iam.gserviceaccount.com",
     // 10%-off, duration=once coupon that referred clients redeem via their referrer's code.
-    "STRIPE_REFERRAL_COUPON": "marisol_referral_10off"
+    "STRIPE_REFERRAL_COUPON": "marisol_referral_10off",
+    // Session cookie is shared across the apex and app.callmarisol.com; unset on localhost dev.
+    "COOKIE_DOMAIN": ".callmarisol.com"
   }
 }

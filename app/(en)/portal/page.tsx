@@ -2,11 +2,12 @@ import { env } from "cloudflare:workers";
 import { ForwardingCard } from "@/components/onboarding/ForwardingCard";
 import { PortalHeading, PortalNotice } from "@/components/portal/PortalHeading";
 import { en } from "@/lib/i18n/en";
-import { getLead } from "@/lib/leads";
+import { getLead, getLeadIdForAccount } from "@/lib/leads";
 import { PLAN_LABELS } from "@/lib/plans";
 import type { PortalEnv } from "@/lib/portalApi";
 import { getPortalContext } from "@/lib/portalContext";
 import { SALES_EMAIL_HREF } from "@/lib/site";
+import { redirect } from "next/navigation";
 import type { ReactNode } from "react";
 
 export const dynamic = "force-dynamic";
@@ -23,9 +24,33 @@ function Tile({ label, value, hint }: { label: string; value: string; hint?: Rea
   );
 }
 
-export default async function PortalOverviewPage() {
+export default async function PortalOverviewPage({
+  searchParams,
+}: {
+  searchParams: Promise<{ plan?: string; billing?: string }>;
+}) {
   const cfEnv = env as unknown as PortalEnv;
-  const { activeShop: shop, activeLeadId } = await getPortalContext(cfEnv);
+  const { session, shops, activeShop: shop, activeLeadId } = await getPortalContext(cfEnv);
+
+  // An account with no salon yet hasn't finished first-salon onboarding — send it back to the
+  // wizard instead of rendering an empty dashboard.
+  if (shops.length === 0) {
+    // Unless it already paid: then the salon is mid-provisioning (or a failed provisioning the team
+    // is fixing by hand), and the wizard would invite a second subscription. Back to setup instead.
+    const paidLeadId = await getLeadIdForAccount(cfEnv.LEADS_KV, session.accountId);
+    const paid = paidLeadId ? await getLead(cfEnv.LEADS_KV, paidLeadId) : null;
+    if (paid?.stripeSessionId && paid.status !== "created" && paid.status !== "cancelled") {
+      redirect(`/onboarding/thanks?session_id=${paid.stripeSessionId}`);
+    }
+
+    const { plan, billing } = await searchParams;
+    const query = new URLSearchParams();
+    if (plan) query.set("plan", plan);
+    if (billing) query.set("billing", billing);
+    const qs = query.toString();
+    redirect(qs ? `/onboarding?${qs}` : "/onboarding");
+  }
+
   const lead = activeLeadId ? await getLead(cfEnv.LEADS_KV, activeLeadId) : null;
 
   const businessName = lead?.basics.businessName ?? shop?.name ?? "your shop";

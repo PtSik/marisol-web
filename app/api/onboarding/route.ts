@@ -1,6 +1,12 @@
 import { env } from "cloudflare:workers";
 import { type Locale, parseLocale } from "@/lib/i18n/dict";
-import { type CheckoutLead, getLead, putLead } from "@/lib/leads";
+import {
+  type CheckoutLead,
+  getLead,
+  getLeadIdForAccount,
+  putLead,
+  putLeadIdForAccount,
+} from "@/lib/leads";
 import { notifyTeam } from "@/lib/notify";
 import {
   type BusinessBasics,
@@ -11,10 +17,12 @@ import {
   validateSetupPayload,
 } from "@/lib/onboarding";
 import { BILLING_OPTIONS, type Billing, PLAN_OPTIONS, type Plan, TRIAL_DAYS } from "@/lib/plans";
+import { listAccountShops } from "@/lib/portalApi";
 import { provisionLead } from "@/lib/provisioning";
 import { overRateLimit } from "@/lib/rateLimit";
 import { REF_CODE_RE, refCodeFromCookie } from "@/lib/referrals";
-import { checkoutCookie, getSession, refreshSession, sessionIdFromCookies } from "@/lib/session";
+import { getSession, refreshSession, sessionIdFromCookies } from "@/lib/session";
+import { APP_URL } from "@/lib/site";
 import {
   SESSION_ID_RE,
   type StripeCheckoutSession,
@@ -124,6 +132,7 @@ function reconstructLead(leadId: string, session: StripeCheckoutSession): Checko
       timezone: "",
     },
     status: "created",
+    accountId: meta.account_id,
   };
 }
 
@@ -147,9 +156,29 @@ async function handleCheckout(
   plan: Plan,
   billing: Billing,
   basics: BusinessBasics,
+  accountId: string,
   referralCode: string | undefined,
   locale: Locale,
 ): Promise<Response> {
+  // One subscription per account. A client whose provisioning failed still lands back in the wizard
+  // (there is no salon to show them), and without this they could buy a second subscription while
+  // the team is fixing the first by hand. A lead still at "created" is an abandoned checkout — that
+  // one has to stay retryable. Extra salons are a line item on the existing subscription, not this.
+  const existingLeadId = await getLeadIdForAccount(cfEnv.LEADS_KV, accountId);
+  const existingLead = existingLeadId ? await getLead(cfEnv.LEADS_KV, existingLeadId) : null;
+  if (existingLead && existingLead.status !== "created" && existingLead.status !== "cancelled") {
+    return Response.json(
+      { error: "this account already has a subscription", sessionId: existingLead.stripeSessionId },
+      { status: 409 },
+    );
+  }
+  // Backstop for accounts that subscribed before the index above existed: a live salon means the
+  // subscription is already running, and a second one belongs on it as an extra location.
+  const owned = await listAccountShops(cfEnv, accountId);
+  if (owned.some((s) => s.status !== "cancelled")) {
+    return Response.json({ error: "this account already has a salon" }, { status: 409 });
+  }
+
   const lead: CheckoutLead = {
     id: crypto.randomUUID(),
     createdAt: new Date().toISOString(),
@@ -159,10 +188,12 @@ async function handleCheckout(
     locale,
     basics,
     status: "created",
+    accountId,
   };
 
   await Promise.all([
     putLead(cfEnv.LEADS_KV, lead),
+    putLeadIdForAccount(cfEnv.LEADS_KV, accountId, lead.id),
     notifyTeam(cfEnv, `New onboarding lead: ${basics.businessName}`, lead),
   ]);
 
@@ -187,9 +218,10 @@ async function handleCheckout(
     "line_items[0][price]": priceId,
     "line_items[0][quantity]": "1",
     customer_email: basics.email,
-    success_url: `${origin}/onboarding/thanks?session_id={CHECKOUT_SESSION_ID}${langQuery}`,
+    success_url: `${APP_URL}/onboarding/thanks?session_id={CHECKOUT_SESSION_ID}${langQuery}`,
     cancel_url: `${origin}/onboarding?plan=${plan}&billing=${billing}&cancelled=1${langQuery}`,
     "metadata[lead_id]": lead.id,
+    "metadata[account_id]": accountId,
     "metadata[locale]": locale,
     "metadata[plan]": plan,
     "metadata[billing]": billing,
@@ -198,6 +230,7 @@ async function handleCheckout(
     "metadata[owner_name]": basics.ownerName.slice(0, 500),
     "metadata[business_phone]": basics.businessPhone,
     "subscription_data[metadata][lead_id]": lead.id,
+    "subscription_data[metadata][account_id]": accountId,
     "subscription_data[trial_period_days]": String(TRIAL_DAYS),
   });
 
@@ -228,15 +261,12 @@ async function handleCheckout(
     await putLead(cfEnv.LEADS_KV, { ...lead, stripeSessionId: session.id });
   }
 
-  const response = Response.json({ url: session.url });
-  // Set here, not on /thanks: vinext only flushes cookies().set() on redirect/error renders, not on
-  // a normal page render. This way every client who started checkout carries the session id back.
-  if (session.id) response.headers.append("Set-Cookie", checkoutCookie(session.id));
-  return response;
+  return Response.json({ url: session.url });
 }
 
 async function handleSetup(
   cfEnv: OnboardingEnv,
+  accountId: string,
   sessionId: string,
   setup: SetupDetails,
 ): Promise<Response> {
@@ -247,6 +277,13 @@ async function handleSetup(
   const session = await getCheckoutSession(cfEnv.STRIPE_SECRET_KEY, sessionId);
   if (!session) {
     return Response.json({ error: "unknown session" }, { status: 400 });
+  }
+  // Knowing a cs_… id is not authorisation to drive someone else's setup. Checkouts from before
+  // account-first onboarding carry no account_id — those keep working for any signed-in client
+  // rather than locking their own owner out.
+  const checkoutAccountId = session.metadata?.account_id;
+  if (checkoutAccountId && checkoutAccountId !== accountId) {
+    return Response.json({ error: "not your checkout" }, { status: 403 });
   }
   if (!checkoutSettled(session)) {
     return Response.json({ error: "session not paid" }, { status: 402 });
@@ -352,14 +389,20 @@ export async function POST(request: Request) {
     if (!BILLING_OPTIONS.includes(body.billing as Billing)) {
       return Response.json({ error: "invalid billing" }, { status: 400 });
     }
-    const error = validateBasics(body.basics);
+    // First-salon checkout requires an existing portal login — the account already exists, so
+    // guest checkout and the post-payment Google gate both go away.
+    const session = await getSession(cfEnv.RATE_LIMIT_KV, await sessionIdFromCookies());
+    if (!session) return Response.json({ error: "not signed in" }, { status: 401 });
+    const basics: BusinessBasics = { ...(body.basics as BusinessBasics), email: session.email };
+    const error = validateBasics(basics);
     if (error) return Response.json({ error }, { status: 400 });
     return handleCheckout(
       cfEnv,
       request,
       plan,
       body.billing as Billing,
-      body.basics as BusinessBasics,
+      basics,
+      session.accountId,
       typeof body.referralCode === "string" ? body.referralCode : undefined,
       parseLocale(body.locale),
     );
@@ -368,7 +411,9 @@ export async function POST(request: Request) {
   if (!isShortString(body.sessionId, 300) || !SESSION_ID_RE.test(body.sessionId)) {
     return Response.json({ error: "invalid sessionId" }, { status: 400 });
   }
+  const setupSession = await getSession(cfEnv.RATE_LIMIT_KV, await sessionIdFromCookies());
+  if (!setupSession) return Response.json({ error: "not signed in" }, { status: 401 });
   const error = validateSetupPayload(body.setup);
   if (error) return Response.json({ error }, { status: 400 });
-  return handleSetup(cfEnv, body.sessionId, body.setup as SetupDetails);
+  return handleSetup(cfEnv, setupSession.accountId, body.sessionId, body.setup as SetupDetails);
 }

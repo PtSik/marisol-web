@@ -2,7 +2,6 @@ import { env } from "cloudflare:workers";
 import { LogoMark } from "@/components/Logo";
 import { ForwardingCard } from "@/components/onboarding/ForwardingCard";
 import { SetupForm } from "@/components/onboarding/SetupForm";
-import { SignInGate } from "@/components/onboarding/SignInGate";
 import { SetupCompleteHeading, ThanksHeading } from "@/components/onboarding/ThanksHeading";
 import {
   type Dict,
@@ -16,16 +15,16 @@ import {
 import { getLead } from "@/lib/leads";
 import { VERTICAL_IDS, type Vertical } from "@/lib/onboarding";
 import { TRIAL_DAYS } from "@/lib/plans";
-import { CHECKOUT_COOKIE, PORTAL_COOKIE, getSession } from "@/lib/session";
+import { getSession, sessionIdFromCookies } from "@/lib/session";
 import { CUSTOMER_PORTAL_URL, SALES_EMAIL_HREF } from "@/lib/site";
 import { SESSION_ID_RE, checkoutSettled, getCheckoutSession } from "@/lib/stripe";
-import { cookies } from "next/headers";
+import { redirect } from "next/navigation";
 import type { ReactNode } from "react";
 
 export const dynamic = "force-dynamic";
 
 type ThanksProps = {
-  searchParams: Promise<{ session_id?: string; lang?: string; error?: string; skip?: string }>;
+  searchParams: Promise<{ session_id?: string; lang?: string }>;
 };
 
 // The head takes its locale from `?lang` alone — resolving it from the lead would cost a second
@@ -149,13 +148,8 @@ function SessionNotFound({ t, locale }: { t: Dict["thanks"]; locale: Locale }) {
 }
 
 export default async function ThanksPage({ searchParams }: ThanksProps) {
-  const { session_id: querySession, lang, error, skip } = await searchParams;
+  const { session_id, lang } = await searchParams;
   const { STRIPE_SECRET_KEY, LEADS_KV, RATE_LIMIT_KV } = env as unknown as ThanksEnv;
-
-  // A client who just paid never lands on "we couldn't find that session": the checkout cookie set
-  // when Stripe Checkout opened carries the id back even if the redirect dropped the query param.
-  const jar = await cookies();
-  const session_id = querySession ?? jar.get(CHECKOUT_COOKIE)?.value;
 
   // Before the session is known the query is all we have; from there the lead and Stripe metadata win.
   let locale = parseLocale(lang);
@@ -199,6 +193,15 @@ export default async function ThanksPage({ searchParams }: ThanksProps) {
     );
   }
 
+  // First-salon setup is a logged-in-only flow: an account already exists by the time checkout
+  // happens, so a stranger with a stale link gets sent to sign in rather than shown the lead.
+  const portalSession = await getSession(RATE_LIMIT_KV, await sessionIdFromCookies());
+  if (!portalSession) redirect("/login");
+  // And it has to be this account's own checkout — the setup API enforces the same rule. Checkouts
+  // from before account-first onboarding carry no account_id and fall through to the conflict notice.
+  const checkoutAccountId = session.metadata?.account_id;
+  if (checkoutAccountId && checkoutAccountId !== portalSession.accountId) redirect("/portal");
+
   const leadId = session.metadata?.lead_id;
   const lead = leadId ? await getLead(LEADS_KV, leadId) : null;
   if (lead?.locale) {
@@ -228,24 +231,9 @@ export default async function ThanksPage({ searchParams }: ThanksProps) {
     ? (metaVertical as Vertical)
     : "barbershop";
 
-  const portalSession = await getSession(RATE_LIMIT_KV, jar.get(PORTAL_COOKIE)?.value);
-
-  // No session and the client hasn't opted out: the Google gate stands before the setup form.
-  if (!portalSession && skip !== "1") {
-    const errorMessage = error
-      ? ((t.gateErrors as Record<string, string>)[error] ?? t.gateErrors.oauth_failed)
-      : null;
-    return (
-      <Shell locale={locale}>
-        <SignInGate sessionId={session_id} locale={locale} error={errorMessage} t={t} />
-        <ContactLine t={t} locale={locale} />
-      </Shell>
-    );
-  }
-
   // Signed into a different lead's account than this checkout: keep the form, flag the mismatch.
   let conflictName: string | undefined;
-  if (portalSession?.leadId && leadId && portalSession.leadId !== leadId) {
+  if (portalSession.leadId && leadId && portalSession.leadId !== leadId) {
     const otherLead = await getLead(LEADS_KV, portalSession.leadId);
     conflictName = otherLead?.basics.businessName;
   }

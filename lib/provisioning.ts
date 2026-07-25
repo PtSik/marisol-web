@@ -175,26 +175,27 @@ export interface ProvisionResult {
   reason?: string;
 }
 
-// The first salon of an account: create (or, for a gate-claimed lead, reuse) the portal login and
-// mint its referral promo code. Returns the account id the shop should link to, or undefined if the
-// account couldn't be created — the shop stays live regardless, so failures alert rather than roll back.
+// The first salon of an account: attach it to the login the client already has (created at
+// registration) and mint its referral promo code. Returns the account id the shop should link to,
+// or undefined if the account couldn't be created — the shop stays live regardless, so failures
+// alert rather than roll back.
 async function resolveFirstSalonAccount(
   env: ProvisioningEnv,
   lead: CheckoutLead,
   shopId: string,
 ): Promise<string | undefined> {
-  // A lead claimed at the gate already has an account (keyed on the client's Google email, which may
-  // differ from the order email) — attach the shop to *that* account rather than a second by order
-  // email. Unclaimed leads (the escape hatch) fall back to create-by-email.
-  const account = lead.claimedAccountId
-    ? await patchAccount(env, lead.claimedAccountId, { shop_id: shopId })
+  // Checkout only starts for a signed-in account, so lead.accountId is set for every normal
+  // first-salon lead. The create-by-email fallback covers manual /admin setups only.
+  // lead_id has to be written here too: it is where a *later* login reads the subscription lead
+  // from, so leaving it null blinds billing, upgrade and add-salon the moment the KV session ends.
+  const account = lead.accountId
+    ? await patchAccount(env, lead.accountId, { shop_id: shopId, lead_id: lead.id })
     : await createAccount(env, { email: lead.basics.email, shop_id: shopId, lead_id: lead.id });
   if (!account) {
     await notifyTeam(env, `🔑 Portal account failed: ${lead.basics.businessName}`, {
       email: lead.basics.email,
       shopId,
       leadId: lead.id,
-      claimedAccountId: lead.claimedAccountId,
     });
     return undefined;
   }
