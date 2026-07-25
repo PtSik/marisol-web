@@ -37,7 +37,7 @@ export function LandingPage({ locale, authed }: { locale: Locale; authed: boolea
         <Faq t={t.faq} />
         <FinalCta t={t.finalCta} form={t.callForm} />
       </main>
-      <Footer t={t.footer} nav={t.nav} lang={t.lang} locale={locale} />
+      <Footer t={t.footer} nav={t.nav} />
     </AuthModalProvider>
   );
 }

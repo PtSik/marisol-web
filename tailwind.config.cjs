@@ -26,7 +26,7 @@ module.exports = {
         sans: ["Inter", "system-ui", "sans-serif"],
       },
       maxWidth: {
-        shell: "1044px",
+        shell: "1088px",
         content: "1000px",
       },
     },

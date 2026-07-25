@@ -1,14 +1,8 @@
-import { LangSwitch } from "@/components/LangSwitch";
 import { LogoMark } from "@/components/Logo";
-import type { Dict, Locale } from "@/lib/i18n/dict";
+import type { Dict } from "@/lib/i18n/dict";
 import { DEMO_PHONE, telHref } from "@/lib/site";
 
-export function Footer({
-  t,
-  nav,
-  lang,
-  locale,
-}: { t: Dict["footer"]; nav: Dict["nav"]; lang: Dict["lang"]; locale: Locale }) {
+export function Footer({ t, nav }: { t: Dict["footer"]; nav: Dict["nav"] }) {
   return (
     <footer className="border-t border-cream-200 bg-cream-100">
       <div className="mx-auto flex max-w-content flex-col gap-10 px-[22px] py-[clamp(34px,5vw,56px)] md:flex-row md:items-start md:justify-between">
@@ -66,9 +60,8 @@ export function Footer({
       </div>
 
       <div className="border-t border-cream-200">
-        <div className="mx-auto flex max-w-content flex-wrap items-center justify-between gap-[10px] px-[22px] py-[18px] text-[12.5px] text-muted-4">
-          <span>{t.copyright}</span>
-          <LangSwitch locale={locale} t={lang} />
+        <div className="mx-auto max-w-content px-[22px] py-[18px] text-[12.5px] text-muted-4">
+          {t.copyright}
         </div>
       </div>
     </footer>

@@ -8,8 +8,8 @@ export const es: Dict = {
   },
   lang: {
     label: "Idioma",
-    en: "EN",
-    es: "ES",
+    en: "English",
+    es: "Español",
     enAria: "View in English",
     esAria: "Ver en español",
   },
