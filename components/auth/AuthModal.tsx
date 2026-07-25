@@ -168,7 +168,7 @@ function SignupForm({ t, plan, billing }: { t: Dict["auth"]; plan?: Plan; billin
   );
 }
 
-function ForgotPassword({ t, onBack }: { t: Dict["auth"]; onBack: () => void }) {
+export function ForgotPassword({ t, onBack }: { t: Dict["auth"]; onBack: () => void }) {
   const idPrefix = useId();
   const [email, setEmail] = useState("");
   const [error, setError] = useState<string | null>(null);
@@ -249,7 +249,7 @@ function ForgotPassword({ t, onBack }: { t: Dict["auth"]; onBack: () => void }) 
   );
 }
 
-function SigninForm({
+export function SigninForm({
   t,
   plan,
   billing,
@@ -477,7 +477,7 @@ export function AuthModal({
         ) : (
           <>
             <a
-              href="/api/auth/google/start?intent=login"
+              href="/api/auth/google/start"
               className="mt-6 inline-flex min-h-[50px] w-full items-center justify-center gap-[10px] rounded-[13px] border border-ink/15 bg-white px-6 py-[14px] text-[15px] font-medium text-ink no-underline"
             >
               <GoogleGlyph />

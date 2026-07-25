@@ -1,5 +1,7 @@
 import { GoogleGlyph } from "@/components/GoogleGlyph";
 import { LogoMark } from "@/components/Logo";
+import { SignInPanel } from "@/components/auth/SignInPanel";
+import { en } from "@/lib/i18n/en";
 import { SALES_EMAIL, SALES_EMAIL_HREF } from "@/lib/site";
 
 export const dynamic = "force-dynamic";
@@ -11,8 +13,6 @@ export const metadata = {
 };
 
 const ERRORS: Record<string, string> = {
-  unknown_email:
-    "We don't have an account for that Google address. Sign in with the Google account you used to set up Marisol, or email us and we'll move your account across.",
   oauth_failed: "Google sign-in didn't complete. Please try again.",
   rate_limited: "Too many sign-in attempts. Wait a minute and try again.",
   session_failed: "We couldn't start your session. Please try again.",
@@ -26,6 +26,7 @@ export default async function LoginPage({
 }) {
   const { error } = await searchParams;
   const message = error ? (ERRORS[error] ?? ERRORS.oauth_failed) : null;
+  const t = en.auth;
 
   return (
     <main className="mx-auto flex min-h-[80vh] max-w-shell items-center justify-center px-[22px]">
@@ -38,11 +39,9 @@ export default async function LoginPage({
           Marisol
         </a>
         <h1 className="mt-6 font-display text-[26px] font-light leading-[1.15] tracking-[-0.02em]">
-          Sign in to your portal
+          {t.signinTitle}
         </h1>
-        <p className="mt-2 text-[14.5px] leading-[1.55] text-muted">
-          Sign in with the Google account you used to set up Marisol.
-        </p>
+        <p className="mt-2 text-[14.5px] leading-[1.55] text-muted">{t.signinSubtitle}</p>
         {message && (
           <p
             role="alert"
@@ -56,14 +55,28 @@ export default async function LoginPage({
           className="mt-6 inline-flex min-h-[50px] w-full items-center justify-center gap-[10px] rounded-[13px] border border-ink/15 bg-white px-6 py-[14px] text-[15px] font-medium text-ink no-underline"
         >
           <GoogleGlyph />
-          Continue with Google
+          {t.google}
         </a>
-        <p className="mt-5 text-[13px] leading-[1.55] text-muted-2">
-          Signing in with a different address?{" "}
+
+        <div className="my-5 flex items-center gap-3 text-[12px] uppercase tracking-[0.1em] text-muted-3">
+          <span className="h-px flex-1 bg-ink/10" />
+          {t.or}
+          <span className="h-px flex-1 bg-ink/10" />
+        </div>
+
+        <SignInPanel t={t} />
+
+        <p className="mt-5 text-center text-[13px] leading-[1.55] text-muted-2">
+          {t.noAccount}
+          <a href="/" className="font-medium text-teal">
+            {t.signUpLink}
+          </a>
+        </p>
+        <p className="mt-4 text-[13px] leading-[1.55] text-muted-2">
+          Trouble signing in?{" "}
           <a href={SALES_EMAIL_HREF} className="font-medium text-teal">
             {SALES_EMAIL}
-          </a>{" "}
-          — we'll switch your account over.
+          </a>
         </p>
       </div>
     </main>

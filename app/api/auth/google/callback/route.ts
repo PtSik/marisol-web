@@ -1,7 +1,7 @@
 import { env } from "cloudflare:workers";
 import { timingSafeEqualStr } from "@/lib/adminAuth";
 import { callbackUrl, exchangeCode, verifyIdToken } from "@/lib/googleLogin";
-import { type PortalEnv, findAccountByEmail, patchAccount } from "@/lib/portalApi";
+import { type PortalEnv, createAccount, findAccountByEmail, patchAccount } from "@/lib/portalApi";
 import {
   OAUTH_STATE_COOKIE,
   clearedStateCookie,
@@ -59,11 +59,18 @@ export async function GET(request: Request): Promise<Response> {
   const identity = await verifyIdToken(idToken, GOOGLE_LOGIN_CLIENT_ID);
   if (!identity) return toLogin(request, "oauth_failed");
 
-  const account = await findAccountByEmail(cfEnv, identity.email);
-  if (!account) return toLogin(request, "unknown_email");
+  // Google is a sign-up method too, not just a login for clients we already know, so an unknown
+  // address gets an account rather than a dead end. Falling back to create is safe even when the
+  // lookup merely failed: create is get-or-create by email, and the id token already proved this
+  // caller owns that (Google-verified) address — so the row it returns is theirs either way.
+  const account =
+    (await findAccountByEmail(cfEnv, identity.email)) ??
+    (await createAccount(cfEnv, { email: identity.email }));
+  if (!account) return toLogin(request, "session_failed");
 
   await patchAccount(cfEnv, account.id, {
     google_sub: identity.sub,
+    email_verified: true,
     last_login_at: new Date().toISOString(),
   });
 
