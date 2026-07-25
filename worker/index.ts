@@ -36,11 +36,6 @@ export default {
   async fetch(request: Request, env: Env, ctx: ExecutionContext): Promise<Response> {
     const url = new URL(request.url);
 
-    // The bare app subdomain is the dashboard, not the marketing site.
-    if (url.hostname === "app.callmarisol.com" && url.pathname === "/") {
-      return Response.redirect(new URL("/portal", url).toString(), 307);
-    }
-
     if (isImageOptimizationPath(url.pathname)) {
       const allowedWidths = [
         ...(imageConfig.deviceSizes ?? DEFAULT_DEVICE_SIZES),

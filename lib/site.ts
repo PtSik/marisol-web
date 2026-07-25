@@ -10,6 +10,8 @@ export const SITE_URL = "https://callmarisol.com";
 
 export const APP_URL = "https://app.callmarisol.com";
 
+export const APP_HOST = new URL(APP_URL).host;
+
 // No-code Stripe Customer Portal login link — filled in once enabled in the dashboard;
 // portal links render only when non-empty.
 export const CUSTOMER_PORTAL_URL = "https://billing.stripe.com/p/login/5kQdR3e8E7sP1Uf8lt3Nm00";
