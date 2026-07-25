@@ -73,26 +73,47 @@ function Shell({ locale, children }: { locale: Locale; children: ReactNode }) {
   );
 }
 
-function NextSteps({ t }: { t: Dict["thanks"] }) {
+function ReferralNote({ t, locale }: { t: Dict["thanks"]; locale: Locale }) {
   return (
-    <ol className="mt-9 flex flex-col gap-3">
-      {t.steps.map((step, i) => (
-        <li
-          key={step.title}
-          className="flex items-start gap-[14px] rounded-[16px] bg-cream-100 px-[18px] py-4"
+    <div className="mt-4 rounded-[16px] bg-ink px-[20px] py-[18px] text-cream">
+      <p className="m-0 text-[15px] font-medium">{t.referralTitle}</p>
+      <p className="m-0 mt-[6px] text-[13.5px] leading-[1.5] text-cream/[0.78]">
+        {t.referralBody}{" "}
+        <a
+          href={siteHref(locale === "es" ? "/es/referrals" : "/referrals")}
+          className="font-medium text-cream underline"
         >
-          <span className="flex h-[28px] w-[28px] flex-none items-center justify-center rounded-full bg-ink text-[13px] font-semibold text-cream">
-            {i + 1}
-          </span>
-          <span>
-            <span className="block text-[15px] font-medium">{step.title}</span>
-            <span className="mt-[2px] block text-[13.5px] leading-[1.5] text-muted">
-              {step.desc}
+          {t.referralLink}
+        </a>
+        .
+      </p>
+    </div>
+  );
+}
+
+function NextSteps({ t, locale }: { t: Dict["thanks"]; locale: Locale }) {
+  return (
+    <>
+      <ol className="mt-9 flex flex-col gap-3">
+        {t.steps.map((step, i) => (
+          <li
+            key={step.title}
+            className="flex items-start gap-[14px] rounded-[16px] bg-cream-100 px-[18px] py-4"
+          >
+            <span className="flex h-[28px] w-[28px] flex-none items-center justify-center rounded-full bg-ink text-[13px] font-semibold text-cream">
+              {i + 1}
             </span>
-          </span>
-        </li>
-      ))}
-    </ol>
+            <span>
+              <span className="block text-[15px] font-medium">{step.title}</span>
+              <span className="mt-[2px] block text-[13.5px] leading-[1.5] text-muted">
+                {step.desc}
+              </span>
+            </span>
+          </li>
+        ))}
+      </ol>
+      <ReferralNote t={t} locale={locale} />
+    </>
   );
 }
 
@@ -159,7 +180,7 @@ export default async function ThanksPage({ searchParams }: ThanksProps) {
     return (
       <Shell locale={locale}>
         <ThanksHeading title={t.startedTitle} lead={fill(t.startedLead, { days: TRIAL_DAYS })} />
-        <NextSteps t={t} />
+        <NextSteps t={t} locale={locale} />
         <ContactLine t={t} locale={locale} />
       </Shell>
     );
@@ -220,7 +241,7 @@ export default async function ThanksPage({ searchParams }: ThanksProps) {
             t={getDict(locale).forwarding}
           />
         )}
-        <NextSteps t={t} />
+        <NextSteps t={t} locale={locale} />
         <ContactLine t={t} locale={locale} portal />
       </Shell>
     );
@@ -242,7 +263,7 @@ export default async function ThanksPage({ searchParams }: ThanksProps) {
     <Shell locale={locale}>
       {conflictName && <ConflictNote name={conflictName} t={t} />}
       <SetupForm sessionId={session_id} vertical={vertical} locale={locale} />
-      <NextSteps t={t} />
+      <NextSteps t={t} locale={locale} />
       <ContactLine t={t} locale={locale} portal />
     </Shell>
   );

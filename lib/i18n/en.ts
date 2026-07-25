@@ -229,6 +229,18 @@ export const en = {
     locationsNote: "Running 3+ locations? ",
     salesLink: "Talk to sales",
   },
+  referralBand: {
+    title: { before: "Refer a shop. ", accent: "Earn $200.", after: "" },
+    body: "Send another owner your link. Once they've been a paying client for 30 days, you claim $200 in cash — and their first month is 10% off.",
+    ctaPrimary: "How it works",
+    ctaTerms: "Read the terms",
+    specs: [
+      { label: "Reward", value: "$200 in cash" },
+      { label: "Maturity", value: "30 days paid" },
+      { label: "Their discount", value: "10% first month" },
+    ],
+    note: "Paid by PayPal, Venmo or Zelle · no limit on referrals",
+  },
   faq: {
     badge: "FAQ",
     title: { before: "Questions, ", accent: "answered", after: "." },
@@ -282,6 +294,12 @@ export const en = {
         q: "What if it doesn't work out?",
         a: "Every plan starts with {days} days free. Cancel before the trial ends and your card is never charged — no questions asked. Details in our ",
         termsLink: "terms",
+      },
+      {
+        q: "Do I get anything for referring another shop?",
+        a: "Yes — $200 in cash for every shop you send us, once they've been a paying client for 30 days. They get 10% off their first month. See ",
+        termsLink: "how the referral program works",
+        linkHref: "/referrals",
       },
     ],
   },
@@ -362,6 +380,7 @@ export const en = {
     noteMonthly: "${price}/mo, cancel anytime",
     referral: "Referral code (optional)",
     referralHint: "Have a friend's code? You'll get 10% off your first month.",
+    referralEarn: "Once you're live, you earn $200 in cash for every shop you refer.",
     referralPlaceholder: "e.g. A7K3M9QP",
     back: "← Back to site",
     submit: "Start {days} days free — then ${price}/mo",
@@ -465,6 +484,10 @@ export const en = {
       "Your receptionist is configured with everything you shared. Forward your number using the codes below and she starts answering.",
     completeLeadPending:
       "Your receptionist is being configured with everything you shared — your number and forwarding instructions land in your inbox shortly.",
+    referralTitle: "Know another shop owner?",
+    referralBody:
+      "Refer them and you get $200 in cash once they've paid for 30 days — they get 10% off their first month. Your link is in the portal.",
+    referralLink: "How referrals work",
     steps: [
       {
         title: "We review your details",

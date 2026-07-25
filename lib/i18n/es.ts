@@ -233,6 +233,18 @@ export const es: Dict = {
     locationsNote: "¿Tienes 3 o más locales? ",
     salesLink: "Habla con ventas",
   },
+  referralBand: {
+    title: { before: "Recomienda un negocio. ", accent: "Gana $200.", after: "" },
+    body: "Envía tu enlace a otro dueño. Cuando lleve 30 días como cliente de pago, reclamas $200 en efectivo — y su primer mes tiene un 10% de descuento.",
+    ctaPrimary: "Cómo funciona",
+    ctaTerms: "Lee las condiciones",
+    specs: [
+      { label: "Recompensa", value: "$200 en efectivo" },
+      { label: "Maduración", value: "30 días pagados" },
+      { label: "Su descuento", value: "10% primer mes" },
+    ],
+    note: "Pago por PayPal, Venmo o Zelle · sin límite de recomendaciones",
+  },
   faq: {
     badge: "Preguntas",
     title: { before: "Preguntas, ", accent: "respondidas", after: "." },
@@ -286,6 +298,12 @@ export const es: Dict = {
         q: "¿Y si no funciona para mí?",
         a: "Todos los planes empiezan con {days} días gratis. Cancela antes de que termine la prueba y tu tarjeta nunca se cobra — sin preguntas. Los detalles están en nuestros ",
         termsLink: "términos",
+      },
+      {
+        q: "¿Gano algo por recomendar otro negocio?",
+        a: "Sí — $200 en efectivo por cada negocio que nos recomiendes, cuando lleve 30 días como cliente de pago. Ellos reciben un 10% de descuento en su primer mes. Mira ",
+        termsLink: "cómo funciona el programa",
+        linkHref: "/es/referrals",
       },
     ],
   },
@@ -367,6 +385,8 @@ export const es: Dict = {
     noteMonthly: "${price}/mes, cancela cuando quieras",
     referral: "Código de referido (opcional)",
     referralHint: "¿Tienes el código de un amigo? Te damos 10% de descuento el primer mes.",
+    referralEarn:
+      "Cuando estés en marcha, ganas $200 en efectivo por cada negocio que recomiendes.",
     referralPlaceholder: "ej. A7K3M9QP",
     back: "← Volver al sitio",
     submit: "Empieza {days} días gratis — luego ${price}/mes",
@@ -472,6 +492,10 @@ export const es: Dict = {
       "Tu recepcionista quedó configurada con todo lo que nos compartiste. Desvía tu número con los códigos de abajo y empieza a contestar.",
     completeLeadPending:
       "Estamos configurando a tu recepcionista con todo lo que nos compartiste — tu número y las instrucciones para desviarlo llegan a tu correo en un rato.",
+    referralTitle: "¿Conoces a otro dueño?",
+    referralBody:
+      "Recomiéndalo y recibes $200 en efectivo cuando lleve 30 días pagando — él se lleva un 10% en su primer mes. Tu enlace está en el portal.",
+    referralLink: "Cómo funcionan las recomendaciones",
     steps: [
       {
         title: "Revisamos tus datos",

@@ -1,7 +1,7 @@
-import { getLead } from "@/lib/leads";
-import { type NotifyEnv, notifyTeam } from "@/lib/notify";
+import { getLead, putLead } from "@/lib/leads";
+import { type NotifyEnv, notifyTeam, sendReferralInvite } from "@/lib/notify";
 import type { PayoutMethod } from "@/lib/payout";
-import { patchAccount } from "@/lib/portalApi";
+import { findAccountByEmail, patchAccount } from "@/lib/portalApi";
 import { getSubscription } from "@/lib/stripe";
 import { type VoiceAgentEnv, voiceAgentFetch } from "@/lib/voiceAgent";
 
@@ -111,6 +111,32 @@ export async function qualifyReferral(env: VoiceAgentEnv, leadId: string): Promi
     mature_at: matureAt.toISOString(),
     expected_status: "pending",
   });
+}
+
+// Invites the client to refer someone, once, on their first paid invoice. Best-effort throughout:
+// a client with no portal account simply gets no mail, and nothing here may fail the webhook.
+export async function maybeSendReferralInvite(env: ReferralEnv, leadId: string): Promise<void> {
+  try {
+    const lead = await getLead(env.LEADS_KV, leadId);
+    if (!lead || lead.referralEmailSentAt) return;
+
+    const account = await findAccountByEmail(env, lead.basics.email);
+    if (!account?.referral_code) return;
+
+    const sent = await sendReferralInvite(env, {
+      email: lead.basics.email,
+      businessName: lead.basics.businessName,
+      ownerName: lead.basics.ownerName,
+      referralCode: account.referral_code,
+    });
+    // The flag is the only thing stopping a second invite, so it is written after Resend accepts —
+    // a failed send has to stay retryable on the next invoice.
+    if (!sent) return;
+    lead.referralEmailSentAt = new Date().toISOString();
+    await putLead(env.LEADS_KV, lead);
+  } catch {
+    /* the invite is a nicety; the webhook must still return 200 */
+  }
 }
 
 // Cancelled, refunded or churned before maturity: the referral dies with the subscription.

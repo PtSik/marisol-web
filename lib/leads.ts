@@ -35,6 +35,8 @@ export interface CheckoutLead {
   deprovisionedAt?: string;
   /* first past_due notice; keeps every Stripe retry from re-alerting the team */
   pastDueAlertedAt?: string;
+  /* referral invite went out on the first paid invoice; every later invoice must stay silent */
+  referralEmailSentAt?: string;
 }
 
 export interface CallLead {

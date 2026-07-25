@@ -309,7 +309,11 @@ export function OnboardingWizard({
             </p>
           </fieldset>
 
-          <Field label={t.referral} htmlFor="ob-referral" hint={t.referralHint}>
+          <Field
+            label={t.referral}
+            htmlFor="ob-referral"
+            hint={`${t.referralHint} ${t.referralEarn}`}
+          >
             <input
               id="ob-referral"
               className={inputCls}

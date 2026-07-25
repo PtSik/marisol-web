@@ -5,6 +5,7 @@ import { type Shop, getShop, listAccountShops } from "@/lib/portalApi";
 import { deprovisionLead, deprovisionShop } from "@/lib/provisioning";
 import {
   type ReferralEnv,
+  maybeSendReferralInvite,
   qualifyReferral,
   registerReferral,
   settleMatureReferrals,
@@ -212,7 +213,11 @@ export async function POST(request: Request) {
     const invoice = event.data?.object as StripeInvoice | undefined;
     if (!invoice?.amount_paid) return received(cfEnv);
     const leadId = await leadIdForInvoice(cfEnv, invoice);
-    if (leadId) await qualifyReferral(cfEnv, leadId);
+    if (leadId) {
+      await qualifyReferral(cfEnv, leadId);
+      // Same moment from the other side: this client has now paid, so ask them to refer someone.
+      await maybeSendReferralInvite(cfEnv, leadId);
+    }
     return received(cfEnv);
   }
 

@@ -227,6 +227,7 @@ export interface ClientWelcome {
   ownerName: string;
   twilioNumber: string;
   forwardMode: ForwardMode;
+  referralCode?: string;
 }
 
 function clientFrom({ CLIENT_EMAIL_FROM, RESEND_FROM }: NotifyEnv): string {
@@ -235,6 +236,21 @@ function clientFrom({ CLIENT_EMAIL_FROM, RESEND_FROM }: NotifyEnv): string {
 
 function firstNameOf(ownerName: string): string {
   return ownerName.trim().split(/\s+/)[0] || "there";
+}
+
+function referralLink(code: string): string {
+  return `${SITE_URL}/?ref=${encodeURIComponent(code)}`;
+}
+
+// Skipped entirely when no portal account was created — an empty link is worse than no block.
+function referralBlock(code: string | undefined): string {
+  if (!code) return "";
+  return `<div style="background:#F6EFE6;border-radius:12px;padding:16px 20px;margin:24px 0 0">
+    <p style="margin:0;font-size:15px;font-weight:600">Know another shop owner?</p>
+    <p style="margin:6px 0 0;font-size:14px;color:#6F6457">Send them this link — you get $200 in cash once they've paid for 30 days, they get 10% off their first month.</p>
+    <p style="margin:8px 0 0;font-size:14px"><a href="${referralLink(code)}" style="color:#4F8C80">${esc(referralLink(code))}</a></p>
+    <p style="margin:8px 0 0;font-size:13px;color:#6F6457"><a href="${SITE_URL}/referrals" style="color:#4F8C80">How the referral program works</a></p>
+  </div>`;
 }
 
 function portalFooter(): string {
@@ -256,6 +272,7 @@ export async function sendClientWelcome(env: NotifyEnv, w: ClientWelcome): Promi
   <div style="font-size:15px">${forwardInstructions(w.forwardMode, w.twilioNumber)}</div>
   <p style="font-size:16px;font-weight:600;margin:24px 0 4px">2. Your calendar comes next</p>
   <div style="font-size:15px"><p style="margin:0">We'll email you a one-click link to connect your Google Calendar shortly. Until then Marisol still answers every call, takes the details, and texts them to you.</p></div>
+  ${referralBlock(w.referralCode)}
   ${portalFooter()}
   <p style="font-size:15px;margin:24px 0 0">Questions? Just reply — we're here to help.</p>
 </div>`;
@@ -265,6 +282,42 @@ export async function sendClientWelcome(env: NotifyEnv, w: ClientWelcome): Promi
     clientFrom(env),
     w.email,
     `Marisol is live for ${w.businessName} 🎉`,
+    { html },
+  );
+}
+
+export interface ReferralInvite {
+  email: string;
+  businessName: string;
+  ownerName: string;
+  referralCode: string;
+}
+
+// Sent once, on the client's first paid invoice: they already know the product works and have just
+// paid for it. Returns whether Resend accepted it, so the caller only then marks the lead as sent.
+export async function sendReferralInvite(env: NotifyEnv, r: ReferralInvite): Promise<boolean> {
+  const { RESEND_API_KEY } = env;
+  if (!RESEND_API_KEY) return false;
+
+  const link = referralLink(r.referralCode);
+  const html = `<div style="font-family:Inter,Helvetica,Arial,sans-serif;max-width:560px;margin:0 auto;color:#241B14;line-height:1.55">
+  <p style="font-size:16px">Hi ${esc(firstNameOf(r.ownerName))},</p>
+  <p style="font-size:16px">Marisol has been answering calls for <strong>${esc(r.businessName)}</strong> for a while now — thank you for being a client.</p>
+  <p style="font-size:16px">If you know another owner losing bookings to missed calls, send them your link. When they've been a paying client for 30 days, you claim <strong>$200 in cash</strong> — PayPal, Venmo or Zelle, your choice. Their first month is 10% off.</p>
+  <div style="background:#F6EFE6;border-radius:12px;padding:20px 24px;margin:20px 0">
+    <p style="margin:0;font-size:13px;color:#6F6457;text-transform:uppercase;letter-spacing:.04em">Your referral link</p>
+    <p style="margin:6px 0 0;font-size:16px"><a href="${link}" style="color:#4F8C80">${esc(link)}</a></p>
+    <p style="margin:10px 0 0;font-size:13px;color:#6F6457">Or just give them your code: <strong>${esc(r.referralCode)}</strong></p>
+  </div>
+  <p style="font-size:15px;margin:0"><a href="${SITE_URL}/referrals" style="color:#4F8C80">How the referral program works</a> — no limit on how many shops you refer.</p>
+  ${portalFooter()}
+</div>`;
+
+  return sendEmail(
+    RESEND_API_KEY,
+    clientFrom(env),
+    r.email,
+    "Earn $200 for every shop you send to Marisol",
     { html },
   );
 }

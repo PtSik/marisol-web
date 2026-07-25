@@ -1,7 +1,7 @@
 import { type CheckoutLead, putLeadIdForShop } from "@/lib/leads";
 import { notifyTeam, sendClientWelcome, sendProvisionAlert } from "@/lib/notify";
 import type { DayId, ServiceEntry, SetupDetails, WeekHours } from "@/lib/onboarding";
-import { createAccount, patchAccount } from "@/lib/portalApi";
+import { type Account, createAccount, patchAccount } from "@/lib/portalApi";
 import { createReferralPromoCode } from "@/lib/stripe";
 import {
   buyLocalNumber,
@@ -183,7 +183,7 @@ async function resolveFirstSalonAccount(
   env: ProvisioningEnv,
   lead: CheckoutLead,
   shopId: string,
-): Promise<string | undefined> {
+): Promise<Account | undefined> {
   // Checkout only starts for a signed-in account, so lead.accountId is set for every normal
   // first-salon lead. The create-by-email fallback covers manual /admin setups only.
   // lead_id has to be written here too: it is where a *later* login reads the subscription lead
@@ -218,7 +218,7 @@ async function resolveFirstSalonAccount(
       });
     }
   }
-  return account.id;
+  return account;
 }
 
 export async function provisionLead(
@@ -260,9 +260,10 @@ export async function provisionLead(
     // An additional location joins the account that already owns this owner's other salons: never
     // a second createAccount (it would collide on accounts.email UNIQUE and split the owner across
     // two logins), never displacing the account's primary shop_id, no second referral promo.
-    const accountId = lead.additionalLocation
-      ? lead.accountId
+    const account = lead.additionalLocation
+      ? undefined
       : await resolveFirstSalonAccount(env, lead, shop.id);
+    const accountId = lead.additionalLocation ? lead.accountId : account?.id;
 
     // shops.account_id is the authority for "these salons are the same person" — the portal reads
     // it to list and switch between them, so every provisioned shop gets linked.
@@ -274,6 +275,8 @@ export async function provisionLead(
       ownerName: lead.basics.ownerName,
       twilioNumber: bought.number,
       forwardMode: lead.setup?.forwardMode ?? "conditional",
+      // An additional location's owner already got their link with the first salon.
+      referralCode: account?.referral_code,
     });
     // The shop is live either way, so this is an alert rather than a rollback — the client just
     // never learned their number.

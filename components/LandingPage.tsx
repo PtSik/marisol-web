@@ -10,6 +10,7 @@ import { HowItWorks } from "@/components/sections/HowItWorks";
 import { LiveDemo } from "@/components/sections/LiveDemo";
 import { Nav } from "@/components/sections/Nav";
 import { Pricing } from "@/components/sections/Pricing";
+import { ReferralBand } from "@/components/sections/ReferralBand";
 import { TrustStrip } from "@/components/sections/TrustStrip";
 import { type Locale, getDict } from "@/lib/i18n/dict";
 import { SITE_URL } from "@/lib/site";
@@ -34,6 +35,7 @@ export function LandingPage({ locale, authed }: { locale: Locale; authed: boolea
         <Features t={t.features} />
         <DoneForYou t={t.doneForYou} />
         <Pricing t={t.pricing} authed={authed} />
+        <ReferralBand t={t.referralBand} locale={locale} />
         <Faq t={t.faq} />
         <FinalCta t={t.finalCta} form={t.callForm} />
       </main>
