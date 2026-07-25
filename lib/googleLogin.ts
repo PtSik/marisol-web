@@ -1,3 +1,5 @@
+import { SITE_URL } from "@/lib/site";
+
 const AUTH_ENDPOINT = "https://accounts.google.com/o/oauth2/v2/auth";
 const TOKEN_ENDPOINT = "https://oauth2.googleapis.com/token";
 const JWKS_ENDPOINT = "https://www.googleapis.com/oauth2/v3/certs";
@@ -8,8 +10,15 @@ export interface GoogleIdentity {
   sub: string;
 }
 
+// Google matches redirect_uri by exact origin, and callmarisol.com, www. and app. are three of
+// them — deriving this from the request host would need an entry per host in the Cloud console.
+// Every production host therefore comes back through the apex; the state and session cookies are
+// scoped to .callmarisol.com, so the round trip validates and lands wherever the callback sends it.
+// Dev hosts keep their own origin, which has no console entry either way.
 export function callbackUrl(requestUrl: string): string {
-  return new URL("/api/auth/google/callback", requestUrl).toString();
+  const url = new URL(requestUrl);
+  const base = url.hostname.endsWith("callmarisol.com") ? SITE_URL : url.origin;
+  return new URL("/api/auth/google/callback", base).toString();
 }
 
 export function buildAuthUrl(clientId: string, redirectUri: string, state: string): string {
