@@ -1,18 +1,26 @@
 import { env } from "cloudflare:workers";
 import { getLead, putLead } from "@/lib/leads";
 import { notifyTeam } from "@/lib/notify";
-import type { Billing } from "@/lib/plans";
-import type { PortalEnv } from "@/lib/portalApi";
+import { type Billing, extraLocationCount } from "@/lib/plans";
+import { type PortalEnv, listAccountShops } from "@/lib/portalApi";
 import { patchShop } from "@/lib/provisioning";
 import { overRateLimit } from "@/lib/rateLimit";
 import { getSession, sessionIdFromCookies } from "@/lib/session";
-import { UPGRADABLE_STATUSES, getSubscription, swapSubscriptionPrice } from "@/lib/stripe";
+import {
+  UPGRADABLE_STATUSES,
+  findPlanItem,
+  getSubscription,
+  setSubscriptionExtraLocations,
+  swapSubscriptionPrice,
+} from "@/lib/stripe";
 
 export const dynamic = "force-dynamic";
 
 interface UpgradeEnv extends PortalEnv {
   STRIPE_PRICE_PREMIUM_MONTHLY?: string;
   STRIPE_PRICE_PREMIUM_ANNUAL?: string;
+  STRIPE_PRICE_EXTRA_LOCATION_MONTHLY?: string;
+  STRIPE_PRICE_EXTRA_LOCATION_ANNUAL?: string;
 }
 
 function back(request: Request, status: string): Response {
@@ -37,8 +45,15 @@ export async function POST(request: Request): Promise<Response> {
   if (!cfEnv.STRIPE_SECRET_KEY || !lead?.stripeSubscriptionId) return back(request, "failed");
   if (lead.plan === "premium") return back(request, "already");
 
+  const { STRIPE_PRICE_EXTRA_LOCATION_MONTHLY, STRIPE_PRICE_EXTRA_LOCATION_ANNUAL } = cfEnv;
+  const extraPriceIds = new Set(
+    [STRIPE_PRICE_EXTRA_LOCATION_MONTHLY, STRIPE_PRICE_EXTRA_LOCATION_ANNUAL].filter(
+      (id): id is string => Boolean(id),
+    ),
+  );
+
   const subscription = await getSubscription(cfEnv.STRIPE_SECRET_KEY, lead.stripeSubscriptionId);
-  const item = subscription?.items?.data?.[0];
+  const item = findPlanItem(subscription, extraPriceIds);
   if (!item || !UPGRADABLE_STATUSES.has(subscription?.status ?? "")) {
     return back(request, "failed");
   }
@@ -62,6 +77,23 @@ export async function POST(request: Request): Promise<Response> {
   lead.billing = billing;
   await putLead(cfEnv.LEADS_KV, lead);
 
+  // Premium's flat price already covers two salons, so an account paying an extra-location line for
+  // its second one stops owing it the moment the plan changes. Re-derived absolutely, like add and
+  // remove do — on a single-salon account the quantity is 0 and this makes no Stripe call at all.
+  const activeSalons = (await listAccountShops(cfEnv, session.accountId)).filter(
+    (s) => s.status !== "cancelled",
+  ).length;
+  const quantity = extraLocationCount("premium", activeSalons);
+  const rebilled =
+    STRIPE_PRICE_EXTRA_LOCATION_MONTHLY && STRIPE_PRICE_EXTRA_LOCATION_ANNUAL
+      ? await setSubscriptionExtraLocations(cfEnv.STRIPE_SECRET_KEY, {
+          subscription: updated,
+          monthlyPriceId: STRIPE_PRICE_EXTRA_LOCATION_MONTHLY,
+          annualPriceId: STRIPE_PRICE_EXTRA_LOCATION_ANNUAL,
+          quantity,
+        })
+      : false;
+
   // Reminders are what Premium is bought for, so a failed PATCH is a paid-for feature that never
   // switched on — the client sees it, and the team gets told to fix the shop by hand.
   const remindersOn = session.shopId
@@ -74,7 +106,8 @@ export async function POST(request: Request): Promise<Response> {
     billing,
     subscription: lead.stripeSubscriptionId,
     reminders: remindersOn ? "enabled" : "FAILED — turn on reminders_enabled by hand",
+    extraLocations: rebilled ? quantity : `FAILED — set the extra-location quantity to ${quantity}`,
   });
 
-  return back(request, remindersOn ? "done" : "partial");
+  return back(request, remindersOn && rebilled ? "done" : "partial");
 }

@@ -30,7 +30,7 @@ const STATUS_LABEL: Record<string, string> = {
 const UPGRADE_NOTICE: Record<string, string> = {
   done: "You're on Premium — SMS reminders are on, and the difference is prorated to this period.",
   partial:
-    "You're on Premium. Reminders need one last switch on our side — we're on it and will email you.",
+    "You're on Premium. One step needs finishing on our side — we're on it and will email you.",
   already: "You're already on Premium.",
   failed: "That upgrade didn't go through. Try again, or email us and we'll switch you over.",
 };

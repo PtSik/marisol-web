@@ -49,6 +49,17 @@ export async function getSubscription(
 // A cancelled or never-paid subscription has nothing to prorate against, so it can't be upgraded.
 export const UPGRADABLE_STATUSES: ReadonlySet<string> = new Set(["trialing", "active", "past_due"]);
 
+// Stripe documents no order for items.data, so the plan can never be taken by index — on an account
+// with extra locations that would swap the wrong line item's price.
+export function findPlanItem(
+  subscription: StripeSubscription | null,
+  extraPriceIds: ReadonlySet<string>,
+): StripeSubscriptionItem | undefined {
+  return (subscription?.items?.data ?? []).find(
+    (it) => !it.price?.id || !extraPriceIds.has(it.price.id),
+  );
+}
+
 // Swapping the price on the existing item keeps one subscription and one cancellation path.
 // A trialing subscription keeps its trial_end — Stripe only prorates once the trial converts.
 export async function swapSubscriptionPrice(
@@ -102,8 +113,7 @@ export async function setSubscriptionExtraLocations(
   const items = subscription.items?.data ?? [];
   const extraPriceIds = new Set([monthlyPriceId, annualPriceId]);
   const existing = items.find((it) => it.price?.id && extraPriceIds.has(it.price.id));
-  const baseInterval = items.find((it) => !it.price?.id || !extraPriceIds.has(it.price.id))?.price
-    ?.recurring?.interval;
+  const baseInterval = findPlanItem(subscription, extraPriceIds)?.price?.recurring?.interval;
   const priceId = baseInterval === "year" ? annualPriceId : monthlyPriceId;
 
   const headers = {
