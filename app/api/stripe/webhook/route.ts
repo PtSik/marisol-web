@@ -1,7 +1,8 @@
 import { env } from "cloudflare:workers";
-import { type CheckoutLead, getLead, putLead } from "@/lib/leads";
+import { type CheckoutLead, getLead, getLeadIdForShop, putLead } from "@/lib/leads";
 import { notifyTeam } from "@/lib/notify";
-import { deprovisionLead } from "@/lib/provisioning";
+import { type Shop, getShop, listAccountShops } from "@/lib/portalApi";
+import { deprovisionLead, deprovisionShop } from "@/lib/provisioning";
 import {
   type ReferralEnv,
   qualifyReferral,
@@ -119,6 +120,63 @@ async function cancelLead(cfEnv: WebhookEnv, lead: CheckoutLead, reason: string)
   ]);
 }
 
+async function leadForShop(cfEnv: WebhookEnv, shopId: string): Promise<CheckoutLead | null> {
+  const leadId = await getLeadIdForShop(cfEnv.LEADS_KV, shopId);
+  return leadId ? await getLead(cfEnv.LEADS_KV, leadId) : null;
+}
+
+async function cancelOrphanShop(cfEnv: WebhookEnv, shop: Shop, reason: string): Promise<void> {
+  const result = await deprovisionShop(cfEnv, shop.id, shop.twilio_number);
+  await notifyTeam(
+    cfEnv,
+    `🚫 ${reason} — deprovisioned ${shop.name ?? shop.id} (no lead on file)`,
+    {
+      shopId: shop.id,
+      number: shop.twilio_number,
+      releasedNumber: result.releasedNumber,
+      suspendedShop: result.suspendedShop,
+    },
+  );
+}
+
+// One subscription now backs every salon on an account, so cancelling it must tear down all of
+// them — not just the primary lead in the subscription metadata. Enumerate the account's live
+// shops and deprovision each through its own lead (falling back to the shop row when the lead
+// index is missing). Legacy accounts with no account_id link keep the single-lead teardown.
+async function cancelSubscriptionSalons(
+  cfEnv: WebhookEnv,
+  leadId: string | undefined,
+  reason: string,
+): Promise<void> {
+  if (!leadId) return;
+  const primary = await getLead(cfEnv.LEADS_KV, leadId);
+  if (!primary) return;
+
+  const accountId =
+    primary.accountId ??
+    (primary.shopId
+      ? ((await getShop(cfEnv, primary.shopId))?.account_id ?? undefined)
+      : undefined);
+  if (!accountId) {
+    if (primary.status !== "cancelled") await cancelLead(cfEnv, primary, reason);
+    return;
+  }
+
+  const shops = (await listAccountShops(cfEnv, accountId)).filter((s) => s.status !== "cancelled");
+  let handledPrimary = false;
+  for (const shop of shops) {
+    if (shop.id === primary.shopId) handledPrimary = true;
+    const lead = shop.id === primary.shopId ? primary : await leadForShop(cfEnv, shop.id);
+    if (lead) {
+      if (lead.status !== "cancelled") await cancelLead(cfEnv, lead, reason);
+    } else {
+      await cancelOrphanShop(cfEnv, shop, reason);
+    }
+  }
+  // The listing dropped the primary salon (or failed) — never leave the anchor salon live.
+  if (!handledPrimary && primary.status !== "cancelled") await cancelLead(cfEnv, primary, reason);
+}
+
 export async function POST(request: Request) {
   const cfEnv = env as unknown as WebhookEnv;
   if (!cfEnv.STRIPE_WEBHOOK_SECRET) {
@@ -144,9 +202,7 @@ export async function POST(request: Request) {
     const sub = event.data?.object as StripeSubscription | undefined;
     const leadId = sub?.metadata?.lead_id;
     if (leadId) await voidReferral(cfEnv, leadId);
-    const lead = await leadForSubscription(cfEnv, sub);
-    if (!lead) return received(cfEnv);
-    await cancelLead(cfEnv, lead, "Cancelled");
+    await cancelSubscriptionSalons(cfEnv, leadId, "Cancelled");
     return received(cfEnv);
   }
 
@@ -168,14 +224,15 @@ export async function POST(request: Request) {
     if (sub?.status !== "unpaid" && sub?.status !== "past_due") {
       return received(cfEnv);
     }
-    const lead = await leadForSubscription(cfEnv, sub);
-    if (!lead) return received(cfEnv);
 
     if (sub.status === "unpaid") {
-      await cancelLead(cfEnv, lead, "Unpaid — retries exhausted");
+      await cancelSubscriptionSalons(cfEnv, sub.metadata?.lead_id, "Unpaid — retries exhausted");
       return received(cfEnv);
     }
 
+    // past_due: an informational alert only, keyed on the account's primary lead.
+    const lead = await leadForSubscription(cfEnv, sub);
+    if (!lead) return received(cfEnv);
     if (!lead.pastDueAlertedAt) {
       lead.pastDueAlertedAt = new Date().toISOString();
       await Promise.all([

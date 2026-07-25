@@ -73,7 +73,12 @@ export async function POST(request: Request): Promise<Response> {
       cfEnv.STRIPE_SECRET_KEY,
       primary.stripeSubscriptionId,
     );
-    const quantity = extraLocationCount(primary.plan ?? "base", activeBefore - 1);
+    // Re-derive from what's actually left rather than assuming activeBefore-1, so a concurrent
+    // add or remove can't drift the extra-location quantity off the real salon count.
+    const remaining = (await listAccountShops(cfEnv, session.accountId)).filter(
+      (s) => s.status !== "cancelled",
+    ).length;
+    const quantity = extraLocationCount(primary.plan ?? "base", remaining);
     const billed = subscription
       ? await setSubscriptionExtraLocations(cfEnv.STRIPE_SECRET_KEY, {
           subscription,

@@ -20,6 +20,7 @@ export interface Account {
 export interface Shop {
   id: string;
   name?: string;
+  account_id?: string | null;
   status?: string;
   timezone?: string;
   integration?: string;

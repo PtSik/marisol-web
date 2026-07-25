@@ -313,3 +313,23 @@ export async function deprovisionLead(
     : false;
   return { releasedNumber, suspendedShop };
 }
+
+// Tear down a salon we know only as a shop row — a location whose lead we can't resolve (its
+// shopLead index is missing). Mirrors deprovisionLead so a shared subscription's cancellation can
+// release every salon's number, not just the ones still keyed to a lead.
+export async function deprovisionShop(
+  env: ProvisioningEnv,
+  shopId: string,
+  twilioNumber?: string,
+): Promise<DeprovisionResult> {
+  let releasedNumber = false;
+  if (twilioNumber) {
+    const sid = await lookupNumberSid(env, twilioNumber);
+    if (sid) {
+      await releaseTwilioNumber(env, sid);
+      releasedNumber = true;
+    }
+  }
+  const suspendedShop = await patchShop(env, shopId, { status: "cancelled" });
+  return { releasedNumber, suspendedShop };
+}
