@@ -212,7 +212,8 @@ export async function findPromotionCode(
 }
 
 // One promo code per referrer, its code equal to their referral code. first_time_transaction keeps
-// existing clients from redeeming it.
+// existing clients from redeeming it. account_id is what tells a referrer's code apart from a
+// campaign code at checkout — only the former earns a payout.
 export async function createReferralPromoCode(
   secretKey: string,
   { code, couponId, accountId }: { code: string; couponId: string; accountId: string },
@@ -224,7 +225,8 @@ export async function createReferralPromoCode(
       "Content-Type": "application/x-www-form-urlencoded",
     },
     body: new URLSearchParams({
-      coupon: couponId,
+      "promotion[type]": "coupon",
+      "promotion[coupon]": couponId,
       code,
       "restrictions[first_time_transaction]": "true",
       "metadata[account_id]": accountId,
