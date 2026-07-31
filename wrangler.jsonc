@@ -45,8 +45,8 @@
   ],
   "vars": {
     "VOICE_AGENT_API_URL": "https://voice-agent-api.patrykgniewek9.workers.dev",
-    "STRIPE_PRICE_BASIC_MONTHLY": "price_1TzBYX8DgPA5sdCxw10GIHVE",
-    "STRIPE_PRICE_BASIC_ANNUAL": "price_1TzBYX8DgPA5sdCxrWjSLlPq",
+    "STRIPE_PRICE_BASIC_MONTHLY": "price_1TzG5B8DgPA5sdCxq7KZXQ5i",
+    "STRIPE_PRICE_BASIC_ANNUAL": "price_1TzG5B8DgPA5sdCxYbBK9dzp",
     "STRIPE_PRICE_COMPLETE_MONTHLY": "price_1TzBYY8DgPA5sdCxCFeUMtHP",
     "STRIPE_PRICE_COMPLETE_ANNUAL": "price_1TzBYY8DgPA5sdCxDz2XaPa9",
     "STRIPE_PRICE_GROWTH_MONTHLY": "price_1TzBYY8DgPA5sdCx6wY10pVQ",

@@ -13,7 +13,7 @@ import {
 
 describe("annualTotal", () => {
   it("charges ten months for a year", () => {
-    expect(annualTotal("basic")).toBe(1490);
+    expect(annualTotal("basic")).toBe(1990);
     expect(annualTotal("complete")).toBe(2490);
     expect(annualTotal("growth")).toBe(3990);
   });
@@ -21,7 +21,7 @@ describe("annualTotal", () => {
 
 describe("PRICE", () => {
   it("rounds the annual per-month figure down, never up", () => {
-    expect(PRICE.basic.annual).toBe(124);
+    expect(PRICE.basic.annual).toBe(165);
     expect(PRICE.complete.annual).toBe(207);
     expect(PRICE.growth.annual).toBe(332);
     for (const plan of PLAN_OPTIONS) {
@@ -32,7 +32,7 @@ describe("PRICE", () => {
 
 describe("annualSavingPerYear", () => {
   it("is the two months the annual plan doesn't charge", () => {
-    expect(annualSavingPerYear("basic")).toBe(298);
+    expect(annualSavingPerYear("basic")).toBe(398);
     expect(annualSavingPerYear("complete")).toBe(498);
     expect(annualSavingPerYear("growth")).toBe(798);
   });

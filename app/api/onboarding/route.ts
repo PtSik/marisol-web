@@ -141,18 +141,21 @@ function reconstructLead(leadId: string, session: StripeCheckoutSession): Checko
   };
 }
 
-// The referral code arrives either typed into the wizard or on the ?ref= cookie; a valid one both
-// registers the referral (via metadata, on the webhook) and gives the new client 10% off.
-async function resolveReferral(
+// The code arrives either typed into the wizard or on the ?ref= cookie. A referrer's own code
+// carries their account_id and earns them a payout; a campaign code (HIALEAH20 and friends) looks
+// identical to the client but belongs to nobody, so it must discount without registering a referral
+// against a code no account owns.
+async function resolveDiscount(
   cfEnv: OnboardingEnv,
   request: Request,
   typed: string | undefined,
-): Promise<{ code: string; promoId: string } | null> {
+): Promise<{ code: string; promoId: string; isReferral: boolean } | null> {
   if (!cfEnv.STRIPE_SECRET_KEY) return null;
   const candidate = (typed?.trim().toUpperCase() || refCodeFromCookie(request)) ?? null;
   if (!candidate || !REF_CODE_RE.test(candidate)) return null;
   const promo = await findPromotionCode(cfEnv.STRIPE_SECRET_KEY, candidate);
-  return promo ? { code: candidate, promoId: promo.id } : null;
+  if (!promo) return null;
+  return { code: candidate, promoId: promo.id, isReferral: Boolean(promo.metadata?.account_id) };
 }
 
 async function handleCheckout(
@@ -232,10 +235,10 @@ async function handleCheckout(
     "subscription_data[trial_period_days]": String(TRIAL_DAYS),
   });
 
-  const referral = await resolveReferral(cfEnv, request, referralCode);
-  if (referral) {
-    params.set("discounts[0][promotion_code]", referral.promoId);
-    params.set("metadata[referral_code]", referral.code);
+  const discount = await resolveDiscount(cfEnv, request, referralCode);
+  if (discount) {
+    params.set("discounts[0][promotion_code]", discount.promoId);
+    if (discount.isReferral) params.set("metadata[referral_code]", discount.code);
   }
 
   const res = await fetch("https://api.stripe.com/v1/checkout/sessions", {

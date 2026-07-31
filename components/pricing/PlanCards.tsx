@@ -4,6 +4,7 @@ import { type Dict, fill } from "@/lib/i18n/dict";
 import {
   type Billing,
   EXTRA_LOCATION_PRICE,
+  PLAN_OPTIONS,
   PRICE,
   type Plan,
   TRIAL_DAYS,
@@ -12,12 +13,6 @@ import {
   maxAnnualSaving,
 } from "@/lib/plans";
 import type { ReactNode } from "react";
-
-export type Tier = Plan | "multi";
-
-export const TIER_ORDER: Tier[] = ["basic", "complete", "growth", "multi"];
-
-const isPlan = (tier: Tier): tier is Plan => tier !== "multi";
 
 function FeatureList({
   feats,
@@ -52,16 +47,16 @@ function FeatureList({
   );
 }
 
-function TierCard({
+function PlanCard({
   t,
   tier,
   billing,
   renderCta,
 }: {
   t: Dict["pricing"];
-  tier: Tier;
+  tier: Plan;
   billing: Billing;
-  renderCta: (tier: Tier) => ReactNode;
+  renderCta: (tier: Plan) => ReactNode;
 }) {
   const copy = t.tiers[tier];
   const dark = tier === "complete";
@@ -105,42 +100,32 @@ function TierCard({
         )}
       </div>
 
-      {isPlan(tier) ? (
-        <>
-          <div className="mt-[14px] flex flex-wrap items-baseline gap-x-[9px] gap-y-1">
-            <span className="font-display text-[clamp(32px,3.4vw,42px)] font-light leading-none tracking-[-0.03em]">
-              ${PRICE[tier][billing]}
+      <div className="mt-[14px] flex flex-wrap items-baseline gap-x-[9px] gap-y-1">
+        <span className="font-display text-[clamp(32px,3.4vw,42px)] font-light leading-none tracking-[-0.03em]">
+          ${PRICE[tier][billing]}
+        </span>
+        <span className={`text-[14px] ${cls.perMonth}`}>{t.perMonth}</span>
+        {annual && (
+          <>
+            {/* Decorative — read flat, a screen reader would announce a number contradicting
+                the live price, so the sr-only line below carries the meaning instead. */}
+            <span aria-hidden="true" className={`line-through text-[14px] ${cls.was}`}>
+              ${PRICE[tier].monthly}
             </span>
-            <span className={`text-[14px] ${cls.perMonth}`}>{t.perMonth}</span>
-            {annual && (
-              <>
-                {/* Decorative — read flat, a screen reader would announce a number contradicting
-                    the live price, so the sr-only line below carries the meaning instead. */}
-                <span aria-hidden="true" className={`line-through text-[14px] ${cls.was}`}>
-                  ${PRICE[tier].monthly}
-                </span>
-                <span className="sr-only">{fill(t.wasPrice, { price: PRICE[tier].monthly })}</span>
-                <span
-                  className={`text-[11px] font-semibold uppercase tracking-[0.08em] ${cls.save}`}
-                >
-                  {fill(t.savePerYear, { amount: annualSavingPerYear(tier) })}
-                </span>
-              </>
-            )}
-          </div>
-          <div className={`mt-[6px] text-[12px] ${cls.note}`}>
-            {annual
-              ? fill(t.billedYearly, { total: annualTotal(tier).toLocaleString("en-US") })
-              : t.billedMonthly}
-            {" · "}
-            {t.cancelAnytime}
-          </div>
-        </>
-      ) : (
-        <div className="mt-[14px] font-display text-[clamp(32px,3.4vw,42px)] font-light leading-none tracking-[-0.03em]">
-          {t.customPrice}
-        </div>
-      )}
+            <span className="sr-only">{fill(t.wasPrice, { price: PRICE[tier].monthly })}</span>
+            <span className={`text-[11px] font-semibold uppercase tracking-[0.08em] ${cls.save}`}>
+              {fill(t.savePerYear, { amount: annualSavingPerYear(tier) })}
+            </span>
+          </>
+        )}
+      </div>
+      <div className={`mt-[6px] text-[12px] ${cls.note}`}>
+        {annual
+          ? fill(t.billedYearly, { total: annualTotal(tier).toLocaleString("en-US") })
+          : t.billedMonthly}
+        {" · "}
+        {t.cancelAnytime}
+      </div>
 
       <p className={`mt-[14px] text-[13.5px] leading-[1.5] ${cls.desc}`}>{copy.desc}</p>
       <div className={`my-[18px] mt-5 border-t ${cls.rule}`} />
@@ -163,7 +148,7 @@ export function PlanCards({
   t: Dict["pricing"];
   billing: Billing;
   onBillingChange: (billing: Billing) => void;
-  renderCta: (tier: Tier) => ReactNode;
+  renderCta: (tier: Plan) => ReactNode;
 }) {
   return (
     <>
@@ -187,14 +172,43 @@ export function PlanCards({
         })}
       </fieldset>
 
-      <div className="mx-auto mt-[clamp(28px,4vw,40px)] grid grid-cols-1 items-stretch gap-4 text-left sm:grid-cols-2 xl:grid-cols-4">
-        {TIER_ORDER.map((tier) => (
-          <TierCard key={tier} t={t} tier={tier} billing={billing} renderCta={renderCta} />
+      <div className="mx-auto mt-[clamp(28px,4vw,40px)] grid grid-cols-1 items-stretch gap-4 text-left sm:grid-cols-2 lg:grid-cols-3">
+        {PLAN_OPTIONS.map((tier) => (
+          <PlanCard key={tier} t={t} tier={tier} billing={billing} renderCta={renderCta} />
         ))}
       </div>
     </>
   );
 }
 
-export const tierCtaLabel = (t: Dict["pricing"], tier: Tier): string =>
+// Multi-location sits outside the grid: it has no price, and a "Custom" card next to three real
+// figures breaks the comparison the row exists for.
+export function MultiLocationBand({ t, cta }: { t: Dict["pricing"]; cta: ReactNode }) {
+  const copy = t.multiLocation;
+  return (
+    <div className="mt-[clamp(24px,3vw,34px)] flex flex-col gap-5 rounded-[24px] border border-ink/[0.12] bg-cream-200/60 px-[clamp(20px,3vw,30px)] py-[clamp(20px,2.6vw,26px)] text-left md:flex-row md:items-center md:justify-between md:gap-10">
+      <div>
+        <div className="text-[11.5px] font-semibold uppercase tracking-[0.14em] text-muted-4">
+          {copy.name}
+        </div>
+        <p className="mt-[10px] text-[15.5px] leading-[1.5]">{copy.desc}</p>
+        <ul className="mt-[9px] flex flex-wrap items-center gap-x-[7px] gap-y-[6px] text-[13px] text-muted">
+          {copy.highlights.map((item, i) => (
+            <li key={item} className="flex items-center gap-[7px]">
+              {i > 0 && (
+                <span aria-hidden="true" className="text-muted-3">
+                  ·
+                </span>
+              )}
+              {item}
+            </li>
+          ))}
+        </ul>
+      </div>
+      <div className="flex-none">{cta}</div>
+    </div>
+  );
+}
+
+export const tierCtaLabel = (t: Dict["pricing"], tier: Plan): string =>
   fill(t.tiers[tier].cta, { days: TRIAL_DAYS });

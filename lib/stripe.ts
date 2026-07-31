@@ -191,18 +191,23 @@ export async function createBillingPortalSession(
   return body?.url ?? null;
 }
 
+export interface StripePromotionCode {
+  id: string;
+  metadata?: Record<string, string>;
+}
+
 // The referral code doubles as a Stripe promotion code, so we look it up by its human code to get
 // the promo id Checkout needs. `active=true` skips codes we've since archived.
 export async function findPromotionCode(
   secretKey: string,
   code: string,
-): Promise<{ id: string } | null> {
+): Promise<StripePromotionCode | null> {
   const params = new URLSearchParams({ code, active: "true", limit: "1" });
   const res = await fetch(`https://api.stripe.com/v1/promotion_codes?${params}`, {
     headers: { Authorization: `Bearer ${secretKey}` },
   }).catch(() => null);
   if (!res?.ok) return null;
-  const body = (await res.json().catch(() => null)) as { data?: { id: string }[] } | null;
+  const body = (await res.json().catch(() => null)) as { data?: StripePromotionCode[] } | null;
   return body?.data?.[0] ?? null;
 }
 

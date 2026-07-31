@@ -1,7 +1,7 @@
 "use client";
 
 import { Modal } from "@/components/Modal";
-import { PlanCards, type Tier, tierCtaLabel } from "@/components/pricing/PlanCards";
+import { PlanCards } from "@/components/pricing/PlanCards";
 import { type Dict, type Locale, fill } from "@/lib/i18n/dict";
 import { type Billing, type Plan, TRIAL_DAYS } from "@/lib/plans";
 import { SALES_EMAIL_HREF } from "@/lib/site";
@@ -10,7 +10,7 @@ import { useId } from "react";
 const CTA_BASE =
   "inline-flex min-h-[50px] items-center justify-center rounded-[13px] px-5 py-[14px] text-[15px] font-medium no-underline";
 
-const ctaCls = (tier: Tier): string =>
+const ctaCls = (tier: Plan): string =>
   tier === "complete" ? `${CTA_BASE} bg-cream text-ink` : `${CTA_BASE} bg-ink text-cream`;
 
 export function PlanPickerModal({
@@ -38,7 +38,7 @@ export function PlanPickerModal({
       onClose={onDismiss}
       labelledBy={titleId}
       locale={locale}
-      className="relative max-h-[calc(100vh-36px)] w-full max-w-[1120px] overflow-y-auto rounded-[20px] border border-ink/10 bg-cream-100 p-[clamp(20px,4vw,34px)] text-center"
+      className="relative max-h-[calc(100vh-36px)] w-full max-w-[1000px] overflow-y-auto rounded-[20px] border border-ink/10 bg-cream-100 p-[clamp(20px,4vw,34px)] text-center"
     >
       <button
         type="button"
@@ -70,23 +70,25 @@ export function PlanPickerModal({
         t={t}
         billing={billing}
         onBillingChange={onBillingChange}
-        renderCta={(tier) =>
-          tier === "multi" ? (
-            <a href={SALES_EMAIL_HREF} className={ctaCls(tier)}>
-              {tierCtaLabel(t, tier)}
-            </a>
-          ) : (
-            <button type="button" onClick={() => onChoose(tier)} className={ctaCls(tier)}>
-              {fill(t.choosePlan, { plan: t.tiers[tier].name })}
-            </button>
-          )
-        }
+        renderCta={(tier) => (
+          <button type="button" onClick={() => onChoose(tier)} className={ctaCls(tier)}>
+            {fill(t.choosePlan, { plan: t.tiers[tier].name })}
+          </button>
+        )}
       />
+
+      <p className="mt-5 text-[13px] leading-[1.55] text-muted-2">
+        {t.locationsNote}
+        <a href={SALES_EMAIL_HREF} className="text-ink underline">
+          {t.salesLink}
+        </a>
+        .
+      </p>
 
       <button
         type="button"
         onClick={onDismiss}
-        className="mt-6 min-h-[40px] text-[13px] font-medium uppercase tracking-[0.1em] text-muted-2"
+        className="mt-4 min-h-[40px] text-[13px] font-medium uppercase tracking-[0.1em] text-muted-2"
       >
         {t.pickerDismiss}
       </button>

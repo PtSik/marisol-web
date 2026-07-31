@@ -16,7 +16,7 @@ export const TRIAL_DAYS = 14;
 // on the site is derived from this rather than written down twice.
 export const ANNUAL_MONTHS_CHARGED = 10;
 
-const MONTHLY_PRICE: Record<Plan, number> = { basic: 149, complete: 249, growth: 399 };
+const MONTHLY_PRICE: Record<Plan, number> = { basic: 199, complete: 249, growth: 399 };
 
 export const annualTotal = (plan: Plan): number => MONTHLY_PRICE[plan] * ANNUAL_MONTHS_CHARGED;
 

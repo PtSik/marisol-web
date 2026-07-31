@@ -2,31 +2,24 @@
 
 import { useAuthModal } from "@/components/auth/AuthModalProvider";
 import { Reveal } from "@/components/motion/Reveal";
-import { PlanCards, type Tier, tierCtaLabel } from "@/components/pricing/PlanCards";
+import { MultiLocationBand, PlanCards, tierCtaLabel } from "@/components/pricing/PlanCards";
 import { type Dict, fill } from "@/lib/i18n/dict";
-import { type Billing, EXTRA_LOCATION_PRICE, TRIAL_DAYS } from "@/lib/plans";
+import { type Billing, EXTRA_LOCATION_PRICE, type Plan, TRIAL_DAYS } from "@/lib/plans";
 import { APP_URL, SALES_EMAIL_HREF } from "@/lib/site";
 import { useState } from "react";
 
 const CTA_BASE =
   "inline-flex min-h-[50px] items-center justify-center gap-2 rounded-[13px] px-5 py-[14px] text-[15px] font-medium no-underline";
 
-const ctaCls = (tier: Tier): string =>
+const ctaCls = (tier: Plan): string =>
   tier === "complete" ? `${CTA_BASE} bg-cream text-ink` : `${CTA_BASE} bg-ink text-cream`;
 
 export function Pricing({ t, authed }: { t: Dict["pricing"]; authed: boolean }) {
   const [billing, setBilling] = useState<Billing>("annual");
   const { openSignup } = useAuthModal();
 
-  const renderCta = (tier: Tier) => {
+  const renderCta = (tier: Plan) => {
     const label = tierCtaLabel(t, tier);
-    if (tier === "multi") {
-      return (
-        <a href={SALES_EMAIL_HREF} className={ctaCls(tier)}>
-          {label}
-        </a>
-      );
-    }
     if (authed) {
       return (
         <a href={`${APP_URL}/portal?plan=${tier}&billing=${billing}`} className={ctaCls(tier)}>
@@ -72,13 +65,16 @@ export function Pricing({ t, authed }: { t: Dict["pricing"]; authed: boolean }) 
         {fill(t.extraLocationNote, { price: EXTRA_LOCATION_PRICE[billing] })}
         <br />
         {fill(t.trialNote, { days: TRIAL_DAYS })}
-        <br />
-        {t.locationsNote}
-        <a href={SALES_EMAIL_HREF} className="text-ink underline">
-          {t.salesLink}
-        </a>
-        .
       </p>
+
+      <MultiLocationBand
+        t={t}
+        cta={
+          <a href={SALES_EMAIL_HREF} className={`${CTA_BASE} bg-ink text-cream`}>
+            {t.multiLocation.cta}
+          </a>
+        }
+      />
     </section>
   );
 }
