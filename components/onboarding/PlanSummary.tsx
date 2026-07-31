@@ -1,7 +1,14 @@
 "use client";
 
 import { type Dict, fill } from "@/lib/i18n/dict";
-import { type Billing, PLAN_LABELS, PRICE, type Plan, annualSavingPerYear } from "@/lib/plans";
+import {
+  type Billing,
+  PLAN_LABELS,
+  PRICE,
+  type Plan,
+  annualSavingPerYear,
+  annualTotal,
+} from "@/lib/plans";
 
 export function PlanSummary({
   t,
@@ -25,7 +32,10 @@ export function PlanSummary({
           {t.planSummary}
         </div>
         <div className="mt-[6px] text-[15px] font-medium text-ink">
-          {PLAN_LABELS[plan]} · {annual ? pricing.billedYearly : pricing.billedMonthly}
+          {PLAN_LABELS[plan]} ·{" "}
+          {annual
+            ? fill(pricing.billedYearly, { total: annualTotal(plan).toLocaleString("en-US") })
+            : pricing.billedMonthly}
         </div>
         <div className="mt-[2px] flex flex-wrap items-baseline gap-x-[10px] gap-y-1">
           <span className="text-[15px] text-ink">

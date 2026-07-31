@@ -1,7 +1,14 @@
 import { env } from "cloudflare:workers";
 import { PortalHeading, PortalNotice } from "@/components/portal/PortalHeading";
 import { getLead } from "@/lib/leads";
-import { PLAN_LABELS, PRICE, TRIAL_DAYS } from "@/lib/plans";
+import {
+  PLAN_LABELS,
+  PRICE,
+  type Plan,
+  TRIAL_DAYS,
+  normalizePlan,
+  upgradesFrom,
+} from "@/lib/plans";
 import type { PortalEnv } from "@/lib/portalApi";
 import { requirePortalSession } from "@/lib/session";
 import { CUSTOMER_PORTAL_URL, SALES_EMAIL_HREF } from "@/lib/site";
@@ -28,11 +35,19 @@ const STATUS_LABEL: Record<string, string> = {
 };
 
 const UPGRADE_NOTICE: Record<string, string> = {
-  done: "You're on Premium — SMS reminders are on, and the difference is prorated to this period.",
+  done: "Your new plan is live — SMS reminders are on, and the difference is prorated to this period.",
   partial:
-    "You're on Premium. One step needs finishing on our side — we're on it and will email you.",
-  already: "You're already on Premium.",
+    "Your new plan is live. One step needs finishing on our side — we're on it and will email you.",
+  already: "You're already on that plan.",
   failed: "That upgrade didn't go through. Try again, or email us and we'll switch you over.",
+};
+
+const UPGRADE_PITCH: Record<Plan, string> = {
+  basic: "",
+  complete:
+    "SMS appointment reminders, rescheduling messages, missed-call auto-text and a monthly results report.",
+  growth:
+    "Everything in Complete, plus win-back outreach, no-show follow-up and client memory that refills your calendar.",
 };
 
 export default async function PortalBillingPage({
@@ -50,12 +65,12 @@ export default async function PortalBillingPage({
       ? await getSubscription(cfEnv.STRIPE_SECRET_KEY, lead.stripeSubscriptionId)
       : null;
 
-  const plan = lead?.plan ?? "base";
+  const plan = normalizePlan(lead?.plan);
   const billing = lead?.billing ?? "monthly";
   const status = subscription?.status ?? "";
   const trialEnds = fmtDate(subscription?.trial_end);
   const renews = fmtDate(subscription?.current_period_end);
-  const canUpgrade = plan === "base" && UPGRADABLE_STATUSES.has(status);
+  const upgrades = UPGRADABLE_STATUSES.has(status) ? upgradesFrom(plan) : [];
 
   return (
     <>
@@ -129,36 +144,39 @@ export default async function PortalBillingPage({
         </p>
       </div>
 
-      {canUpgrade && (
-        <div className="mt-3 rounded-[24px] border border-teal/25 bg-teal/[0.07] p-[clamp(20px,4vw,34px)]">
+      {upgrades.map((target) => (
+        <div
+          key={target}
+          className="mt-3 rounded-[24px] border border-teal/25 bg-teal/[0.07] p-[clamp(20px,4vw,34px)]"
+        >
           <p className="text-[11.5px] font-semibold uppercase tracking-[0.16em] text-teal">
             Upgrade
           </p>
           <p className="mt-1.5 font-display text-[clamp(21px,3vw,27px)] tracking-[-0.02em]">
-            {PLAN_LABELS.premium} — ${PRICE.premium[billing]}/mo
+            {PLAN_LABELS[target]} — ${PRICE[target][billing]}/mo
           </p>
           <p className="mt-2 max-w-[54ch] text-[15px] leading-[1.55] text-muted">
-            SMS appointment reminders, rebooking nudges, unlimited answered calls and a second
-            location.
+            {UPGRADE_PITCH[target]}
           </p>
           <p className="mt-2 max-w-[54ch] text-[14px] leading-[1.55] text-muted-2">
             {status === "trialing"
-              ? `Premium starts right away and your trial is untouched — nothing is charged${
+              ? `${PLAN_LABELS[target]} starts right away and your trial is untouched — nothing is charged${
                   trialEnds ? ` before ${trialEnds}` : " before it ends"
                 }.`
-              : "Premium starts right away. You're only charged the difference for the days left in this period."}
+              : `${PLAN_LABELS[target]} starts right away. You're only charged the difference for the days left in this period.`}
           </p>
 
           <form method="post" action="/api/portal/upgrade" className="mt-5">
+            <input type="hidden" name="plan" value={target} />
             <button
               type="submit"
               className="inline-flex min-h-[50px] w-full items-center justify-center rounded-[13px] bg-teal px-7 py-[14px] text-[15px] font-medium text-cream sm:w-auto"
             >
-              Upgrade to Premium
+              Upgrade to {PLAN_LABELS[target]}
             </button>
           </form>
         </div>
-      )}
+      ))}
     </>
   );
 }

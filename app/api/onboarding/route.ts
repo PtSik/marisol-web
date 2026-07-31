@@ -16,7 +16,14 @@ import {
   VERTICAL_IDS,
   validateSetupPayload,
 } from "@/lib/onboarding";
-import { BILLING_OPTIONS, type Billing, PLAN_OPTIONS, type Plan, TRIAL_DAYS } from "@/lib/plans";
+import {
+  BILLING_OPTIONS,
+  type Billing,
+  PLAN_OPTIONS,
+  type Plan,
+  TRIAL_DAYS,
+  normalizePlan,
+} from "@/lib/plans";
 import { listAccountShops } from "@/lib/portalApi";
 import { provisionLead } from "@/lib/provisioning";
 import { overRateLimit } from "@/lib/rateLimit";
@@ -24,22 +31,20 @@ import { REF_CODE_RE, refCodeFromCookie } from "@/lib/referrals";
 import { getSession, refreshSession, sessionIdFromCookies } from "@/lib/session";
 import { APP_URL } from "@/lib/site";
 import {
+  type PlanPriceEnv,
   SESSION_ID_RE,
   type StripeCheckoutSession,
   checkoutSettled,
   findPromotionCode,
   getCheckoutSession,
+  planPriceId,
 } from "@/lib/stripe";
 
 export const dynamic = "force-dynamic";
 
-interface OnboardingEnv {
+interface OnboardingEnv extends PlanPriceEnv {
   STRIPE_SECRET_KEY?: string;
   STRIPE_REFERRAL_COUPON?: string;
-  STRIPE_PRICE_MONTHLY?: string;
-  STRIPE_PRICE_ANNUAL?: string;
-  STRIPE_PRICE_PREMIUM_MONTHLY?: string;
-  STRIPE_PRICE_PREMIUM_ANNUAL?: string;
   LEADS_KV?: KVNamespace;
   RATE_LIMIT_KV?: KVNamespace;
   RESEND_API_KEY?: string;
@@ -119,7 +124,7 @@ function reconstructLead(leadId: string, session: StripeCheckoutSession): Checko
     id: leadId,
     createdAt: new Date().toISOString(),
     intent: "checkout",
-    plan: meta.plan === "premium" ? "premium" : "base",
+    plan: normalizePlan(meta.plan),
     billing: meta.billing === "annual" ? "annual" : "monthly",
     locale: parseLocale(meta.locale),
     basics: {
@@ -197,15 +202,8 @@ async function handleCheckout(
     notifyTeam(cfEnv, `New onboarding lead: ${basics.businessName}`, lead),
   ]);
 
-  const priceIds: Record<Plan, Record<Billing, string | undefined>> = {
-    base: { monthly: cfEnv.STRIPE_PRICE_MONTHLY, annual: cfEnv.STRIPE_PRICE_ANNUAL },
-    premium: {
-      monthly: cfEnv.STRIPE_PRICE_PREMIUM_MONTHLY,
-      annual: cfEnv.STRIPE_PRICE_PREMIUM_ANNUAL,
-    },
-  };
   const { STRIPE_SECRET_KEY } = cfEnv;
-  const priceId = priceIds[plan][billing];
+  const priceId = planPriceId(cfEnv, plan, billing);
   if (!STRIPE_SECRET_KEY || !priceId) {
     return Response.json({ error: "checkout not configured" }, { status: 501 });
   }
@@ -382,7 +380,7 @@ export async function POST(request: Request) {
   }
 
   if (intent === "checkout") {
-    const plan: Plan = body.plan ?? "base";
+    const plan: Plan = body.plan ?? "basic";
     if (!PLAN_OPTIONS.includes(plan)) {
       return Response.json({ error: "invalid plan" }, { status: 400 });
     }

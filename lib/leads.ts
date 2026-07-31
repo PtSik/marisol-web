@@ -1,6 +1,6 @@
 import type { Locale } from "@/lib/i18n/dict";
 import type { BusinessBasics, SetupDetails } from "@/lib/onboarding";
-import type { Billing, Plan } from "@/lib/plans";
+import { type Billing, type Plan, normalizePlan } from "@/lib/plans";
 
 export type LeadStatus = "created" | "paid" | "setup_complete" | "provisioned" | "cancelled";
 
@@ -8,7 +8,7 @@ export interface CheckoutLead {
   id: string;
   createdAt: string;
   intent: "checkout";
-  /* optional: leads created before the premium tier have no plan */
+  /* optional: leads created before the paid tiers have no plan */
   plan?: Plan;
   billing: Billing;
   /* the funnel language the client came in with; leads created before /es onboarding have none */
@@ -106,7 +106,10 @@ export async function getLead(
 ): Promise<CheckoutLead | null> {
   if (!kv) return null;
   try {
-    return await kv.get<CheckoutLead>(leadKey(id), "json");
+    const lead = await kv.get<CheckoutLead>(leadKey(id), "json");
+    // Leads stored before the four tiers carry "base"/"premium"; every reader wants a current plan.
+    if (lead?.plan) lead.plan = normalizePlan(lead.plan);
+    return lead;
   } catch {
     return null;
   }

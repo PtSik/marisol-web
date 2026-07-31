@@ -2,48 +2,44 @@
 
 import { useAuthModal } from "@/components/auth/AuthModalProvider";
 import { Reveal } from "@/components/motion/Reveal";
-import { PlanCards } from "@/components/pricing/PlanCards";
+import { PlanCards, type Tier, tierCtaLabel } from "@/components/pricing/PlanCards";
 import { type Dict, fill } from "@/lib/i18n/dict";
-import { type Billing, type Plan, TRIAL_DAYS } from "@/lib/plans";
+import { type Billing, EXTRA_LOCATION_PRICE, TRIAL_DAYS } from "@/lib/plans";
 import { APP_URL, SALES_EMAIL_HREF } from "@/lib/site";
-import { type ReactNode, useState } from "react";
+import { useState } from "react";
 
-const CTA_CLS: Record<Plan, string> = {
-  base: "inline-flex min-h-[50px] items-center justify-center gap-2 rounded-[13px] bg-ink px-5 py-[14px] text-[15px] font-medium text-cream no-underline",
-  premium:
-    "inline-flex min-h-[50px] items-center justify-center gap-2 rounded-[13px] bg-cream px-5 py-[14px] text-[15px] font-medium text-ink no-underline",
-};
+const CTA_BASE =
+  "inline-flex min-h-[50px] items-center justify-center gap-2 rounded-[13px] px-5 py-[14px] text-[15px] font-medium no-underline";
 
-function PlanCta({
-  authed,
-  plan,
-  billing,
-  className,
-  children,
-}: {
-  authed: boolean;
-  plan: Plan;
-  billing: Billing;
-  className: string;
-  children: ReactNode;
-}) {
-  const { openSignup } = useAuthModal();
-  if (authed) {
-    return (
-      <a href={`${APP_URL}/portal?plan=${plan}&billing=${billing}`} className={className}>
-        {children}
-      </a>
-    );
-  }
-  return (
-    <button type="button" onClick={() => openSignup(plan, billing)} className={className}>
-      {children}
-    </button>
-  );
-}
+const ctaCls = (tier: Tier): string =>
+  tier === "complete" ? `${CTA_BASE} bg-cream text-ink` : `${CTA_BASE} bg-ink text-cream`;
 
 export function Pricing({ t, authed }: { t: Dict["pricing"]; authed: boolean }) {
   const [billing, setBilling] = useState<Billing>("annual");
+  const { openSignup } = useAuthModal();
+
+  const renderCta = (tier: Tier) => {
+    const label = tierCtaLabel(t, tier);
+    if (tier === "multi") {
+      return (
+        <a href={SALES_EMAIL_HREF} className={ctaCls(tier)}>
+          {label}
+        </a>
+      );
+    }
+    if (authed) {
+      return (
+        <a href={`${APP_URL}/portal?plan=${tier}&billing=${billing}`} className={ctaCls(tier)}>
+          {label}
+        </a>
+      );
+    }
+    return (
+      <button type="button" onClick={() => openSignup(tier, billing)} className={ctaCls(tier)}>
+        {label}
+      </button>
+    );
+  };
 
   return (
     <section
@@ -65,19 +61,16 @@ export function Pricing({ t, authed }: { t: Dict["pricing"]; authed: boolean }) 
       </Reveal>
 
       <div className="text-center">
-        <PlanCards
-          t={t}
-          billing={billing}
-          onBillingChange={setBilling}
-          renderCta={(plan) => (
-            <PlanCta authed={authed} plan={plan} billing={billing} className={CTA_CLS[plan]}>
-              {plan === "base" ? t.baseCta : t.premiumCta}
-            </PlanCta>
-          )}
-        />
+        <PlanCards t={t} billing={billing} onBillingChange={setBilling} renderCta={renderCta} />
       </div>
 
-      <p className="mt-6 text-center text-[13px] leading-[1.55] text-muted-2">
+      <p className="mt-7 text-center font-display text-[clamp(17px,2.2vw,21px)] font-light leading-[1.4] tracking-[-0.02em]">
+        {t.guarantee}
+      </p>
+
+      <p className="mt-4 text-center text-[13px] leading-[1.55] text-muted-2">
+        {fill(t.extraLocationNote, { price: EXTRA_LOCATION_PRICE[billing] })}
+        <br />
         {fill(t.trialNote, { days: TRIAL_DAYS })}
         <br />
         {t.locationsNote}

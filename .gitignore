@@ -11,3 +11,5 @@ out/
 .DS_Store
 .thumbnail
 scripts/
+docs/
+d1/seed-leads.sql

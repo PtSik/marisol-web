@@ -2,6 +2,7 @@ import { type Segment, forwardingInstructions } from "@/lib/forwarding";
 import { en } from "@/lib/i18n/en";
 import type { CheckoutLead } from "@/lib/leads";
 import type { DayId, ForwardMode, ServiceEntry, SetupDetails, WeekHours } from "@/lib/onboarding";
+import { normalizePlan } from "@/lib/plans";
 import { SITE_URL } from "@/lib/site";
 
 export interface NotifyEnv {
@@ -104,7 +105,7 @@ function leadCard(lead: CheckoutLead): string {
       ["Timezone", basics.timezone],
     ]),
     section("Plan", [
-      ["Plan", lead.plan ?? "base"],
+      ["Plan", normalizePlan(lead.plan)],
       ["Billing", lead.billing],
       ["Status", lead.status],
       ["Paid at", lead.paidAt],

@@ -1,0 +1,274 @@
+import { env } from "cloudflare:workers";
+import { LogoMark } from "@/components/Logo";
+import { FilterBar, type SalesQuery, buildQuery } from "@/components/sales/FilterBar";
+import { LeadCard } from "@/components/sales/LeadCard";
+import type { EsStrength, Tier } from "@/lib/sales/derive";
+import {
+  type Outcome,
+  type SalesLead,
+  counters,
+  isOutcome,
+  leadHistory,
+  listLeads,
+  neighborhoods,
+} from "@/lib/sales/leads";
+import { SALES_COOKIE, SALES_REP_COOKIE, isSalesCookieValid, normaliseRep } from "@/lib/salesAuth";
+import { cookies } from "next/headers";
+import type { ReactNode } from "react";
+
+export const dynamic = "force-dynamic";
+
+export const metadata = {
+  title: "Call queue — Marisol sales",
+  robots: { index: false, follow: false },
+};
+
+interface SalesEnv {
+  OUTREACH_DB?: D1Database;
+  SALES_DASH_KEY?: string;
+}
+
+// The queue opens on everything worth calling; tier X stays in its own collapsed group.
+const ALL_TIERS: Tier[] = ["A", "B", "C"];
+const AB_TIERS: Tier[] = ["A", "B"];
+
+const NOTICE: Record<string, string> = {
+  saved: "Result saved.",
+  "demo-en": "English demo queued — the number pool arrives in phase 2.",
+  "demo-es": "Demo en español en cola — el pool de números llega en la fase 2.",
+  "demo-cancelled": "Demo request cancelled.",
+  failed: "Nothing was saved — try again.",
+};
+
+function LoginForm({ error }: { error: boolean }) {
+  return (
+    <main className="mx-auto flex min-h-[70vh] max-w-shell items-center justify-center px-[22px]">
+      <form
+        method="post"
+        action="/api/sales/login"
+        className="w-full max-w-[360px] rounded-[18px] border border-ink/10 bg-cream/80 p-7"
+      >
+        <div className="flex items-center gap-[7px] font-display text-[22px] tracking-tight">
+          <LogoMark className="h-5 w-5 rounded-[3.5px]" />
+          Marisol sales
+        </div>
+        <label htmlFor="sales-rep" className="mt-5 block text-sm text-muted">
+          Your name
+        </label>
+        <input
+          id="sales-rep"
+          name="rep"
+          type="text"
+          required
+          maxLength={24}
+          autoComplete="nickname"
+          placeholder="goes on the calls you log"
+          className="mt-1.5 w-full rounded-[10px] border border-ink/15 bg-white px-3 py-2.5 text-[15px]"
+        />
+        <label htmlFor="sales-key" className="mt-4 block text-sm text-muted">
+          Team key
+        </label>
+        <input
+          id="sales-key"
+          name="key"
+          type="password"
+          required
+          className="mt-1.5 w-full rounded-[10px] border border-ink/15 bg-white px-3 py-2.5 text-[15px]"
+        />
+        {error && <p className="mt-2 text-sm text-[#B3261E]">Wrong key or name. Try again.</p>}
+        <button
+          type="submit"
+          className="mt-4 w-full rounded-[10px] bg-teal px-4 py-2.5 font-medium text-white"
+        >
+          Start calling
+        </button>
+      </form>
+    </main>
+  );
+}
+
+function Counter({ label, value }: { label: string; value: ReactNode }) {
+  return (
+    <div>
+      <div className="font-display text-[24px] leading-none tracking-tight">{value}</div>
+      <div className="mt-0.5 text-xs uppercase tracking-wide text-muted-2">{label}</div>
+    </div>
+  );
+}
+
+function parseQuery(raw: Record<string, string | undefined>): SalesQuery {
+  const tier =
+    raw.tier === "A" || raw.tier === "B" || raw.tier === "C" || raw.tier === "AB" ? raw.tier : "";
+  return {
+    neighborhood: raw.neighborhood ?? "",
+    tier,
+    outcome: raw.outcome ?? "",
+    open: raw.open === "1" ? "1" : "",
+    es: raw.es === "strong" || raw.es === "weak" ? raw.es : "",
+    mode: raw.mode === "focus" ? "focus" : "",
+  };
+}
+
+function outcomeFilter(value: string): Outcome | "queue" | undefined {
+  if (value === "all") return undefined;
+  if (isOutcome(value)) return value;
+  return "queue";
+}
+
+export default async function SalesPage({
+  searchParams,
+}: {
+  searchParams: Promise<Record<string, string | undefined>>;
+}) {
+  const cfEnv = env as unknown as SalesEnv;
+  const raw = await searchParams;
+  const jar = await cookies();
+  const authed = await isSalesCookieValid(jar.get(SALES_COOKIE)?.value, cfEnv.SALES_DASH_KEY);
+  // `?switch=1` re-shows the sign-in form so a shared laptop can change hands without clearing
+  // cookies — logged calls would otherwise carry the previous rep's name.
+  if (!authed || raw.switch === "1") return <LoginForm error={Boolean(raw.error)} />;
+
+  if (!cfEnv.OUTREACH_DB) {
+    return (
+      <main className="mx-auto max-w-shell px-[22px] py-16">
+        <p className="rounded-[12px] border border-[#B97E24]/30 bg-[#B97E24]/10 px-4 py-2.5 text-sm text-[#8A5D17]">
+          The outreach database is not bound to this worker yet — no leads to show.
+        </p>
+      </main>
+    );
+  }
+
+  const query = parseQuery(raw);
+  const db = cfEnv.OUTREACH_DB;
+  const repCookie = jar.get(SALES_REP_COOKIE)?.value;
+  const rep = normaliseRep(repCookie && decodeURIComponent(repCookie)) ?? "";
+
+  const filters = {
+    neighborhood: query.neighborhood || undefined,
+    tiers: query.tier === "AB" ? AB_TIERS : query.tier ? [query.tier as Tier] : ALL_TIERS,
+    outcome: outcomeFilter(query.outcome ?? ""),
+    openOnly: query.open === "1",
+    es: (query.es || undefined) as EsStrength | undefined,
+  };
+
+  const [leads, lowPriority, areas, stats] = await Promise.all([
+    listLeads(db, filters),
+    listLeads(db, { ...filters, tiers: ["X"] }),
+    neighborhoods(db),
+    counters(db, new Date(), { neighborhood: filters.neighborhood, tiers: filters.tiers }),
+  ]);
+
+  const back = buildQuery(query, {});
+  const focusLead: SalesLead | undefined = query.mode === "focus" ? leads[0] : undefined;
+  const history = focusLead ? await leadHistory(db, focusLead.id) : undefined;
+  const notice = raw.saved ? NOTICE[raw.saved] : undefined;
+
+  return (
+    <>
+      <nav className="mx-auto max-w-shell px-[22px] pt-[14px]">
+        <div className="flex w-full flex-wrap items-center justify-between gap-4 rounded-[18px] border border-ink/10 bg-cream/80 px-5 py-3">
+          <a
+            href="/sales"
+            className="flex items-center gap-[7px] font-display text-[22px] tracking-tight no-underline"
+          >
+            <LogoMark className="h-5 w-5 rounded-[3.5px]" />
+            Marisol <span className="text-[15px] text-muted">sales</span>
+          </a>
+          <div className="flex items-center gap-6">
+            <Counter label="to call" value={stats.queue} />
+            <Counter label="called today" value={stats.calledToday} />
+            <Counter label="demos queued" value={stats.demoRequested} />
+            <Counter label="demos heard" value={<span className="text-muted-3">—</span>} />
+          </div>
+          {rep && (
+            <a href="/sales?switch=1" className="text-sm text-muted no-underline">
+              {rep} <span className="text-muted-3">· not you?</span>
+            </a>
+          )}
+        </div>
+      </nav>
+
+      <main className="mx-auto max-w-shell px-[22px] pb-20 pt-4">
+        {notice && (
+          <p
+            className={`rounded-[12px] border px-4 py-2.5 text-sm ${
+              raw.saved === "failed"
+                ? "border-[#B97E24]/30 bg-[#B97E24]/10 text-[#8A5D17]"
+                : "border-teal/30 bg-teal/10 text-teal"
+            }`}
+          >
+            {notice}
+          </p>
+        )}
+
+        {focusLead ? (
+          <section className="mt-4">
+            <div className="flex items-center justify-between gap-4">
+              <h1 className="font-display text-[24px] tracking-tight">
+                Next up <span className="text-[16px] text-muted">({leads.length} left)</span>
+              </h1>
+              <a
+                href={`/sales${buildQuery(query, { mode: "" })}`}
+                className="text-sm text-teal no-underline"
+              >
+                Back to the list
+              </a>
+            </div>
+            <div className="mt-4">
+              <LeadCard lead={focusLead} back={back} focus history={history} />
+            </div>
+          </section>
+        ) : (
+          <>
+            <FilterBar query={query} neighborhoods={areas} />
+
+            <section className="mt-6">
+              <div className="flex flex-wrap items-center justify-between gap-3">
+                <h1 className="font-display text-[24px] tracking-tight">
+                  Call queue <span className="text-[16px] text-muted">({leads.length})</span>
+                </h1>
+                {leads.length > 0 && (
+                  <a
+                    href={`/sales${buildQuery(query, { mode: "focus" })}`}
+                    className="rounded-[10px] bg-teal px-4 py-2 text-sm font-medium text-white no-underline"
+                  >
+                    Start calling
+                  </a>
+                )}
+              </div>
+
+              {leads.length === 0 ? (
+                <p className="mt-4 text-muted">
+                  Nothing matches these filters — widen the area or the state.
+                </p>
+              ) : (
+                <div className="mt-4 grid gap-4 lg:grid-cols-2">
+                  {leads.map((lead) => (
+                    <LeadCard key={lead.id} lead={lead} back={back} />
+                  ))}
+                </div>
+              )}
+            </section>
+
+            {lowPriority.length > 0 && (
+              <details className="mt-10">
+                <summary className="cursor-pointer font-display text-[24px] tracking-tight">
+                  Low priority{" "}
+                  <span className="text-[16px] text-muted">({lowPriority.length})</span>
+                </summary>
+                <p className="mt-1 text-sm text-muted">
+                  Chains and shops over 800 reviews — someone already answers their phone.
+                </p>
+                <div className="mt-4 grid gap-4 lg:grid-cols-2">
+                  {lowPriority.map((lead) => (
+                    <LeadCard key={lead.id} lead={lead} back={back} />
+                  ))}
+                </div>
+              </details>
+            )}
+          </>
+        )}
+      </main>
+    </>
+  );
+}

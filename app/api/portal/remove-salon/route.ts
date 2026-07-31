@@ -1,7 +1,7 @@
 import { env } from "cloudflare:workers";
 import { getLead, getLeadIdForShop, putLead } from "@/lib/leads";
 import { notifyTeam } from "@/lib/notify";
-import { extraLocationCount } from "@/lib/plans";
+import { extraLocationCount, normalizePlan } from "@/lib/plans";
 import { type PortalEnv, listAccountShops } from "@/lib/portalApi";
 import { deprovisionLead, patchShop } from "@/lib/provisioning";
 import { overRateLimit } from "@/lib/rateLimit";
@@ -78,7 +78,7 @@ export async function POST(request: Request): Promise<Response> {
     const remaining = (await listAccountShops(cfEnv, session.accountId)).filter(
       (s) => s.status !== "cancelled",
     ).length;
-    const quantity = extraLocationCount(primary.plan ?? "base", remaining);
+    const quantity = extraLocationCount(normalizePlan(primary.plan), remaining);
     const billed = subscription
       ? await setSubscriptionExtraLocations(cfEnv.STRIPE_SECRET_KEY, {
           subscription,

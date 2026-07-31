@@ -18,6 +18,7 @@ import {
   PLAN_SALON_LIMIT,
   PRICE,
   type Plan,
+  canAddLocation,
 } from "@/lib/plans";
 import { useState } from "react";
 
@@ -56,7 +57,6 @@ export function AddSalonForm({
   // Adding this salon pushes the account one past what its plan covers whenever it's already at the
   // limit — that's the location that starts costing the extra-location rate.
   const willBillExtra = activeSalons >= PLAN_SALON_LIMIT[plan];
-  const showPremiumHint = plan === "base" && activeSalons === 1;
 
   const submitBasics = () => {
     const errs: FieldErrors = {};
@@ -90,6 +90,25 @@ export function AddSalonForm({
     setFailed(true);
     setSaving(false);
   };
+
+  if (!canAddLocation(plan)) {
+    return (
+      <div className="rounded-[24px] bg-cream-100 p-[clamp(20px,4vw,34px)]">
+        <p className="font-display text-[clamp(20px,3vw,26px)] tracking-[-0.02em]">Add a salon</p>
+        <p className="mt-2 max-w-[54ch] text-[15px] leading-[1.55] text-muted">
+          Extra locations start on Complete (${PRICE.complete[billing]}/mo). Move up on the Billing
+          page and each additional salon is +${EXTRA_LOCATION_PRICE[billing]}/mo on the same
+          subscription.
+        </p>
+        <a
+          href="/portal/billing"
+          className="mt-6 inline-flex min-h-[50px] items-center justify-center rounded-[13px] bg-ink px-7 py-[14px] text-[15px] font-medium text-cream no-underline"
+        >
+          See upgrade options
+        </a>
+      </div>
+    );
+  }
 
   return (
     <div className="rounded-[24px] bg-cream-100 p-[clamp(20px,4vw,34px)]">
@@ -174,16 +193,6 @@ export function AddSalonForm({
                 }. One invoice, one card, one place to cancel.`
               : "Your plan already covers this location — nothing new is charged."}
           </p>
-
-          {showPremiumHint && (
-            <div className="mt-4 rounded-[16px] border border-teal/25 bg-teal/[0.07] p-4">
-              <p className="text-[14px] leading-[1.5] text-ink">
-                Premium (${PRICE.premium[billing]}/mo) is cheaper than Base plus a location ($
-                {PRICE.base[billing] * 2}/mo) — and adds SMS reminders. You can switch on the
-                Billing page, or add this salon as-is.
-              </p>
-            </div>
-          )}
 
           {failed && (
             <p className="mt-4 text-[14px] font-medium text-red-700">

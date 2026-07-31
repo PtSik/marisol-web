@@ -1,4 +1,20 @@
+import type { Billing, Plan } from "@/lib/plans";
+
 export const SESSION_ID_RE = /^cs_[a-zA-Z0-9_]{8,250}$/;
+
+export interface PlanPriceEnv {
+  STRIPE_PRICE_BASIC_MONTHLY?: string;
+  STRIPE_PRICE_BASIC_ANNUAL?: string;
+  STRIPE_PRICE_COMPLETE_MONTHLY?: string;
+  STRIPE_PRICE_COMPLETE_ANNUAL?: string;
+  STRIPE_PRICE_GROWTH_MONTHLY?: string;
+  STRIPE_PRICE_GROWTH_ANNUAL?: string;
+}
+
+export function planPriceId(env: PlanPriceEnv, plan: Plan, billing: Billing): string | undefined {
+  const key = `STRIPE_PRICE_${plan.toUpperCase()}_${billing === "annual" ? "ANNUAL" : "MONTHLY"}`;
+  return env[key as keyof PlanPriceEnv];
+}
 
 export interface StripeCheckoutSession {
   id: string;

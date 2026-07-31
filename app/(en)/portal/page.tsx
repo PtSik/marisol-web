@@ -3,7 +3,7 @@ import { ForwardingCard } from "@/components/onboarding/ForwardingCard";
 import { PortalHeading, PortalNotice } from "@/components/portal/PortalHeading";
 import { en } from "@/lib/i18n/en";
 import { getLead, getLeadIdForAccount } from "@/lib/leads";
-import { PLAN_LABELS } from "@/lib/plans";
+import { PLAN_LABELS, normalizePlan } from "@/lib/plans";
 import type { PortalEnv } from "@/lib/portalApi";
 import { getPortalContext } from "@/lib/portalContext";
 import { SALES_EMAIL_HREF } from "@/lib/site";
@@ -89,7 +89,7 @@ export default async function PortalOverviewPage({
         />
         <Tile
           label="Plan"
-          value={PLAN_LABELS[lead?.plan ?? "base"]}
+          value={PLAN_LABELS[normalizePlan(lead?.plan)]}
           hint={lead?.billing === "annual" ? "Billed annually" : "Billed monthly"}
         />
         <Tile

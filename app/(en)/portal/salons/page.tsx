@@ -2,6 +2,7 @@ import { env } from "cloudflare:workers";
 import { AddSalonForm } from "@/components/portal/AddSalonForm";
 import { PortalHeading, PortalNotice } from "@/components/portal/PortalHeading";
 import { getLead } from "@/lib/leads";
+import { normalizePlan } from "@/lib/plans";
 import type { PortalEnv, Shop } from "@/lib/portalApi";
 import { getPortalContext } from "@/lib/portalContext";
 
@@ -54,7 +55,7 @@ export default async function PortalSalonsPage({
   const { removed, added } = await searchParams;
 
   const primary = session.leadId ? await getLead(cfEnv.LEADS_KV, session.leadId) : null;
-  const plan = primary?.plan ?? "base";
+  const plan = normalizePlan(primary?.plan);
   const billing = primary?.billing ?? "monthly";
   const defaultVertical = primary?.basics.vertical ?? "barbershop";
   const defaultTimezone = primary?.basics.timezone ?? "America/New_York";

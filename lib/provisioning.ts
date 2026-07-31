@@ -1,6 +1,7 @@
 import { type CheckoutLead, putLeadIdForShop } from "@/lib/leads";
 import { notifyTeam, sendClientWelcome, sendProvisionAlert } from "@/lib/notify";
 import type { DayId, ServiceEntry, SetupDetails, WeekHours } from "@/lib/onboarding";
+import { normalizePlan } from "@/lib/plans";
 import { type Account, createAccount, patchAccount } from "@/lib/portalApi";
 import { createReferralPromoCode } from "@/lib/stripe";
 import {
@@ -109,7 +110,7 @@ export function buildShopPayload(
     staff_json: JSON.stringify(toShopStaff(setup)),
     integration: "none",
     status: "active",
-    reminders_enabled: lead.plan === "premium",
+    reminders_enabled: normalizePlan(lead.plan) !== "basic",
   };
   if (basics.vertical === "grooming" && groomingAgentId) {
     payload.elevenlabs_agent_id = groomingAgentId;

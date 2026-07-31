@@ -24,6 +24,13 @@
       "id": "cfc515ef0b784a4396df923908792bb7"
     }
   ],
+  "d1_databases": [
+    {
+      "binding": "OUTREACH_DB",
+      "database_name": "marisol-outreach",
+      "database_id": "df37b1e3-ff67-4842-b2db-c5cd2b949b88"
+    }
+  ],
   "analytics_engine_datasets": [
     {
       "binding": "FUNNEL_AE",
@@ -38,12 +45,14 @@
   ],
   "vars": {
     "VOICE_AGENT_API_URL": "https://voice-agent-api.patrykgniewek9.workers.dev",
-    "STRIPE_PRICE_MONTHLY": "price_1TrFSf8DgPA5sdCxArxKy9Ok",
-    "STRIPE_PRICE_ANNUAL": "price_1TrFSg8DgPA5sdCxyTCNgwlx",
-    "STRIPE_PRICE_PREMIUM_MONTHLY": "price_1TrFSg8DgPA5sdCxmnrDsTXD",
-    "STRIPE_PRICE_PREMIUM_ANNUAL": "price_1TrFSh8DgPA5sdCxEKh9SPqJ",
+    "STRIPE_PRICE_BASIC_MONTHLY": "price_1TzBYX8DgPA5sdCxw10GIHVE",
+    "STRIPE_PRICE_BASIC_ANNUAL": "price_1TzBYX8DgPA5sdCxrWjSLlPq",
+    "STRIPE_PRICE_COMPLETE_MONTHLY": "price_1TzBYY8DgPA5sdCxCFeUMtHP",
+    "STRIPE_PRICE_COMPLETE_ANNUAL": "price_1TzBYY8DgPA5sdCxDz2XaPa9",
+    "STRIPE_PRICE_GROWTH_MONTHLY": "price_1TzBYY8DgPA5sdCx6wY10pVQ",
+    "STRIPE_PRICE_GROWTH_ANNUAL": "price_1TzBYZ8DgPA5sdCxhDjNGGTB",
     "STRIPE_PRICE_EXTRA_LOCATION_MONTHLY": "price_1TwgHM8DgPA5sdCxs9YVejFx",
-    "STRIPE_PRICE_EXTRA_LOCATION_ANNUAL": "price_1TwgHM8DgPA5sdCx7ceLTiYx",
+    "STRIPE_PRICE_EXTRA_LOCATION_ANNUAL": "price_1TzBYZ8DgPA5sdCxI4Ghvh34",
     "RESEND_FROM": "Marisol Leads <leads@getmarisol.com>",
     "CLIENT_EMAIL_FROM": "Marisol <hello@getmarisol.com>",
     "GROOMING_AGENT_ID": "agent_2501ktmhtm2wf8789jqdtkbj7jdr",

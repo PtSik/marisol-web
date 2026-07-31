@@ -15,7 +15,7 @@ import {
   defaultBasics,
   isBusinessBasics,
 } from "@/lib/onboarding";
-import { type Billing, PRICE, type Plan, TRIAL_DAYS } from "@/lib/plans";
+import { type Billing, PLAN_OPTIONS, PRICE, type Plan, TRIAL_DAYS } from "@/lib/plans";
 import { track } from "@/lib/track";
 import { useEffect, useRef, useState } from "react";
 
@@ -25,11 +25,11 @@ interface StoredWizard {
   basics?: unknown;
   billing?: Billing;
   plan?: Plan;
-  // Explicit, because a stored base/annual pair is indistinguishable from the untouched defaults.
+  // Explicit, because a stored basic/annual pair is indistinguishable from the untouched defaults.
   planChosen?: boolean;
 }
 
-const isPlan = (value: unknown): value is Plan => value === "base" || value === "premium";
+const isPlan = (value: unknown): value is Plan => PLAN_OPTIONS.some((plan) => plan === value);
 const isBilling = (value: unknown): value is Billing => value === "monthly" || value === "annual";
 
 function validateBasics(basics: BusinessBasics, t: Dict["onboarding"]): FieldErrors {
@@ -51,7 +51,7 @@ export function OnboardingWizard({
     ...defaultBasics(),
     email: accountEmail,
   }));
-  const [plan, setPlan] = useState<Plan>("base");
+  const [plan, setPlan] = useState<Plan>("basic");
   const [billing, setBilling] = useState<Billing>("annual");
   const [planChosen, setPlanChosen] = useState(false);
   const [pickerOpen, setPickerOpen] = useState(false);

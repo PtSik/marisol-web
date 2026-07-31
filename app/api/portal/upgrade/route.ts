@@ -1,24 +1,32 @@
 import { env } from "cloudflare:workers";
 import { getLead, putLead } from "@/lib/leads";
 import { notifyTeam } from "@/lib/notify";
-import { type Billing, extraLocationCount } from "@/lib/plans";
+import {
+  type Billing,
+  PLAN_LABELS,
+  PLAN_OPTIONS,
+  type Plan,
+  extraLocationCount,
+  isUpgrade,
+  normalizePlan,
+} from "@/lib/plans";
 import { type PortalEnv, listAccountShops } from "@/lib/portalApi";
 import { patchShop } from "@/lib/provisioning";
 import { overRateLimit } from "@/lib/rateLimit";
 import { getSession, sessionIdFromCookies } from "@/lib/session";
 import {
+  type PlanPriceEnv,
   UPGRADABLE_STATUSES,
   findPlanItem,
   getSubscription,
+  planPriceId,
   setSubscriptionExtraLocations,
   swapSubscriptionPrice,
 } from "@/lib/stripe";
 
 export const dynamic = "force-dynamic";
 
-interface UpgradeEnv extends PortalEnv {
-  STRIPE_PRICE_PREMIUM_MONTHLY?: string;
-  STRIPE_PRICE_PREMIUM_ANNUAL?: string;
+interface UpgradeEnv extends PortalEnv, PlanPriceEnv {
   STRIPE_PRICE_EXTRA_LOCATION_MONTHLY?: string;
   STRIPE_PRICE_EXTRA_LOCATION_ANNUAL?: string;
 }
@@ -27,6 +35,13 @@ function back(request: Request, status: string): Response {
   const url = new URL("/portal/billing", request.url);
   url.searchParams.set("upgrade", status);
   return Response.redirect(url.toString(), 303);
+}
+
+async function requestedPlan(request: Request): Promise<Plan | null> {
+  const form = await request.formData().catch(() => null);
+  const raw = form?.get("plan");
+  if (typeof raw !== "string") return null;
+  return PLAN_OPTIONS.find((plan) => plan === raw) ?? null;
 }
 
 export async function POST(request: Request): Promise<Response> {
@@ -39,11 +54,18 @@ export async function POST(request: Request): Promise<Response> {
     return back(request, "failed");
   }
 
+  const target = await requestedPlan(request);
+  if (!target) return back(request, "failed");
+
   // The subscription comes from the session's lead, never from the request — otherwise anyone
   // signed in could upgrade (and charge) someone else's subscription.
   const lead = session.leadId ? await getLead(cfEnv.LEADS_KV, session.leadId) : null;
   if (!cfEnv.STRIPE_SECRET_KEY || !lead?.stripeSubscriptionId) return back(request, "failed");
-  if (lead.plan === "premium") return back(request, "already");
+
+  const current = normalizePlan(lead.plan);
+  if (current === target) return back(request, "already");
+  // Downgrades unwind extra locations and shop flags, so they stay a support conversation.
+  if (!isUpgrade(current, target)) return back(request, "failed");
 
   const { STRIPE_PRICE_EXTRA_LOCATION_MONTHLY, STRIPE_PRICE_EXTRA_LOCATION_ANNUAL } = cfEnv;
   const extraPriceIds = new Set(
@@ -60,8 +82,7 @@ export async function POST(request: Request): Promise<Response> {
 
   // Stripe holds the truth about which cycle the client is on; the lead can have drifted.
   const billing: Billing = item.price?.recurring?.interval === "year" ? "annual" : "monthly";
-  const priceId =
-    billing === "annual" ? cfEnv.STRIPE_PRICE_PREMIUM_ANNUAL : cfEnv.STRIPE_PRICE_PREMIUM_MONTHLY;
+  const priceId = planPriceId(cfEnv, target, billing);
   if (!priceId) return back(request, "failed");
   if (item.price?.id === priceId) return back(request, "already");
 
@@ -69,21 +90,20 @@ export async function POST(request: Request): Promise<Response> {
     subscriptionId: lead.stripeSubscriptionId,
     itemId: item.id,
     priceId,
-    plan: "premium",
+    plan: target,
   });
   if (!updated) return back(request, "failed");
 
-  lead.plan = "premium";
+  lead.plan = target;
   lead.billing = billing;
   await putLead(cfEnv.LEADS_KV, lead);
 
-  // Premium's flat price already covers two salons, so an account paying an extra-location line for
-  // its second one stops owing it the moment the plan changes. Re-derived absolutely, like add and
-  // remove do — on a single-salon account the quantity is 0 and this makes no Stripe call at all.
+  // Re-derived absolutely, like add and remove do — every plan covers one salon, so this is a no-op
+  // on a single-salon account and keeps the quantity honest on a multi-salon one.
   const activeSalons = (await listAccountShops(cfEnv, session.accountId)).filter(
     (s) => s.status !== "cancelled",
   ).length;
-  const quantity = extraLocationCount("premium", activeSalons);
+  const quantity = extraLocationCount(target, activeSalons);
   const rebilled =
     STRIPE_PRICE_EXTRA_LOCATION_MONTHLY && STRIPE_PRICE_EXTRA_LOCATION_ANNUAL
       ? await setSubscriptionExtraLocations(cfEnv.STRIPE_SECRET_KEY, {
@@ -94,15 +114,16 @@ export async function POST(request: Request): Promise<Response> {
         })
       : false;
 
-  // Reminders are what Premium is bought for, so a failed PATCH is a paid-for feature that never
-  // switched on — the client sees it, and the team gets told to fix the shop by hand.
+  // Reminders are what the paid tiers are bought for, so a failed PATCH is a paid-for feature that
+  // never switched on — the client sees it, and the team gets told to fix the shop by hand.
   const remindersOn = session.shopId
     ? await patchShop(cfEnv, session.shopId, { reminders_enabled: true })
     : false;
 
-  await notifyTeam(cfEnv, `⬆️ Upgraded to Premium — ${lead.basics.businessName}`, {
+  await notifyTeam(cfEnv, `⬆️ Upgraded to ${PLAN_LABELS[target]} — ${lead.basics.businessName}`, {
     leadId: lead.id,
     email: session.email,
+    plan: target,
     billing,
     subscription: lead.stripeSubscriptionId,
     reminders: remindersOn ? "enabled" : "FAILED — turn on reminders_enabled by hand",

@@ -10,7 +10,7 @@ import {
   type Vertical,
   validateSetupPayload,
 } from "@/lib/onboarding";
-import { type Billing, extraLocationCount } from "@/lib/plans";
+import { type Billing, canAddLocation, extraLocationCount, normalizePlan } from "@/lib/plans";
 import { type PortalEnv, listAccountShops } from "@/lib/portalApi";
 import { provisionLead } from "@/lib/provisioning";
 import { overRateLimit } from "@/lib/rateLimit";
@@ -83,7 +83,10 @@ export async function POST(request: Request): Promise<Response> {
     return Response.json({ error: "subscription not billable" }, { status: 409 });
   }
 
-  const plan = primary.plan ?? "base";
+  const plan = normalizePlan(primary.plan);
+  if (!canAddLocation(plan)) {
+    return Response.json({ error: "upgrade required" }, { status: 409 });
+  }
   const billing: Billing =
     subscription.items?.data?.[0]?.price?.recurring?.interval === "year" ? "annual" : "monthly";
 

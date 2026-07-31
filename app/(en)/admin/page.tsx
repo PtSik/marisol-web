@@ -3,6 +3,7 @@ import { LogoMark } from "@/components/Logo";
 import { ADMIN_COOKIE, isAdminCookieValid } from "@/lib/adminAuth";
 import { type CallLead, type CheckoutLead, listLeads } from "@/lib/leads";
 import { PAYOUT_LABEL, isPayoutMethod } from "@/lib/payout";
+import { normalizePlan } from "@/lib/plans";
 import { type Referral, listReferrals } from "@/lib/referrals";
 import { siteHref } from "@/lib/site";
 import { voiceAgentFetch } from "@/lib/voiceAgent";
@@ -110,7 +111,7 @@ function LeadTile({ lead, shop }: { lead: CheckoutLead; shop?: Shop }) {
         </div>
       </div>
       <p className="mt-0.5 text-sm text-muted">
-        {lead.basics.vertical} · {lead.plan ?? "base"} / {lead.billing}
+        {lead.basics.vertical} · {normalizePlan(lead.plan)} / {lead.billing}
       </p>
       {lead.assignedNumber && (
         <p className="mt-3 text-[17px] font-semibold">{lead.assignedNumber}</p>
