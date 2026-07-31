@@ -77,6 +77,7 @@ interface OnboardingRequest {
   sessionId?: string;
   setup?: SetupDetails;
   referralCode?: string;
+  promoCode?: string;
   locale?: string;
 }
 
@@ -141,21 +142,46 @@ function reconstructLead(leadId: string, session: StripeCheckoutSession): Checko
   };
 }
 
-// The code arrives either typed into the wizard or on the ?ref= cookie. A referrer's own code
-// carries their account_id and earns them a payout; a campaign code (HIALEAH20 and friends) looks
-// identical to the client but belongs to nobody, so it must discount without registering a referral
-// against a code no account owns.
-async function resolveDiscount(
+interface ResolvedCode {
+  code: string;
+  promoId: string;
+  isReferral: boolean;
+}
+
+// Codes reach checkout from three places: the promo field, the referral field, and the ?ref= cookie.
+// Only a referrer's own code carries an account_id, and only that one earns a payout — a campaign
+// code (HIALEAH20 and friends) belongs to nobody. Stripe takes one code per session, so the two
+// roles are resolved separately: the client keeps the bigger campaign discount while the friend who
+// sent them still gets credited.
+async function resolveCodes(
   cfEnv: OnboardingEnv,
   request: Request,
-  typed: string | undefined,
-): Promise<{ code: string; promoId: string; isReferral: boolean } | null> {
-  if (!cfEnv.STRIPE_SECRET_KEY) return null;
-  const candidate = (typed?.trim().toUpperCase() || refCodeFromCookie(request)) ?? null;
-  if (!candidate || !REF_CODE_RE.test(candidate)) return null;
-  const promo = await findPromotionCode(cfEnv.STRIPE_SECRET_KEY, candidate);
-  if (!promo) return null;
-  return { code: candidate, promoId: promo.id, isReferral: Boolean(promo.metadata?.account_id) };
+  typed: { promo?: string; referral?: string },
+): Promise<{ discount: ResolvedCode | null; attribution: ResolvedCode | null }> {
+  const none = { discount: null, attribution: null };
+  if (!cfEnv.STRIPE_SECRET_KEY) return none;
+
+  const candidates = [
+    typed.promo?.trim().toUpperCase(),
+    typed.referral?.trim().toUpperCase(),
+    refCodeFromCookie(request),
+  ].filter((code): code is string => Boolean(code) && REF_CODE_RE.test(code as string));
+  const unique = [...new Set(candidates)];
+  if (unique.length === 0) return none;
+
+  const resolved: ResolvedCode[] = [];
+  for (const code of unique) {
+    const promo = await findPromotionCode(cfEnv.STRIPE_SECRET_KEY, code);
+    if (promo) {
+      resolved.push({ code, promoId: promo.id, isReferral: Boolean(promo.metadata?.account_id) });
+    }
+  }
+
+  return {
+    // Field order decides the discount, so a client who typed only a friend's code still gets 10%.
+    discount: resolved[0] ?? null,
+    attribution: resolved.find((r) => r.isReferral) ?? null,
+  };
 }
 
 async function handleCheckout(
@@ -165,7 +191,7 @@ async function handleCheckout(
   billing: Billing,
   basics: BusinessBasics,
   accountId: string,
-  referralCode: string | undefined,
+  codes: { promo?: string; referral?: string },
   locale: Locale,
 ): Promise<Response> {
   // One subscription per account. A client whose provisioning failed still lands back in the wizard
@@ -235,11 +261,9 @@ async function handleCheckout(
     "subscription_data[trial_period_days]": String(TRIAL_DAYS),
   });
 
-  const discount = await resolveDiscount(cfEnv, request, referralCode);
-  if (discount) {
-    params.set("discounts[0][promotion_code]", discount.promoId);
-    if (discount.isReferral) params.set("metadata[referral_code]", discount.code);
-  }
+  const { discount, attribution } = await resolveCodes(cfEnv, request, codes);
+  if (discount) params.set("discounts[0][promotion_code]", discount.promoId);
+  if (attribution) params.set("metadata[referral_code]", attribution.code);
 
   const res = await fetch("https://api.stripe.com/v1/checkout/sessions", {
     method: "POST",
@@ -404,7 +428,10 @@ export async function POST(request: Request) {
       body.billing as Billing,
       basics,
       session.accountId,
-      typeof body.referralCode === "string" ? body.referralCode : undefined,
+      {
+        promo: typeof body.promoCode === "string" ? body.promoCode : undefined,
+        referral: typeof body.referralCode === "string" ? body.referralCode : undefined,
+      },
       parseLocale(body.locale),
     );
   }

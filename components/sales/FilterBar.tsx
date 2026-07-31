@@ -7,6 +7,8 @@ export interface SalesQuery {
   open?: string;
   es?: string;
   mode?: string;
+  view?: string;
+  lead?: string;
 }
 
 export function buildQuery(current: SalesQuery, patch: SalesQuery): string {
@@ -107,6 +109,15 @@ export function FilterBar({ query, neighborhoods }: FilterBarProps) {
         </Chip>
         <Chip href={buildQuery(query, toggle("es", "strong"))} active={query.es === "strong"}>
           Spanish signal
+        </Chip>
+      </Group>
+
+      <Group label="View">
+        <Chip href={buildQuery(query, { view: "" })} active={query.view !== "list"}>
+          cards
+        </Chip>
+        <Chip href={buildQuery(query, { view: "list" })} active={query.view === "list"}>
+          list
         </Chip>
       </Group>
     </div>

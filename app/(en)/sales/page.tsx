@@ -2,11 +2,13 @@ import { env } from "cloudflare:workers";
 import { LogoMark } from "@/components/Logo";
 import { FilterBar, type SalesQuery, buildQuery } from "@/components/sales/FilterBar";
 import { LeadCard } from "@/components/sales/LeadCard";
+import { LeadTable } from "@/components/sales/LeadTable";
 import type { EsStrength, Tier } from "@/lib/sales/derive";
 import {
   type Outcome,
   type SalesLead,
   counters,
+  getLead as getSalesLead,
   isOutcome,
   leadHistory,
   listLeads,
@@ -106,6 +108,8 @@ function parseQuery(raw: Record<string, string | undefined>): SalesQuery {
     open: raw.open === "1" ? "1" : "",
     es: raw.es === "strong" || raw.es === "weak" ? raw.es : "",
     mode: raw.mode === "focus" ? "focus" : "",
+    view: raw.view === "list" ? "list" : "",
+    lead: raw.lead ?? "",
   };
 }
 
@@ -159,7 +163,11 @@ export default async function SalesPage({
   ]);
 
   const back = buildQuery(query, {});
-  const focusLead: SalesLead | undefined = query.mode === "focus" ? leads[0] : undefined;
+  // A row picked out of the list view names its lead; the focus button just takes the top of the queue.
+  const focusLead: SalesLead | undefined =
+    query.mode === "focus"
+      ? ((query.lead ? await getSalesLead(db, query.lead) : leads[0]) ?? undefined)
+      : undefined;
   const history = focusLead ? await leadHistory(db, focusLead.id) : undefined;
   const notice = raw.saved ? NOTICE[raw.saved] : undefined;
 
@@ -208,7 +216,7 @@ export default async function SalesPage({
                 Next up <span className="text-[16px] text-muted">({leads.length} left)</span>
               </h1>
               <a
-                href={`/sales${buildQuery(query, { mode: "" })}`}
+                href={`/sales${buildQuery(query, { mode: "", lead: "" })}`}
                 className="text-sm text-teal no-underline"
               >
                 Back to the list
@@ -241,6 +249,10 @@ export default async function SalesPage({
                 <p className="mt-4 text-muted">
                   Nothing matches these filters — widen the area or the state.
                 </p>
+              ) : query.view === "list" ? (
+                <div className="mt-4">
+                  <LeadTable leads={leads} query={query} />
+                </div>
               ) : (
                 <div className="mt-4 grid gap-4 lg:grid-cols-2">
                   {leads.map((lead) => (
@@ -259,11 +271,17 @@ export default async function SalesPage({
                 <p className="mt-1 text-sm text-muted">
                   Chains and shops over 800 reviews — someone already answers their phone.
                 </p>
-                <div className="mt-4 grid gap-4 lg:grid-cols-2">
-                  {lowPriority.map((lead) => (
-                    <LeadCard key={lead.id} lead={lead} back={back} />
-                  ))}
-                </div>
+                {query.view === "list" ? (
+                  <div className="mt-4">
+                    <LeadTable leads={lowPriority} query={query} />
+                  </div>
+                ) : (
+                  <div className="mt-4 grid gap-4 lg:grid-cols-2">
+                    {lowPriority.map((lead) => (
+                      <LeadCard key={lead.id} lead={lead} back={back} />
+                    ))}
+                  </div>
+                )}
               </details>
             )}
           </>

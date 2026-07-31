@@ -1,5 +1,7 @@
 import { describe, expect, it } from "bun:test";
 import {
+  EXTRA_LOCATION_ANNUAL_TOTAL,
+  EXTRA_LOCATION_PRICE,
   PLAN_OPTIONS,
   PRICE,
   annualSavingPerYear,
@@ -62,6 +64,15 @@ describe("isUpgrade", () => {
   it("lists what each plan can move up to", () => {
     expect(upgradesFrom("basic")).toEqual(["complete", "growth"]);
     expect(upgradesFrom("growth")).toEqual([]);
+  });
+});
+
+describe("EXTRA_LOCATION_PRICE", () => {
+  it("follows the same two-months-free rule as the plans", () => {
+    expect(EXTRA_LOCATION_PRICE.monthly).toBe(149);
+    expect(EXTRA_LOCATION_ANNUAL_TOTAL).toBe(1490);
+    expect(EXTRA_LOCATION_PRICE.annual).toBe(124);
+    expect(EXTRA_LOCATION_PRICE.annual * 12).toBeLessThanOrEqual(EXTRA_LOCATION_ANNUAL_TOTAL);
   });
 });
 

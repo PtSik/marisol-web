@@ -418,8 +418,12 @@ export const es: Dict = {
     timezone: "Zona horaria",
     planSummary: "Tu plan",
     changePlan: "Cambiar plan",
-    referral: "Código de referido (opcional)",
-    referralHint: "¿Tienes el código de un amigo? Te damos 10% de descuento el primer mes.",
+    promoCode: "Código promocional (opcional)",
+    promoCodeHint: "De un asesor de Marisol o de una campaña — el descuento se aplica al pagar.",
+    promoCodePlaceholder: "ej. HIALEAH20",
+    referral: "Te recomendó (opcional)",
+    referralHint:
+      "El código de un amigo. Sin código promocional arriba, también te da 10% de descuento el primer mes.",
     referralEarn:
       "Cuando estés en marcha, ganas $200 en efectivo por cada negocio que recomiendes.",
     referralPlaceholder: "ej. A7K3M9QP",

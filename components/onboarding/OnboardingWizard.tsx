@@ -58,6 +58,7 @@ export function OnboardingWizard({
   const [errors, setErrors] = useState<FieldErrors>({});
   const [cancelled, setCancelled] = useState(false);
   const [referralCode, setReferralCode] = useState("");
+  const [promoCode, setPromoCode] = useState("");
   const [submitting, setSubmitting] = useState(false);
   const [submitError, setSubmitError] = useState<string | null>(null);
   const hydrated = useRef(false);
@@ -142,6 +143,7 @@ export function OnboardingWizard({
           basics,
           locale,
           referralCode: referralCode.trim() || undefined,
+          promoCode: promoCode.trim() || undefined,
         }),
       });
       const body = (await res.json()) as { url?: string; error?: string; sessionId?: string };
@@ -302,6 +304,18 @@ export function OnboardingWizard({
             billing={billing}
             onChange={() => setPickerOpen(true)}
           />
+
+          <Field label={t.promoCode} htmlFor="ob-promo" hint={t.promoCodeHint}>
+            <input
+              id="ob-promo"
+              className={inputCls}
+              value={promoCode}
+              onChange={(e) => setPromoCode(e.target.value.toUpperCase())}
+              placeholder={t.promoCodePlaceholder}
+              autoCapitalize="characters"
+              autoComplete="off"
+            />
+          </Field>
 
           <Field
             label={t.referral}

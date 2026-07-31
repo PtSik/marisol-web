@@ -1,5 +1,6 @@
 import { formatUsPhone } from "@/lib/sales/derive";
 import { OUTCOME_LABELS, type Outcome, type SalesLead } from "@/lib/sales/leads";
+import { contactLabel, promoCodeFor } from "@/lib/sales/offer";
 import type { ReactNode } from "react";
 
 const TIER_STYLE: Record<string, string> = {
@@ -57,6 +58,7 @@ export function LeadCard({ lead, back, focus = false, history }: LeadCardProps) 
   const open = OPEN_STYLE[lead.openState];
   const action = `/api/sales/leads/${lead.id}`;
   const phone = formatUsPhone(lead.phone_e164);
+  const promo = promoCodeFor(lead.neighborhood);
 
   return (
     <article className="rounded-[18px] border border-ink/10 bg-cream/80 p-5">
@@ -86,10 +88,16 @@ export function LeadCard({ lead, back, focus = false, history }: LeadCardProps) 
           </p>
         </div>
         <div className="flex flex-wrap gap-1.5">
+          <Chip
+            className={
+              lead.attempts === 0 ? "bg-teal/15 text-teal" : "bg-[#B97E24]/12 text-[#8A5D17]"
+            }
+          >
+            {contactLabel(lead.attempts)}
+          </Chip>
           {lead.outcome !== "new" && (
             <Chip className={OUTCOME_STYLE[lead.outcome] ?? "bg-ink/5 text-muted"}>
               {OUTCOME_LABELS[lead.outcome]}
-              {lead.attempts > 1 ? ` ·${lead.attempts}` : ""}
             </Chip>
           )}
           {lead.is_chain === 1 && <Chip className="bg-[#B3261E]/10 text-[#B3261E]">chain</Chip>}
@@ -111,6 +119,13 @@ export function LeadCard({ lead, back, focus = false, history }: LeadCardProps) 
       <p className="mt-0.5 select-all text-xs text-muted-2">{lead.phone_e164}</p>
 
       {lead.hookLine && <p className="mt-2 text-sm">{lead.hookLine}</p>}
+
+      {promo && (
+        <p className="mt-2 text-sm text-muted">
+          Offer <span className="select-all font-semibold text-ink">{promo}</span> — Complete at
+          $199/mo for the first year
+        </p>
+      )}
 
       <form method="post" action={action} className="mt-4">
         <input type="hidden" name="back" value={back} />

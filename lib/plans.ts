@@ -38,7 +38,7 @@ export const maxAnnualSaving = (): number => Math.max(...PLAN_OPTIONS.map(annual
 // line items on the same subscription.
 export const PLAN_SALON_LIMIT: Record<Plan, number> = { basic: 1, complete: 1, growth: 1 };
 
-const EXTRA_LOCATION_MONTHLY = 199;
+const EXTRA_LOCATION_MONTHLY = 149;
 export const EXTRA_LOCATION_ANNUAL_TOTAL = EXTRA_LOCATION_MONTHLY * ANNUAL_MONTHS_CHARGED;
 export const EXTRA_LOCATION_PRICE: Record<Billing, number> = {
   monthly: EXTRA_LOCATION_MONTHLY,
