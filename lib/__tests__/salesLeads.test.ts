@@ -34,7 +34,8 @@ function d1(db: Database): D1Database {
   } as unknown as D1Database;
 }
 
-const SCHEMA = await Bun.file("d1/0001_outreach.sql").text();
+const SCHEMA = `${await Bun.file("d1/0001_outreach.sql").text()}
+${await Bun.file("d1/0002_demo_pool.sql").text()}`;
 
 interface SeedOptions {
   id: string;

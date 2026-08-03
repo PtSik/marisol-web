@@ -208,12 +208,36 @@ export function LeadCard({ lead, back, focus = false, history }: LeadCardProps) 
             Español
           </button>
           <span className="text-xs text-muted-2">
-            {lead.demo_requested_at
-              ? `requested ${lead.demo_requested_at.slice(0, 10)} — number pool coming`
-              : "records your choice; the number pool lands in phase 2"}
+            {lead.demo_number
+              ? "already live — text them the number below"
+              : "ask first: “can I text you the number?”"}
           </span>
         </div>
       </form>
+
+      {lead.demo_number && (
+        <div className="mt-2 rounded-[12px] border border-teal/25 bg-teal/5 px-3 py-2.5">
+          <a
+            href={`tel:${lead.demo_number}`}
+            className="font-display text-[19px] tracking-tight text-teal no-underline"
+          >
+            {formatUsPhone(lead.demo_number)}
+          </a>
+          {/* The rep texts this from their own phone: an SMS blast from our Twilio numbers is
+              cold outreach under A2P 10DLC, and a reply should reach the human who just called. */}
+          <p className="mt-1.5 select-all text-sm text-ink">
+            Marisol demo for {lead.shop_name} — call {formatUsPhone(lead.demo_number)}, it answers
+            as your shop.
+          </p>
+          <p className="mt-1 text-xs text-muted-2">
+            {lead.demo_called_at
+              ? `they called ${lead.demo_called_at.slice(0, 16).replace("T", " ")}`
+              : lead.demo_expires_at
+                ? `free again ${lead.demo_expires_at.slice(0, 16).replace("T", " ")} if nobody calls`
+                : null}
+          </p>
+        </div>
+      )}
 
       {lead.demo_requested_at && (
         <form method="post" action={action} className="mt-2">
@@ -223,7 +247,7 @@ export function LeadCard({ lead, back, focus = false, history }: LeadCardProps) 
             type="submit"
             className="rounded-[10px] border border-ink/10 px-3 py-1.5 text-xs text-muted hover:border-ink/25 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-teal"
           >
-            Cancel demo
+            {lead.demo_number ? "This one's dead — free the number" : "Cancel demo"}
           </button>
         </form>
       )}

@@ -132,7 +132,7 @@ async function createShop(
 }
 
 export async function patchShop(
-  env: ProvisioningEnv,
+  env: VoiceAgentEnv,
   shopId: string,
   update: Record<string, unknown>,
 ): Promise<boolean> {

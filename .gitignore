@@ -13,3 +13,4 @@ out/
 scripts/
 docs/
 d1/seed-leads.sql
+d1/seed-demo-pool.sql

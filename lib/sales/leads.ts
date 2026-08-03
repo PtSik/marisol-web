@@ -69,6 +69,9 @@ export interface LeadRow {
   note: string | null;
   demo_lang: string | null;
   demo_requested_at: string | null;
+  demo_called_at: string | null;
+  demo_number: string | null;
+  demo_expires_at: string | null;
 }
 
 export interface SalesLead extends LeadRow {
@@ -86,9 +89,11 @@ export interface LeadFilters {
 
 const SELECT = `
   SELECT l.*, s.outcome, s.attempts, s.owner, s.last_contact_at, s.next_followup, s.note,
-         s.demo_lang, s.demo_requested_at
+         s.demo_lang, s.demo_requested_at, s.demo_called_at,
+         d.phone_e164 AS demo_number, COALESCE(d.grace_until, d.expires_at) AS demo_expires_at
   FROM leads l
   JOIN lead_state s ON s.lead_id = l.id
+  LEFT JOIN demo_numbers d ON d.lead_id = l.id AND d.state IN ('assigned', 'grace')
 `;
 
 function decorate(row: LeadRow, now: Date): SalesLead {
@@ -154,6 +159,7 @@ export interface Counters {
   queue: number;
   calledToday: number;
   demoRequested: number;
+  demosHeard: number;
 }
 
 // Counted over the same area and tiers the rep is looking at — a header saying 119 above a list of
@@ -174,18 +180,25 @@ export async function counters(
          SUM(CASE WHEN s.outcome = 'new'
                    OR (s.outcome = 'callback' AND s.next_followup <= ?1) THEN 1 ELSE 0 END) AS queue,
          SUM(CASE WHEN substr(s.last_contact_at, 1, 10) = ?1 THEN 1 ELSE 0 END) AS calledToday,
-         SUM(CASE WHEN s.demo_requested_at IS NOT NULL THEN 1 ELSE 0 END) AS demoRequested
+         SUM(CASE WHEN s.demo_requested_at IS NOT NULL THEN 1 ELSE 0 END) AS demoRequested,
+         SUM(CASE WHEN s.demo_called_at IS NOT NULL THEN 1 ELSE 0 END) AS demosHeard
        FROM lead_state s
        JOIN leads l ON l.id = s.lead_id
        WHERE (?2 IS NULL OR l.neighborhood = ?2)${tierClause}`,
     )
     .bind(day, scope.neighborhood ?? null, ...tiers)
-    .first<{ queue: number | null; calledToday: number | null; demoRequested: number | null }>();
+    .first<{
+      queue: number | null;
+      calledToday: number | null;
+      demoRequested: number | null;
+      demosHeard: number | null;
+    }>();
 
   return {
     queue: row?.queue ?? 0,
     calledToday: row?.calledToday ?? 0,
     demoRequested: row?.demoRequested ?? 0,
+    demosHeard: row?.demosHeard ?? 0,
   };
 }
 
@@ -241,8 +254,8 @@ export async function recordOutcome(
   ]);
 }
 
-// Phase 1 records the rep's language choice only; the pool that turns it into a live demo number
-// arrives with phase 2 and reads these two columns.
+// Records the rep's intent; leasing the number itself lives in `demoPool.assignNumber`, so a full
+// pool still leaves a trace of who asked for what.
 export async function requestDemo(
   db: D1Database,
   leadId: string,
@@ -266,8 +279,8 @@ export async function requestDemo(
   ]);
 }
 
-// A misclick on the demo button must be undoable by the rep. It matters more after phase 2, where
-// the same button leases a pool number and publishes a page.
+// "This one's dead" from the rep frees a number faster than any timer, so the cancel button is
+// worth more throughput than tuning the TTL.
 export async function cancelDemo(
   db: D1Database,
   leadId: string,

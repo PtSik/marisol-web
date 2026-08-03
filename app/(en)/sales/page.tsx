@@ -3,6 +3,7 @@ import { LogoMark } from "@/components/Logo";
 import { FilterBar, type SalesQuery, buildQuery } from "@/components/sales/FilterBar";
 import { LeadCard } from "@/components/sales/LeadCard";
 import { LeadTable } from "@/components/sales/LeadTable";
+import { type DemoPoolEnv, poolStatus, sweepDemoPool } from "@/lib/sales/demoPool";
 import type { EsStrength, Tier } from "@/lib/sales/derive";
 import {
   type Outcome,
@@ -25,8 +26,7 @@ export const metadata = {
   robots: { index: false, follow: false },
 };
 
-interface SalesEnv {
-  OUTREACH_DB?: D1Database;
+interface SalesEnv extends DemoPoolEnv {
   SALES_DASH_KEY?: string;
 }
 
@@ -36,9 +36,11 @@ const AB_TIERS: Tier[] = ["A", "B"];
 
 const NOTICE: Record<string, string> = {
   saved: "Result saved.",
-  "demo-en": "English demo queued — the number pool arrives in phase 2.",
-  "demo-es": "Demo en español en cola — el pool de números llega en la fase 2.",
-  "demo-cancelled": "Demo request cancelled.",
+  "demo-en": "Demo is live — text them the number below.",
+  "demo-es": "Demo en español listo — envíales el número de abajo.",
+  "demo-cancelled": "Demo cancelled, number back in the pool.",
+  "pool-full": "Every demo number is in use — cancel a dead one, or wait for the next to free up.",
+  "demo-failed": "Couldn't set up the demo — nothing was leased, try again.",
   failed: "Nothing was saved — try again.",
 };
 
@@ -155,11 +157,16 @@ export default async function SalesPage({
     es: (query.es || undefined) as EsStrength | undefined,
   };
 
-  const [leads, lowPriority, areas, stats] = await Promise.all([
+  // This Worker has no cron triggers, so the panel the reps keep open is the tick that expires
+  // demos and notices that an owner called back. Same trade the referral settlement makes.
+  await sweepDemoPool(cfEnv);
+
+  const [leads, lowPriority, areas, stats, pool] = await Promise.all([
     listLeads(db, filters),
     listLeads(db, { ...filters, tiers: ["X"] }),
     neighborhoods(db),
     counters(db, new Date(), { neighborhood: filters.neighborhood, tiers: filters.tiers }),
+    poolStatus(db),
   ]);
 
   const back = buildQuery(query, {});
@@ -186,7 +193,8 @@ export default async function SalesPage({
             <Counter label="to call" value={stats.queue} />
             <Counter label="called today" value={stats.calledToday} />
             <Counter label="demos queued" value={stats.demoRequested} />
-            <Counter label="demos heard" value={<span className="text-muted-3">—</span>} />
+            <Counter label="demos heard" value={stats.demosHeard} />
+            <Counter label="numbers free" value={`${pool.free}/${pool.free + pool.busy}`} />
           </div>
           {rep && (
             <a href="/sales?switch=1" className="text-sm text-muted no-underline">

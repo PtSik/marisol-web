@@ -56,6 +56,11 @@
     "RESEND_FROM": "Marisol Leads <leads@getmarisol.com>",
     "CLIENT_EMAIL_FROM": "Marisol <hello@getmarisol.com>",
     "GROOMING_AGENT_ID": "agent_2501ktmhtm2wf8789jqdtkbj7jdr",
+    // Demo pool runs on the grooming DEMO clone, never the client agent, so prompt tuning for
+    // sales cannot reach a paying shop. Leave the ES id empty until a Spanish-opening clone
+    // exists — the pool falls back to the English one, which still switches mid-call.
+    "DEMO_POOL_AGENT_ID": "agent_3801kx681qx9e199h4skk2139rz2",
+    "DEMO_POOL_AGENT_ID_ES": "",
     "GCAL_SHARE_EMAIL": "bookings@marisol-voice.iam.gserviceaccount.com",
     // 10%-off, duration=once coupon that referred clients redeem via their referrer's code.
     "STRIPE_REFERRAL_COUPON": "marisol_referral_10off",
