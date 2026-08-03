@@ -2,6 +2,7 @@
 
 import { Field, type FieldErrors } from "@/components/onboarding/Field";
 import { inputCls } from "@/components/onboarding/fieldStyles";
+import { CARRIERS, type Carrier } from "@/lib/forwarding";
 import { type Dict, fill } from "@/lib/i18n/dict";
 import {
   DAYS,
@@ -346,56 +347,6 @@ export function SetupFields({
         </div>
       </fieldset>
 
-      <fieldset className="m-0 border-0 p-0">
-        <legend className="mb-[10px] text-[13.5px] font-medium text-ink">{t.forwardLegend}</legend>
-        <div className="flex flex-col gap-2">
-          {(
-            [
-              {
-                id: "conditional",
-                label: t.forwardConditional,
-                desc: t.forwardConditionalDesc,
-                recommended: true,
-              },
-              {
-                id: "all",
-                label: t.forwardAll,
-                desc: t.forwardAllDesc,
-                recommended: false,
-              },
-            ] as const
-          ).map((opt) => (
-            <label
-              key={opt.id}
-              className={`flex cursor-pointer items-start gap-3 rounded-[14px] border px-4 py-3 ${
-                setup.forwardMode === opt.id
-                  ? "border-ink bg-white/80"
-                  : "border-ink/15 bg-white/50"
-              }`}
-            >
-              <input
-                type="radio"
-                name="ob-forward-mode"
-                checked={setup.forwardMode === opt.id}
-                onChange={() => patch({ forwardMode: opt.id })}
-                className="mt-[3px] h-[16px] w-[16px] accent-[#4F8C80]"
-              />
-              <span>
-                <span className="block text-[14.5px] font-medium">
-                  {opt.label}
-                  {opt.recommended && (
-                    <span className="ml-2 text-[12.5px] font-medium text-teal">
-                      {t.recommended}
-                    </span>
-                  )}
-                </span>
-                <span className="block text-[13px] text-muted">{opt.desc}</span>
-              </span>
-            </label>
-          ))}
-        </div>
-      </fieldset>
-
       <Field
         label={t.forwardNumber}
         htmlFor="ob-forward"
@@ -410,6 +361,21 @@ export function SetupFields({
           onChange={(e) => patch({ forwardNumber: e.target.value })}
           placeholder={t.forwardNumberPlaceholder}
         />
+      </Field>
+
+      <Field label={t.carrier} htmlFor="ob-carrier" hint={t.carrierHint}>
+        <select
+          id="ob-carrier"
+          className={`${inputCls} max-w-[420px]`}
+          value={setup.carrier ?? "unknown"}
+          onChange={(e) => patch({ carrier: e.target.value as Carrier })}
+        >
+          {CARRIERS.map((id) => (
+            <option key={id} value={id}>
+              {t.carrierOptions[id]}
+            </option>
+          ))}
+        </select>
       </Field>
 
       <Field label={t.notes} htmlFor="ob-notes">

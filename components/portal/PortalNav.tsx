@@ -7,6 +7,7 @@ import { useRef } from "react";
 
 const LINKS = [
   { href: "/portal", label: "Overview" },
+  { href: "/portal/forwarding", label: "Forwarding" },
   { href: "/portal/salons", label: "Salons" },
   { href: "/portal/setup", label: "Setup" },
   { href: "/portal/calendar", label: "Calendar" },

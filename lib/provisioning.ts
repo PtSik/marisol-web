@@ -275,7 +275,7 @@ export async function provisionLead(
       businessName: lead.basics.businessName,
       ownerName: lead.basics.ownerName,
       twilioNumber: bought.number,
-      forwardMode: lead.setup?.forwardMode ?? "conditional",
+      carrier: lead.setup?.carrier,
       // An additional location's owner already got their link with the first salon.
       referralCode: account?.referral_code,
     });

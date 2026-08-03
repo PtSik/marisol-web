@@ -237,7 +237,7 @@ export default async function ThanksPage({ searchParams }: ThanksProps) {
         {lead.assignedNumber && (
           <ForwardingCard
             twilioNumber={lead.assignedNumber}
-            forwardMode={lead.setup?.forwardMode ?? "conditional"}
+            carrier={lead.setup?.carrier}
             t={getDict(locale).forwarding}
           />
         )}

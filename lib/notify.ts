@@ -1,7 +1,7 @@
-import { type Segment, forwardingInstructions } from "@/lib/forwarding";
+import { type Carrier, type CodeLine, forwardingGuide } from "@/lib/forwarding";
 import { en } from "@/lib/i18n/en";
 import type { CheckoutLead } from "@/lib/leads";
-import type { DayId, ForwardMode, ServiceEntry, SetupDetails, WeekHours } from "@/lib/onboarding";
+import type { DayId, ServiceEntry, SetupDetails, WeekHours } from "@/lib/onboarding";
 import { normalizePlan } from "@/lib/plans";
 import { SITE_URL } from "@/lib/site";
 
@@ -116,7 +116,7 @@ function leadCard(lead: CheckoutLead): string {
           ["Services", formatServices(setup.services)],
           ["Staff", formatStaff(setup)],
           ["Calendar", setup.calendar],
-          ["Forwarding", `${setup.forwardMode} · ${setup.forwardNumber}`],
+          ["Forwarding", `${setup.forwardNumber} · carrier: ${setup.carrier ?? "unknown"}`],
           ["Notes", setup.notes],
         ])
       : "",
@@ -203,23 +203,36 @@ export async function sendProvisionAlert(
   });
 }
 
-function renderSegments(parts: Segment[]): string {
-  return parts
-    .map((part) => (typeof part === "string" ? esc(part) : `<strong>${esc(part.code)}</strong>`))
+function renderCodes(codes: CodeLine[]): string {
+  if (codes.length === 0) return "";
+  const lines = codes
+    .map(
+      (line) =>
+        `<p style="margin:4px 0 0;font-size:16px">${line.label ? `<span style="color:#6F6457;font-size:14px">${esc(line.label)} — </span>` : ""}<strong>${esc(line.code)}</strong></p>`,
+    )
     .join("");
+  return lines;
 }
 
-function forwardInstructions(mode: ForwardMode, twilioNumber: string): string {
-  const { intro, steps, turnOff } = forwardingInstructions(mode, twilioNumber, en.forwarding);
-  const items = steps
-    .map((step) => `<li><strong>${esc(step.device)}:</strong> ${renderSegments(step.parts)}</li>`)
+function forwardInstructions(carrier: Carrier | undefined, twilioNumber: string): string {
+  const t = en.forwarding;
+  const guide = forwardingGuide(carrier, twilioNumber, t);
+  const help = `<p style="margin:12px 0 0;color:#6F6457;font-size:13px"><a href="${SITE_URL}/portal/forwarding" style="color:#4F8C80">Full instructions and help</a> — or just reply to this email and we'll set it up with you.</p>`;
+
+  if (guide.voip) {
+    return `<p style="margin:0"><strong>${esc(t.voipTitle)}</strong></p>
+<p style="margin:6px 0 0;color:#6F6457">${esc(t.voipBody)}</p>${help}`;
+  }
+
+  const items = guide.steps
+    .map((step) => `<li style="margin:0 0 8px">${esc(step.text)}${renderCodes(step.codes)}</li>`)
     .join("\n");
-  return `${renderSegments(intro)}
-<ul style="margin:8px 0 0;padding-left:20px">
+
+  return `<div style="background:#FBEAE8;border-radius:10px;padding:10px 14px;margin:0 0 12px;font-size:13.5px">${esc(guide.warning)}</div>
+<ol style="margin:0;padding-left:20px">
 ${items}
-</ul>
-<p style="margin:8px 0 0;font-size:13px;color:#6F6457">${renderSegments(turnOff)}</p>
-<p style="margin:10px 0 0;color:#6F6457;font-size:13px">Forwarding codes differ between carriers — if these don't work, just reply and we'll set it up with you in a couple of minutes.</p>`;
+</ol>
+${guide.turnOff ? `<p style="margin:10px 0 0;font-size:13px;color:#6F6457">${esc(guide.turnOff.text)} ${guide.turnOff.codes.map((line) => `${line.label ? `${esc(line.label)} ` : ""}<strong>${esc(line.code)}</strong>`).join(" · ")}</p>` : ""}${help}`;
 }
 
 export interface ClientWelcome {
@@ -227,7 +240,7 @@ export interface ClientWelcome {
   businessName: string;
   ownerName: string;
   twilioNumber: string;
-  forwardMode: ForwardMode;
+  carrier?: Carrier;
   referralCode?: string;
 }
 
@@ -270,7 +283,7 @@ export async function sendClientWelcome(env: NotifyEnv, w: ClientWelcome): Promi
     <p style="margin:6px 0 0;font-size:24px;font-weight:600">${esc(w.twilioNumber)}</p>
   </div>
   <p style="font-size:16px;font-weight:600;margin:24px 0 4px">1. Forward your calls</p>
-  <div style="font-size:15px">${forwardInstructions(w.forwardMode, w.twilioNumber)}</div>
+  <div style="font-size:15px">${forwardInstructions(w.carrier, w.twilioNumber)}</div>
   <p style="font-size:16px;font-weight:600;margin:24px 0 4px">2. Your calendar comes next</p>
   <div style="font-size:15px"><p style="margin:0">We'll email you a one-click link to connect your Google Calendar shortly. Until then Marisol still answers every call, takes the details, and texts them to you.</p></div>
   ${referralBlock(w.referralCode)}

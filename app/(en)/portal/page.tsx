@@ -104,11 +104,7 @@ export default async function PortalOverviewPage({
       </div>
 
       {number ? (
-        <ForwardingCard
-          twilioNumber={number}
-          forwardMode={lead?.setup?.forwardMode ?? "conditional"}
-          t={en.forwarding}
-        />
+        <ForwardingCard twilioNumber={number} carrier={lead?.setup?.carrier} t={en.forwarding} />
       ) : (
         <PortalNotice tone="warn">
           Your Marisol number isn't assigned yet. If you finished checkout more than a few minutes

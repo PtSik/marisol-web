@@ -1,6 +1,7 @@
 import { env } from "cloudflare:workers";
 import { LogoMark } from "@/components/Logo";
 import { ADMIN_COOKIE, isAdminCookieValid } from "@/lib/adminAuth";
+import { CARRIER_REFERENCE, CARRIER_STATUS_CHECKS, carrierCodes } from "@/lib/forwarding";
 import { type CallLead, type CheckoutLead, listLeads } from "@/lib/leads";
 import { PAYOUT_LABEL, isPayoutMethod } from "@/lib/payout";
 import { normalizePlan } from "@/lib/plans";
@@ -140,7 +141,24 @@ function LeadTile({ lead, shop }: { lead: CheckoutLead; shop?: Shop }) {
         {lead.setup && (
           <>
             <dt className="text-muted">Forwarding</dt>
-            <dd>{lead.setup.forwardMode}</dd>
+            <dd>
+              {lead.setup.forwardNumber} · {lead.setup.carrier ?? "unknown"}
+              {lead.assignedNumber && (
+                <span className="block text-muted">
+                  {carrierCodes(lead.setup.carrier, lead.assignedNumber)
+                    .map((c) => `on ${c.dial} · off ${c.off}`)
+                    .join(" | ")}
+                </span>
+              )}
+              {lead.setup.carrier &&
+                lead.setup.carrier !== "unknown" &&
+                CARRIER_REFERENCE[lead.setup.carrier].map((note) => (
+                  <span key={note} className="block text-muted">
+                    {note}
+                  </span>
+                ))}
+              <span className="block text-muted">Check: {CARRIER_STATUS_CHECKS}</span>
+            </dd>
           </>
         )}
         {shop && (

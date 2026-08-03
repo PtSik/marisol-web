@@ -1,3 +1,5 @@
+import { type Carrier, isCarrier } from "@/lib/forwarding";
+
 export const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 export const PHONE_RE = /^(?=(?:\D*\d){7})[+()\-.\s\d]{7,20}$/;
 
@@ -59,9 +61,6 @@ export interface BusinessBasics {
   timezone: string;
 }
 
-export const FORWARD_MODES = ["conditional", "all"] as const;
-export type ForwardMode = (typeof FORWARD_MODES)[number];
-
 export interface StaffEntry {
   // Stable across name edits — voice-agent keys per-staff config (hours, later calendars) on it.
   id: string;
@@ -76,7 +75,9 @@ export interface SetupDetails {
   staffCustomHours: boolean;
   calendar: "google_calendar" | "none";
   forwardNumber: string;
-  forwardMode: ForwardMode;
+  // Optional: leads created before the carrier question exists still validate, and the forwarding
+  // card falls back to showing both code families.
+  carrier?: Carrier;
   notes: string;
 }
 
@@ -117,7 +118,7 @@ export function defaultSetup(vertical: Vertical, serviceNames: readonly string[]
     staffCustomHours: false,
     calendar: "google_calendar",
     forwardNumber: "",
-    forwardMode: "conditional",
+    carrier: "unknown",
     notes: "",
   };
 }
@@ -147,7 +148,7 @@ export function validateSetupPayload(setup: unknown): string | null {
 
   if (!isShortString(s.forwardNumber) || !PHONE_RE.test(s.forwardNumber))
     return "invalid forwardNumber";
-  if (!FORWARD_MODES.includes(s.forwardMode)) return "invalid forwardMode";
+  if (s.carrier !== undefined && !isCarrier(s.carrier)) return "invalid carrier";
   if (s.calendar !== "google_calendar" && s.calendar !== "none") return "invalid calendar";
   if (typeof s.notes !== "string" || s.notes.length > 2000) return "invalid notes";
 

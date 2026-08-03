@@ -67,7 +67,7 @@ export function SetupForm({
         {assignedNumber && (
           <ForwardingCard
             twilioNumber={assignedNumber}
-            forwardMode={setup.forwardMode}
+            carrier={setup.carrier}
             t={dict.forwarding}
           />
         )}
