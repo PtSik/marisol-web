@@ -1,6 +1,12 @@
 import { type CheckoutLead, putLeadIdForShop } from "@/lib/leads";
 import { notifyTeam, sendClientWelcome, sendProvisionAlert } from "@/lib/notify";
-import type { DayId, ServiceEntry, SetupDetails, WeekHours } from "@/lib/onboarding";
+import {
+  type DayId,
+  type ServiceEntry,
+  type SetupDetails,
+  type WeekHours,
+  coerceTimezone,
+} from "@/lib/onboarding";
 import { normalizePlan } from "@/lib/plans";
 import { type Account, createAccount, patchAccount } from "@/lib/portalApi";
 import { createReferralPromoCode } from "@/lib/stripe";
@@ -104,7 +110,9 @@ export function buildShopPayload(
     escalation_phone: basics.ownerMobile,
     owner_escalation_phone: basics.ownerMobile,
     owner_email: basics.email,
-    timezone: basics.timezone,
+    // Last gate before the shop row: whatever the lead carries, the agent gets a zone the portal
+    // can also render, so its setup stays editable.
+    timezone: coerceTimezone(basics.timezone),
     hours_json: JSON.stringify(toShopHours(setup.hours)),
     services_json: JSON.stringify(toShopServices(setup.services)),
     staff_json: JSON.stringify(toShopStaff(setup)),

@@ -10,6 +10,7 @@ import {
   type SetupDetails,
   type Vertical,
   type WeekHours,
+  invalidWeekHours,
   newStaffEntry,
 } from "@/lib/onboarding";
 
@@ -17,23 +18,16 @@ function cloneHours(hours: WeekHours): WeekHours {
   return Object.fromEntries(DAYS.map((day) => [day, { ...hours[day] }])) as unknown as WeekHours;
 }
 
-function hoursError(hours: WeekHours): boolean {
-  return DAYS.some((day) => {
-    const h = hours[day];
-    return !h.closed && h.open >= h.close;
-  });
-}
-
+// Runs on the setup the form is about to send (see `normalizeSetup`) and applies the worker's own
+// rules — `<input type="time">` hands back `""` when it is cleared or half-typed, and the old
+// check let that through to a bare 400.
 export function validateSetup(setup: SetupDetails, t: Dict["setup"]): FieldErrors {
   const errors: FieldErrors = {};
-  if (hoursError(setup.hours)) errors.hours = t.errHours;
+  if (invalidWeekHours(setup.hours)) errors.hours = t.errHours;
   const validServices = setup.services.filter((s) => s.name.trim() && Number(s.durationMin) > 0);
   if (validServices.length === 0) errors.services = t.errServices;
   if (!setup.staff.some((s) => s.name.trim())) errors.staff = t.errStaff;
-  else if (
-    setup.staffCustomHours &&
-    setup.staff.some((s) => s.name.trim() && s.hours && hoursError(s.hours))
-  ) {
+  else if (setup.staff.some((s) => s.hours && invalidWeekHours(s.hours))) {
     errors.staff = t.errStaffHours;
   }
   if (!PHONE_RE.test(setup.forwardNumber)) errors.forwardNumber = t.errForwardNumber;

@@ -12,8 +12,10 @@ import {
   TIMEZONE_IDS,
   VERTICAL_IDS,
   type Vertical,
+  coerceTimezone,
   defaultBasics,
   isBusinessBasics,
+  isTimezoneId,
 } from "@/lib/onboarding";
 import { type Billing, PLAN_OPTIONS, PRICE, type Plan, TRIAL_DAYS } from "@/lib/plans";
 import { track } from "@/lib/track";
@@ -31,6 +33,14 @@ interface StoredWizard {
 
 const isPlan = (value: unknown): value is Plan => PLAN_OPTIONS.some((plan) => plan === value);
 const isBilling = (value: unknown): value is Billing => value === "monthly" || value === "annual";
+
+// A save from before the US-only rule can hold any zone string. That is worth a fallback, not a
+// discarded form — the owner's typed name and numbers are in the same record.
+function storedBasics(value: unknown): BusinessBasics | null {
+  if (typeof value !== "object" || value === null) return null;
+  const candidate = { ...value, timezone: coerceTimezone((value as BusinessBasics).timezone) };
+  return isBusinessBasics(candidate) ? candidate : null;
+}
 
 function validateBasics(basics: BusinessBasics, t: Dict["onboarding"]): FieldErrors {
   const errors: FieldErrors = {};
@@ -77,14 +87,18 @@ export function OnboardingWizard({
       const saved = sessionStorage.getItem(STORAGE_KEY);
       const parsed = saved ? (JSON.parse(saved) as StoredWizard) : null;
       if (parsed?.planChosen === true) chosen = true;
-      if (parsed && isBusinessBasics(parsed.basics)) {
+      const restored = storedBasics(parsed?.basics);
+      if (restored) {
         // A stale save from a previous login shouldn't resurrect that account's email.
-        setBasics({ ...parsed.basics, email: accountEmail });
-        if (paramPlan === null && isPlan(parsed.plan)) setPlan(parsed.plan);
-        if (paramBilling === null && isBilling(parsed.billing)) setBilling(parsed.billing);
+        setBasics({ ...restored, email: accountEmail });
+        if (paramPlan === null && isPlan(parsed?.plan)) setPlan(parsed.plan);
+        if (paramBilling === null && isBilling(parsed?.billing)) setBilling(parsed.billing);
       } else {
+        // US-only: the browser's guess is a convenience, not an option. Anything off the list
+        // (a VPN, an owner on holiday, a non-US laptop) keeps the Eastern default, which the
+        // owner can still change by hand.
         const tz = Intl.DateTimeFormat().resolvedOptions().timeZone;
-        if (tz) setBasics((b) => ({ ...b, timezone: tz }));
+        if (isTimezoneId(tz)) setBasics((b) => ({ ...b, timezone: tz }));
       }
     } catch {
       /* corrupted storage — start fresh */
@@ -166,10 +180,9 @@ export function OnboardingWizard({
     }
   };
 
-  const known = TIMEZONE_IDS.map((id) => ({ id: id as string, label: dict.timezones[id] }));
-  const timezones = TIMEZONE_IDS.some((id) => id === basics.timezone)
-    ? known
-    : [{ id: basics.timezone, label: basics.timezone.replace(/_/g, " ") }, ...known];
+  // One list, shared with the portal — a zone the portal can't render is a zone that silently
+  // shows one value and submits another.
+  const timezones = TIMEZONE_IDS.map((id) => ({ id: id as string, label: dict.timezones[id] }));
 
   return (
     <div className="mx-auto max-w-[720px] px-[22px] pb-[clamp(48px,7vw,88px)]">

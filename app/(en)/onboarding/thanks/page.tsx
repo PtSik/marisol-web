@@ -1,5 +1,6 @@
 import { env } from "cloudflare:workers";
 import { LogoMark } from "@/components/Logo";
+import { SignOutButton } from "@/components/auth/SignOutButton";
 import { ForwardingCard } from "@/components/onboarding/ForwardingCard";
 import { SetupForm } from "@/components/onboarding/SetupForm";
 import { SetupCompleteHeading, ThanksHeading } from "@/components/onboarding/ThanksHeading";
@@ -50,7 +51,11 @@ function ConflictNote({ name, t }: { name: string; t: Dict["thanks"] }) {
   );
 }
 
-function Shell({ locale, children }: { locale: Locale; children: ReactNode }) {
+function Shell({
+  locale,
+  email,
+  children,
+}: { locale: Locale; email?: string; children: ReactNode }) {
   const home = LOCALE_PATH[locale];
   return (
     // The route lives under the English layout, so the Spanish funnel marks its own language here.
@@ -64,6 +69,7 @@ function Shell({ locale, children }: { locale: Locale; children: ReactNode }) {
             <LogoMark className="h-5 w-5 rounded-[3.5px]" />
             Marisol
           </a>
+          {email && <SignOutButton email={email} label={getDict(locale).auth.signOut} />}
         </div>
       </nav>
       <main className="mx-auto max-w-[720px] px-[22px] pb-[clamp(48px,7vw,88px)] pt-[clamp(40px,6vw,72px)]">
@@ -146,9 +152,13 @@ function ContactLine({
   );
 }
 
-function SessionNotFound({ t, locale }: { t: Dict["thanks"]; locale: Locale }) {
+function SessionNotFound({
+  t,
+  locale,
+  email,
+}: { t: Dict["thanks"]; locale: Locale; email?: string }) {
   return (
-    <Shell locale={locale}>
+    <Shell locale={locale} email={email}>
       <div className="text-center">
         <h1 className="mx-auto max-w-[24ch] font-display text-[clamp(28px,5vw,44px)] font-light leading-[1.08] tracking-[-0.03em]">
           {t.notFoundTitle}
@@ -176,9 +186,14 @@ export default async function ThanksPage({ searchParams }: ThanksProps) {
   let locale = parseLocale(lang);
   let t = getDict(locale).thanks;
 
+  // Resolved up front only so every branch can offer a way out: this page is where a failed
+  // provisioning run strands people, and until now none of these states had a sign-out.
+  const portalSession = await getSession(RATE_LIMIT_KV, await sessionIdFromCookies());
+  const email = portalSession?.email;
+
   if (!STRIPE_SECRET_KEY) {
     return (
-      <Shell locale={locale}>
+      <Shell locale={locale} email={email}>
         <ThanksHeading title={t.startedTitle} lead={fill(t.startedLead, { days: TRIAL_DAYS })} />
         <NextSteps t={t} locale={locale} />
         <ContactLine t={t} locale={locale} />
@@ -187,12 +202,12 @@ export default async function ThanksPage({ searchParams }: ThanksProps) {
   }
 
   if (!session_id || !SESSION_ID_RE.test(session_id)) {
-    return <SessionNotFound t={t} locale={locale} />;
+    return <SessionNotFound t={t} locale={locale} email={email} />;
   }
 
   const session = await getCheckoutSession(STRIPE_SECRET_KEY, session_id);
   if (!session) {
-    return <SessionNotFound t={t} locale={locale} />;
+    return <SessionNotFound t={t} locale={locale} email={email} />;
   }
 
   locale = parseLocale(session.metadata?.locale);
@@ -200,7 +215,7 @@ export default async function ThanksPage({ searchParams }: ThanksProps) {
 
   if (!checkoutSettled(session)) {
     return (
-      <Shell locale={locale}>
+      <Shell locale={locale} email={email}>
         <div className="text-center">
           <h1 className="mx-auto max-w-[22ch] font-display text-[clamp(28px,5vw,44px)] font-light leading-[1.08] tracking-[-0.03em]">
             {t.processingTitle}
@@ -216,7 +231,6 @@ export default async function ThanksPage({ searchParams }: ThanksProps) {
 
   // First-salon setup is a logged-in-only flow: an account already exists by the time checkout
   // happens, so a stranger with a stale link gets sent to sign in rather than shown the lead.
-  const portalSession = await getSession(RATE_LIMIT_KV, await sessionIdFromCookies());
   if (!portalSession) redirect("/login");
   // And it has to be this account's own checkout — the setup API enforces the same rule. Checkouts
   // from before account-first onboarding carry no account_id and fall through to the conflict notice.
@@ -232,7 +246,7 @@ export default async function ThanksPage({ searchParams }: ThanksProps) {
 
   if (lead?.status === "setup_complete" || lead?.status === "provisioned") {
     return (
-      <Shell locale={locale}>
+      <Shell locale={locale} email={email}>
         <SetupCompleteHeading hasNumber={Boolean(lead.assignedNumber)} t={t} />
         {lead.assignedNumber && (
           <ForwardingCard
@@ -260,7 +274,7 @@ export default async function ThanksPage({ searchParams }: ThanksProps) {
   }
 
   return (
-    <Shell locale={locale}>
+    <Shell locale={locale} email={email}>
       {conflictName && <ConflictNote name={conflictName} t={t} />}
       <SetupForm sessionId={session_id} vertical={vertical} locale={locale} />
       <NextSteps t={t} locale={locale} />

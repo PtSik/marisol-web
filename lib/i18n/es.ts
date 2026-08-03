@@ -72,6 +72,7 @@ export const es: Dict = {
     resetSuccess: "Tu contraseña se ha actualizado.",
     resetSuccessCta: "Iniciar sesión",
     resetInvalid: "Este enlace para restablecer la contraseña no es válido o ha caducado.",
+    signOut: "Cerrar sesión",
   },
   hero: {
     badge: "Español + English · cambia a mitad de llamada",
@@ -420,7 +421,7 @@ export const es: Dict = {
     changePlan: "Cambiar plan",
     promoCode: "Código promocional (opcional)",
     promoCodeHint: "De un asesor de Marisol o de una campaña — el descuento se aplica al pagar.",
-    promoCodePlaceholder: "ej. HIALEAH20",
+    promoCodePlaceholder: "Escribe tu código",
     referral: "Te recomendó (opcional)",
     referralHint:
       "El código de un amigo. Sin código promocional arriba, también te da 10% de descuento el primer mes.",
@@ -509,7 +510,8 @@ export const es: Dict = {
     },
     notes: "¿Algo más que debamos saber? (opcional)",
     notesPlaceholder: "Estacionamiento, política de walk-ins, un segundo idioma…",
-    errHours: "La hora de apertura debe ser antes del cierre en cada día abierto.",
+    errHours:
+      "Cada día abierto necesita hora de apertura y de cierre, y debe abrir antes de cerrar.",
     errServices: "Agrega al menos un servicio con nombre y duración.",
     errStaff: "Agrega al menos una persona.",
     errStaffHours:
@@ -518,6 +520,34 @@ export const es: Dict = {
     submit: "Terminar configuración",
     submitting: "Guardando…",
     errSubmit: "Algo salió mal al guardar tu configuración. Inténtalo de nuevo.",
+    errShopDrift:
+      "Guardamos tus respuestas, pero tu recepcionista no las recibió. Escríbenos antes de tu próxima llamada.",
+    errServer: {
+      "invalid setup":
+        "Algo de tu configuración no llegó completo. Recarga la página e inténtalo de nuevo.",
+      "invalid hours":
+        "Cada día abierto necesita hora de apertura y de cierre, y debe abrir antes de cerrar.",
+      "invalid services": "Agrega al menos un servicio con nombre y duración.",
+      "invalid staff":
+        "Revisa tu lista de personal — cada persona necesita nombre, y su horario debe empezar antes de terminar.",
+      "invalid forwardNumber": "Escribe el número al que tus clientes llaman hoy.",
+      "invalid carrier": "Elige tu compañía telefónica de la lista.",
+      "invalid calendar": "Elige una de las opciones de calendario.",
+      "invalid notes": "Tu nota es muy larga — máximo 2,000 caracteres.",
+      "invalid timezone": "Elige una zona horaria de la lista.",
+      "no setup on file":
+        "No encontramos la configuración de este salón. Escríbenos y lo resolvemos.",
+      "too many requests": "Son muchos intentos seguidos. Espera un minuto e inténtalo de nuevo.",
+      "not signed in": "Tu sesión expiró. Inicia sesión otra vez y vuelve a guardar.",
+      "invalid sessionId":
+        "Este enlace de configuración está incompleto. Ábrelo de nuevo desde tu correo.",
+      "unknown session": "No encontramos ese pago. Abre otra vez el enlace de tu correo.",
+      "not your checkout":
+        "Esta configuración es de otra cuenta. Cierra sesión y vuelve a iniciarla.",
+      "session not paid": "Tu pago aún no se confirma. Espera un minuto e inténtalo de nuevo.",
+      "checkout not configured":
+        "La configuración no está disponible ahora. Escríbenos y la terminamos.",
+    },
   },
   thanks: {
     metaTitle: "Ya quedaste — Marisol",

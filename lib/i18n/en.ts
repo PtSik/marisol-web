@@ -69,6 +69,7 @@ export const en = {
     resetSuccess: "Your password has been updated.",
     resetSuccessCta: "Sign in",
     resetInvalid: "This reset link is invalid or has expired.",
+    signOut: "Sign out",
   },
   hero: {
     badge: "English + Español · switches mid-call",
@@ -414,7 +415,9 @@ export const en = {
     changePlan: "Change plan",
     promoCode: "Promo code (optional)",
     promoCodeHint: "From a Marisol rep or a campaign — the discount is applied at checkout.",
-    promoCodePlaceholder: "e.g. HIALEAH20",
+    // Never an example: campaign codes are live, and one printed here is one every visitor can
+    // redeem without ever speaking to a rep. The hint above already says where a code comes from.
+    promoCodePlaceholder: "Enter your code",
     referral: "Referred by (optional)",
     referralHint:
       "A friend's code. Without a promo code above it also gives you 10% off your first month.",
@@ -500,7 +503,8 @@ export const en = {
     },
     notes: "Anything else we should know? (optional)",
     notesPlaceholder: "Parking info, walk-in policy, a second language…",
-    errHours: "Opening time must be before closing time on every open day.",
+    errHours:
+      "Every open day needs an opening and a closing time, and it must open before it closes.",
     errServices: "Add at least one service with a name and duration.",
     errStaff: "Add at least one staff member.",
     errStaffHours: "Start time must be before end time on every day a staff member works.",
@@ -508,6 +512,34 @@ export const en = {
     submit: "Finish setup",
     submitting: "Saving…",
     errSubmit: "Something went wrong saving your setup. Please try again.",
+    errShopDrift:
+      "We saved your answers, but your receptionist didn't pick them up. Email us before your next call.",
+    // What the worker rejected, in words the owner can act on. Anything unmapped falls back to
+    // `errSubmit` — but "please try again" on a rule the client can't satisfy is a dead end, so
+    // every code `validateSetupPayload` and the setup route can return is listed here.
+    errServer: {
+      "invalid setup":
+        "Something in your setup didn't come through. Reload the page and try again.",
+      "invalid hours":
+        "Every open day needs an opening and a closing time, and it must open before it closes.",
+      "invalid services": "Add at least one service with a name and duration.",
+      "invalid staff":
+        "Check your staff list — everyone needs a name, and their hours must start before they end.",
+      "invalid forwardNumber": "Enter the number your customers currently call.",
+      "invalid carrier": "Pick your phone carrier from the list.",
+      "invalid calendar": "Pick one of the calendar options.",
+      "invalid notes": "Your note is too long — keep it under 2,000 characters.",
+      "invalid timezone": "Pick a time zone from the list.",
+      "no setup on file": "We couldn't find this salon's setup. Email us and we'll sort it out.",
+      "too many requests": "That's a lot of saves in a row. Wait a minute and try again.",
+      "not signed in": "Your session expired. Sign in again, then save.",
+      // Only the onboarding form can hit these — it carries a Stripe checkout id.
+      "invalid sessionId": "This setup link is incomplete. Open it again from your email.",
+      "unknown session": "We couldn't find that checkout. Open the link from your email again.",
+      "not your checkout": "This setup belongs to a different account. Sign out and sign back in.",
+      "session not paid": "Your payment hasn't confirmed yet. Give it a minute and try again.",
+      "checkout not configured": "Setup isn't available right now. Email us and we'll finish it.",
+    },
   },
   thanks: {
     metaTitle: "You're in — Marisol",

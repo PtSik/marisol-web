@@ -1,5 +1,6 @@
 import { env } from "cloudflare:workers";
 import { LogoMark } from "@/components/Logo";
+import { SignOutButton } from "@/components/auth/SignOutButton";
 import { OnboardingWizard } from "@/components/onboarding/OnboardingWizard";
 import { LOCALE_PATH, getDict, parseLocale } from "@/lib/i18n/dict";
 import { getSession, sessionIdFromCookies } from "@/lib/session";
@@ -40,9 +41,12 @@ export default async function OnboardingPage({ searchParams }: OnboardingProps) 
             <LogoMark className="h-5 w-5 rounded-[3.5px]" />
             Marisol
           </a>
-          <a href={siteHref(home)} className="text-sm text-muted no-underline">
-            {t.back}
-          </a>
+          <div className="flex items-center gap-4">
+            <a href={siteHref(home)} className="text-sm text-muted no-underline">
+              {t.back}
+            </a>
+            <SignOutButton email={session.email} label={getDict(locale).auth.signOut} />
+          </div>
         </div>
       </nav>
       <main className="pt-[clamp(32px,5vw,56px)]">

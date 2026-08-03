@@ -3,7 +3,7 @@ import { PortalHeading, PortalNotice } from "@/components/portal/PortalHeading";
 import { PortalSetupForm } from "@/components/portal/PortalSetupForm";
 import { en } from "@/lib/i18n/en";
 import { getLead } from "@/lib/leads";
-import { defaultSetup } from "@/lib/onboarding";
+import { coerceTimezone, defaultSetup } from "@/lib/onboarding";
 import type { PortalEnv } from "@/lib/portalApi";
 import { getPortalContext } from "@/lib/portalContext";
 import { SALES_EMAIL_HREF } from "@/lib/site";
@@ -40,7 +40,7 @@ export default async function PortalSetupPage() {
       />
       <PortalSetupForm
         initialSetup={lead.setup ?? defaultSetup(vertical, en.setup.servicePresets[vertical])}
-        initialTimezone={lead.basics.timezone}
+        initialTimezone={coerceTimezone(lead.basics.timezone)}
         vertical={vertical}
       />
     </>

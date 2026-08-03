@@ -10,10 +10,12 @@ import {
 import { notifyTeam } from "@/lib/notify";
 import {
   type BusinessBasics,
+  DEFAULT_TIMEZONE,
   EMAIL_RE,
   PHONE_RE,
   type SetupDetails,
   VERTICAL_IDS,
+  isTimezoneId,
   validateSetupPayload,
 } from "@/lib/onboarding";
 import {
@@ -112,7 +114,9 @@ function validateBasics(basics: unknown): string | null {
   for (const field of ["businessPhone", "ownerMobile"] as const) {
     if (!isShortString(b[field]) || !PHONE_RE.test(b[field])) return `invalid ${field}`;
   }
-  if (!isShortString(b.timezone, 60)) return "invalid timezone";
+  // US-only, and the same list the portal offers — a shop that gets a zone the portal can't render
+  // is a shop whose owner can never save its setup again.
+  if (!isTimezoneId(b.timezone)) return "invalid timezone";
   return null;
 }
 
@@ -135,7 +139,9 @@ function reconstructLead(leadId: string, session: StripeCheckoutSession): Checko
       email: session.customer_details?.email ?? session.customer_email ?? "",
       businessPhone: meta.business_phone ?? "",
       ownerMobile: "",
-      timezone: "",
+      // Stripe metadata never carried the zone; the rebuilt lead takes the default rather than an
+      // empty string the agent would read as "no opening hours anywhere".
+      timezone: DEFAULT_TIMEZONE,
     },
     status: "created",
     accountId: meta.account_id,

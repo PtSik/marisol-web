@@ -1,6 +1,8 @@
 "use client";
 
 import { LogoMark } from "@/components/Logo";
+import { SignOutButton } from "@/components/auth/SignOutButton";
+import { en } from "@/lib/i18n/en";
 import { siteHref } from "@/lib/site";
 import { usePathname } from "next/navigation";
 import { useRef } from "react";
@@ -95,12 +97,7 @@ export function PortalNav({
         </ul>
         <div className="flex items-center gap-3">
           <SalonSwitcher shops={shops} activeShopId={activeShopId} />
-          <form method="post" action="/api/auth/logout" className="flex items-center gap-3">
-            <span className="hidden text-[13px] text-muted-2 sm:inline">{email}</span>
-            <button type="submit" className="text-[14px] font-medium text-teal">
-              Sign out
-            </button>
-          </form>
+          <SignOutButton email={email} label={en.auth.signOut} />
         </div>
       </div>
     </nav>

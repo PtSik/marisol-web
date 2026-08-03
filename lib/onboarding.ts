@@ -51,6 +51,21 @@ export const TIMEZONE_IDS = [
   "America/Puerto_Rico",
 ] as const;
 
+export type TimezoneId = (typeof TIMEZONE_IDS)[number];
+
+export const DEFAULT_TIMEZONE: TimezoneId = "America/New_York";
+
+export function isTimezoneId(value: unknown): value is TimezoneId {
+  return typeof value === "string" && TIMEZONE_IDS.some((id) => id === value);
+}
+
+// US-only: we only sell US numbers, so a zone outside the list is always a browser guess rather
+// than a choice. It falls back here instead of reaching a shop row, where it would make the agent
+// quote opening hours in the wrong zone.
+export function coerceTimezone(value: unknown): TimezoneId {
+  return isTimezoneId(value) ? value : DEFAULT_TIMEZONE;
+}
+
 export interface BusinessBasics {
   vertical: Vertical;
   businessName: string;
@@ -106,7 +121,7 @@ export function defaultBasics(vertical: Vertical = "barbershop"): BusinessBasics
     email: "",
     businessPhone: "",
     ownerMobile: "",
-    timezone: "America/New_York",
+    timezone: DEFAULT_TIMEZONE,
   };
 }
 
@@ -129,15 +144,30 @@ function isShortString(value: unknown, max = 120): value is string {
   return typeof value === "string" && value.length <= max;
 }
 
-function invalidWeekHours(hours: unknown): boolean {
+// Shared by the browser and the worker — the form imports this rather than keeping its own copy,
+// because every rule that exists on one side only turns into a bare 400 the client can't explain.
+// A closed day's times are hidden in the UI, so they are never required to parse: demanding it
+// there would be an error with no field to fix it in.
+export function invalidWeekHours(hours: unknown): boolean {
   if (typeof hours !== "object" || hours === null) return true;
   const week = hours as WeekHours;
   return DAYS.some((day) => {
     const h = week[day];
-    if (typeof h?.closed !== "boolean" || !TIME_RE.test(h.open) || !TIME_RE.test(h.close))
-      return true;
-    return !h.closed && h.open >= h.close;
+    if (typeof h?.closed !== "boolean") return true;
+    if (h.closed) return typeof h.open !== "string" || typeof h.close !== "string";
+    return !TIME_RE.test(h.open) || !TIME_RE.test(h.close) || h.open >= h.close;
   });
+}
+
+// The shape the server validates. With per-person hours switched off the UI hides those fields,
+// so anything still sitting in them is invisible and uneditable — it must not be able to block a
+// save. Both setup forms send the normalised copy and validate that same copy.
+export function normalizeSetup(setup: SetupDetails): SetupDetails {
+  if (setup.staffCustomHours) return setup;
+  return {
+    ...setup,
+    staff: setup.staff.map((m) => (m.hours === null ? m : { ...m, hours: null })),
+  };
 }
 
 // Server-side gate for anything that writes a shop's configuration — the onboarding setup
@@ -188,8 +218,9 @@ export function isBusinessBasics(value: unknown): value is BusinessBasics {
   const v = value as Record<string, unknown>;
   return (
     VERTICAL_IDS.includes(v.vertical as Vertical) &&
-    ["businessName", "ownerName", "email", "businessPhone", "ownerMobile", "timezone"].every(
+    ["businessName", "ownerName", "email", "businessPhone", "ownerMobile"].every(
       (key) => typeof v[key] === "string",
-    )
+    ) &&
+    isTimezoneId(v.timezone)
   );
 }

@@ -3,8 +3,9 @@
 import { Field, type FieldErrors } from "@/components/onboarding/Field";
 import { SetupFields, validateSetup } from "@/components/onboarding/SetupFields";
 import { inputCls } from "@/components/onboarding/fieldStyles";
+import { setupErrorMessage } from "@/lib/i18n/dict";
 import { en } from "@/lib/i18n/en";
-import { type SetupDetails, TIMEZONE_IDS, type Vertical } from "@/lib/onboarding";
+import { type SetupDetails, TIMEZONE_IDS, type Vertical, normalizeSetup } from "@/lib/onboarding";
 import { useState } from "react";
 
 export function PortalSetupForm({
@@ -17,6 +18,7 @@ export function PortalSetupForm({
   const [errors, setErrors] = useState<FieldErrors>({});
   const [saving, setSaving] = useState(false);
   const [status, setStatus] = useState<"idle" | "saved" | "failed">("idle");
+  const [failure, setFailure] = useState(en.setup.errSubmit);
 
   const patch = (partial: Partial<SetupDetails>) => {
     setStatus("idle");
@@ -24,7 +26,10 @@ export function PortalSetupForm({
   };
 
   const save = async () => {
-    const errs = validateSetup(setup, en.setup);
+    // Validate and send the same object — a lead saved before the staff-hours rules changed can
+    // carry hours behind a switched-off toggle, and those fields aren't on screen to be fixed.
+    const payload = normalizeSetup(setup);
+    const errs = validateSetup(payload, en.setup);
     setErrors(errs);
     if (Object.keys(errs).length > 0) return;
     setSaving(true);
@@ -33,11 +38,22 @@ export function PortalSetupForm({
       const res = await fetch("/api/portal/setup", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ setup, timezone }),
+        body: JSON.stringify({ setup: payload, timezone }),
       });
-      const body = (await res.json()) as { ok?: boolean; shopUpdated?: boolean };
-      setStatus(res.ok && body.ok && body.shopUpdated ? "saved" : "failed");
+      const body = (await res.json()) as { ok?: boolean; shopUpdated?: boolean; error?: string };
+      if (res.ok && body.ok && body.shopUpdated) {
+        setSetup(payload);
+        setStatus("saved");
+      } else {
+        // Saved but not applied is a different problem from rejected, and needs a different answer
+        // than "try again" — the retry would keep succeeding while the agent stays stale.
+        setFailure(
+          res.ok && body.ok ? en.setup.errShopDrift : setupErrorMessage(en.setup, body.error),
+        );
+        setStatus("failed");
+      }
     } catch {
+      setFailure(en.setup.errSubmit);
       setStatus("failed");
     }
     setSaving(false);
@@ -78,8 +94,8 @@ export function PortalSetupForm({
           </output>
         )}
         {status === "failed" && (
-          <p role="alert" className="text-[14px] font-medium text-[#B4452C]">
-            We couldn't save that. Please try again.
+          <p role="alert" className="max-w-[46ch] text-[14px] font-medium text-[#B4452C]">
+            {failure}
           </p>
         )}
         <button

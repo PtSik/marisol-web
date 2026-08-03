@@ -1,7 +1,7 @@
 import { env } from "cloudflare:workers";
 import { EMAIL_RE } from "@/lib/onboarding";
 import { type PortalEnv, verifyAccountPassword } from "@/lib/portalApi";
-import { overRateLimit } from "@/lib/rateLimit";
+import { bumpRateLimit, clearRateLimit, rateLimited } from "@/lib/rateLimit";
 import { createSession, sessionCookie } from "@/lib/session";
 
 export const dynamic = "force-dynamic";
@@ -11,13 +11,20 @@ interface LoginRequest {
   password?: string;
 }
 
+// Two buckets, and only failed attempts fill either. The per-account one is the real brute-force
+// defence; the per-IP one is a wide backstop against someone spraying many accounts, set high
+// enough that a salon whose whole team shares one NAT address never reaches it by signing in.
+const FAILURES_PER_IP = 50;
+const FAILURES_PER_ACCOUNT = 10;
+
 export async function POST(request: Request): Promise<Response> {
   const cfEnv = env as unknown as PortalEnv;
+  const kv = cfEnv.RATE_LIMIT_KV;
 
   const ip = request.headers.get("CF-Connecting-IP") ?? "";
-  if (await overRateLimit(cfEnv.RATE_LIMIT_KV, ip && `auth:login:${ip}`, 10)) {
-    return Response.json({ error: "too many requests" }, { status: 429 });
-  }
+  const ipKey = ip && `auth:login:${ip}`;
+  const tooMany = () => Response.json({ error: "too many requests" }, { status: 429 });
+  if (await rateLimited(kv, ipKey, FAILURES_PER_IP)) return tooMany();
 
   let body: LoginRequest;
   try {
@@ -29,10 +36,25 @@ export async function POST(request: Request): Promise<Response> {
   const email = typeof body.email === "string" ? body.email.trim().toLowerCase() : "";
   const password = typeof body.password === "string" ? body.password : "";
   const invalid = () => Response.json({ error: "invalid email or password" }, { status: 401 });
-  if (!EMAIL_RE.test(email) || !password) return invalid();
+  // A malformed address matches no account, so it only costs the IP bucket — there is no account
+  // bucket to charge, and the length cap keeps it from writing an oversized KV key.
+  if (!EMAIL_RE.test(email) || email.length > 160 || !password) {
+    await bumpRateLimit(kv, ipKey);
+    return invalid();
+  }
+
+  const accountKey = `auth:login:acct:${email}`;
+  if (await rateLimited(kv, accountKey, FAILURES_PER_ACCOUNT)) return tooMany();
 
   const account = await verifyAccountPassword(cfEnv, email, password);
-  if (!account) return invalid();
+  if (!account) {
+    await Promise.all([bumpRateLimit(kv, ipKey), bumpRateLimit(kv, accountKey)]);
+    return invalid();
+  }
+
+  // Proving you own the account clears its failure streak — a mistyped password earlier in the
+  // hour must not count against the owner who then gets it right.
+  await clearRateLimit(kv, accountKey);
 
   const sessionId = await createSession(cfEnv.RATE_LIMIT_KV, {
     accountId: account.id,

@@ -4,8 +4,8 @@ import type { FieldErrors } from "@/components/onboarding/Field";
 import { ForwardingCard } from "@/components/onboarding/ForwardingCard";
 import { SetupFields, validateSetup } from "@/components/onboarding/SetupFields";
 import { SetupCompleteHeading, ThanksHeading } from "@/components/onboarding/ThanksHeading";
-import { type Locale, getDict } from "@/lib/i18n/dict";
-import { type SetupDetails, type Vertical, defaultSetup } from "@/lib/onboarding";
+import { type Locale, getDict, setupErrorMessage } from "@/lib/i18n/dict";
+import { type SetupDetails, type Vertical, defaultSetup, normalizeSetup } from "@/lib/onboarding";
 import { track } from "@/lib/track";
 import { useEffect, useState } from "react";
 
@@ -36,7 +36,9 @@ export function SetupForm({
   const patch = (partial: Partial<SetupDetails>) => setSetup((s) => ({ ...s, ...partial }));
 
   const submit = async () => {
-    const errs = validateSetup(setup, t);
+    // Validate and send the same object — see `normalizeSetup`.
+    const payload = normalizeSetup(setup);
+    const errs = validateSetup(payload, t);
     setErrors(errs);
     if (Object.keys(errs).length > 0) return;
     setSubmitting(true);
@@ -45,11 +47,15 @@ export function SetupForm({
       const res = await fetch("/api/onboarding", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ intent: "setup", sessionId, setup }),
+        body: JSON.stringify({ intent: "setup", sessionId, setup: payload }),
       });
       const body = (await res.json()) as { ok?: boolean; error?: string; number?: string };
       if (!res.ok || !body.ok) {
-        throw new Error(body.error ?? "setup failed");
+        // The worker names what it rejected; repeating "try again" hides the one thing that
+        // would let the owner finish.
+        setSubmitError(setupErrorMessage(t, body.error));
+        setSubmitting(false);
+        return;
       }
       track("setup_completed");
       setAssignedNumber(body.number ?? null);
