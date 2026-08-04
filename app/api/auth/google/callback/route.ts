@@ -1,6 +1,7 @@
 import { env } from "cloudflare:workers";
 import { timingSafeEqualStr } from "@/lib/adminAuth";
 import { callbackUrl, exchangeCode, verifyIdToken } from "@/lib/googleLogin";
+import { appHref } from "@/lib/i18n/dict";
 import { type PortalEnv, createAccount, findAccountByEmail, patchAccount } from "@/lib/portalApi";
 import {
   OAUTH_STATE_COOKIE,
@@ -9,7 +10,6 @@ import {
   parseOauthState,
   sessionCookie,
 } from "@/lib/session";
-import { APP_URL } from "@/lib/site";
 import { cookies } from "next/headers";
 
 export const dynamic = "force-dynamic";
@@ -82,7 +82,11 @@ export async function GET(request: Request): Promise<Response> {
   });
   if (!sessionId) return toLogin(request, "session_failed");
 
-  const headers = new Headers({ Location: new URL("/portal", APP_URL).toString() });
+  // The locale survived the round trip in the state cookie; `/portal` needs it because a brand new
+  // Google account has no salon and is forwarded straight into the onboarding wizard.
+  const headers = new Headers({
+    Location: appHref(oauthState.lang === "es" ? "es" : "en", "/portal"),
+  });
   headers.append("Set-Cookie", sessionCookie(sessionId));
   headers.append("Set-Cookie", clearedStateCookie());
   return new Response(null, { status: 303, headers });

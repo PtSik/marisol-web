@@ -3,8 +3,7 @@
 import { LangMenuItem, LangSwitch } from "@/components/LangSwitch";
 import { LogoMark } from "@/components/Logo";
 import { useAuthModal } from "@/components/auth/AuthModalProvider";
-import type { Dict, Locale } from "@/lib/i18n/dict";
-import { APP_URL } from "@/lib/site";
+import { type Dict, type Locale, appHref } from "@/lib/i18n/dict";
 import { useEffect, useRef } from "react";
 
 export function Nav({
@@ -138,7 +137,7 @@ export function Nav({
 
             {authed ? (
               <a
-                href={`${APP_URL}/portal`}
+                href={appHref(locale, "/portal")}
                 className="order-1 inline-flex min-h-[40px] items-center justify-center whitespace-nowrap rounded-xl bg-ink px-[14px] py-[8px] text-[13px] font-medium text-cream no-underline sm:min-h-[44px] sm:px-[18px] sm:py-[11px] sm:text-sm"
               >
                 {t.dashboard}

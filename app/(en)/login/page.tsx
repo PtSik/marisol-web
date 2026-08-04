@@ -1,7 +1,7 @@
 import { GoogleGlyph } from "@/components/GoogleGlyph";
 import { LogoMark } from "@/components/Logo";
 import { SignInPanel } from "@/components/auth/SignInPanel";
-import { en } from "@/lib/i18n/en";
+import { getDict, googleStartHref, parseLocale } from "@/lib/i18n/dict";
 import { SALES_EMAIL, SALES_EMAIL_HREF, siteHref } from "@/lib/site";
 
 export const dynamic = "force-dynamic";
@@ -22,11 +22,14 @@ const ERRORS: Record<string, string> = {
 export default async function LoginPage({
   searchParams,
 }: {
-  searchParams: Promise<{ error?: string }>;
+  searchParams: Promise<{ error?: string; lang?: string }>;
 }) {
-  const { error } = await searchParams;
+  const { error, lang } = await searchParams;
   const message = error ? (ERRORS[error] ?? ERRORS.oauth_failed) : null;
-  const t = en.auth;
+  // The page copy is still English-only; the locale is carried so that whatever the client signs in
+  // with lands them back on the Spanish wizard rather than silently switching them to English.
+  const locale = parseLocale(lang);
+  const t = getDict(locale).auth;
 
   return (
     <main className="mx-auto flex min-h-[80vh] max-w-shell items-center justify-center px-[22px]">
@@ -51,7 +54,7 @@ export default async function LoginPage({
           </p>
         )}
         <a
-          href="/api/auth/google/start"
+          href={googleStartHref(locale)}
           className="mt-6 inline-flex min-h-[50px] w-full items-center justify-center gap-[10px] rounded-[13px] border border-ink/15 bg-white px-6 py-[14px] text-[15px] font-medium text-ink no-underline"
         >
           <GoogleGlyph />
@@ -64,7 +67,7 @@ export default async function LoginPage({
           <span className="h-px flex-1 bg-ink/10" />
         </div>
 
-        <SignInPanel t={t} />
+        <SignInPanel t={t} locale={locale} />
 
         <p className="mt-5 text-center text-[13px] leading-[1.55] text-muted-2">
           {t.noAccount}

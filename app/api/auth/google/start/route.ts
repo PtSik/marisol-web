@@ -25,7 +25,8 @@ export async function GET(request: Request): Promise<Response> {
   }
 
   const state = crypto.randomUUID();
-  const payload: OauthState = { state };
+  const lang = new URL(request.url).searchParams.get("lang");
+  const payload: OauthState = { state, ...(lang === "es" ? { lang: "es" as const } : {}) };
   const headers = new Headers({
     Location: buildAuthUrl(cfEnv.GOOGLE_LOGIN_CLIENT_ID, callbackUrl(request.url), state),
   });

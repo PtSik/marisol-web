@@ -34,7 +34,7 @@ export function LandingPage({ locale, authed }: { locale: Locale; authed: boolea
         <LiveDemo t={t.demo} widget={t.widget} personas={t.personas} locale={locale} />
         <Features t={t.features} />
         <DoneForYou t={t.doneForYou} />
-        <Pricing t={t.pricing} authed={authed} />
+        <Pricing t={t.pricing} authed={authed} locale={locale} />
         <ReferralBand t={t.referralBand} locale={locale} />
         <Faq t={t.faq} />
         <FinalCta t={t.finalCta} form={t.callForm} />

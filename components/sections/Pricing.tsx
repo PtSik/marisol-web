@@ -3,9 +3,9 @@
 import { useAuthModal } from "@/components/auth/AuthModalProvider";
 import { Reveal } from "@/components/motion/Reveal";
 import { MultiLocationBand, PlanCards, tierCtaLabel } from "@/components/pricing/PlanCards";
-import { type Dict, fill } from "@/lib/i18n/dict";
+import { type Dict, type Locale, appHref, fill } from "@/lib/i18n/dict";
 import { type Billing, EXTRA_LOCATION_PRICE, type Plan, TRIAL_DAYS } from "@/lib/plans";
-import { APP_URL, SALES_EMAIL_HREF } from "@/lib/site";
+import { SALES_EMAIL_HREF } from "@/lib/site";
 import { useState } from "react";
 
 const CTA_BASE =
@@ -14,7 +14,11 @@ const CTA_BASE =
 const ctaCls = (tier: Plan): string =>
   tier === "complete" ? `${CTA_BASE} bg-cream text-ink` : `${CTA_BASE} bg-ink text-cream`;
 
-export function Pricing({ t, authed }: { t: Dict["pricing"]; authed: boolean }) {
+export function Pricing({
+  t,
+  authed,
+  locale,
+}: { t: Dict["pricing"]; authed: boolean; locale: Locale }) {
   const [billing, setBilling] = useState<Billing>("annual");
   const { openSignup } = useAuthModal();
 
@@ -22,7 +26,7 @@ export function Pricing({ t, authed }: { t: Dict["pricing"]; authed: boolean }) 
     const label = tierCtaLabel(t, tier);
     if (authed) {
       return (
-        <a href={`${APP_URL}/portal?plan=${tier}&billing=${billing}`} className={ctaCls(tier)}>
+        <a href={appHref(locale, "/portal", { plan: tier, billing })} className={ctaCls(tier)}>
           {label}
         </a>
       );

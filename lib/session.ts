@@ -80,6 +80,9 @@ function cookie(name: string, value: string, maxAge: number): string {
 
 export interface OauthState {
   state: string;
+  // Only ever "es": English is the default the callback falls back to, so an absent value and an
+  // explicit "en" have to mean the same thing.
+  lang?: "es";
 }
 
 function b64urlEncode(json: string): string {
@@ -103,7 +106,9 @@ export function parseOauthState(raw: string | undefined): OauthState | null {
   if (!raw) return null;
   try {
     const parsed = JSON.parse(b64urlDecode(raw)) as Partial<OauthState>;
-    if (parsed && typeof parsed.state === "string") return { state: parsed.state };
+    if (parsed && typeof parsed.state === "string") {
+      return { state: parsed.state, ...(parsed.lang === "es" ? { lang: "es" as const } : {}) };
+    }
   } catch {
     /* not our JSON payload — a bare-string cookie from a previous deploy */
   }

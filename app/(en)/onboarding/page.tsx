@@ -1,4 +1,5 @@
 import { env } from "cloudflare:workers";
+import { LangSwitch } from "@/components/LangSwitch";
 import { LogoMark } from "@/components/Logo";
 import { SignOutButton } from "@/components/auth/SignOutButton";
 import { OnboardingWizard } from "@/components/onboarding/OnboardingWizard";
@@ -27,7 +28,8 @@ export default async function OnboardingPage({ searchParams }: OnboardingProps) 
   const t = getDict(locale).onboarding;
   const { RATE_LIMIT_KV } = env as unknown as OnboardingEnv;
   const session = await getSession(RATE_LIMIT_KV, await sessionIdFromCookies());
-  if (!session) redirect("/login");
+  // Sign-in sends the client back here, so the locale has to survive the detour.
+  if (!session) redirect(locale === "es" ? "/login?lang=es" : "/login");
 
   return (
     // The route lives under the English layout, so the Spanish funnel marks its own language here.
@@ -45,6 +47,7 @@ export default async function OnboardingPage({ searchParams }: OnboardingProps) 
             <a href={siteHref(home)} className="text-sm text-muted no-underline">
               {t.back}
             </a>
+            <LangSwitch locale={locale} t={getDict(locale).lang} path="/onboarding" byQuery />
             <SignOutButton email={session.email} label={getDict(locale).auth.signOut} />
           </div>
         </div>

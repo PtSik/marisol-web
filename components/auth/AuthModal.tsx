@@ -4,10 +4,9 @@ import { GoogleGlyph } from "@/components/GoogleGlyph";
 import { Modal } from "@/components/Modal";
 import { Field, type FieldErrors } from "@/components/onboarding/Field";
 import { inputCls } from "@/components/onboarding/fieldStyles";
-import type { Dict, Locale } from "@/lib/i18n/dict";
+import { type Dict, type Locale, appHref, googleStartHref } from "@/lib/i18n/dict";
 import { EMAIL_RE } from "@/lib/onboarding";
 import type { Billing, Plan } from "@/lib/plans";
-import { APP_URL } from "@/lib/site";
 import { useEffect, useId, useState } from "react";
 
 export type AuthTab = "signup" | "signin";
@@ -33,15 +32,21 @@ async function postJson(
 }
 
 // Carries the plan/billing the client picked on the pricing card through to the dashboard, in the
-// same `?plan=&billing=` shape the authed Pricing CTA already links with.
-function goToApp(redirect: string, plan?: Plan, billing?: Billing) {
-  const url = new URL(redirect, APP_URL);
-  if (plan) url.searchParams.set("plan", plan);
-  if (billing) url.searchParams.set("billing", billing);
-  window.location.href = url.toString();
+// same `?plan=&billing=` shape the authed Pricing CTA already links with — and the locale with it,
+// since `/portal` forwards a fresh account straight into the onboarding wizard.
+function goToApp(redirect: string, locale: Locale, plan?: Plan, billing?: Billing) {
+  const params: Record<string, string> = {};
+  if (plan) params.plan = plan;
+  if (billing) params.billing = billing;
+  window.location.href = appHref(locale, redirect, params);
 }
 
-function SignupForm({ t, plan, billing }: { t: Dict["auth"]; plan?: Plan; billing?: Billing }) {
+function SignupForm({
+  t,
+  locale,
+  plan,
+  billing,
+}: { t: Dict["auth"]; locale: Locale; plan?: Plan; billing?: Billing }) {
   const idPrefix = useId();
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
@@ -74,7 +79,7 @@ function SignupForm({ t, plan, billing }: { t: Dict["auth"]; plan?: Plan; billin
         setSubmitting(false);
         return;
       }
-      goToApp(redirect, plan, billing);
+      goToApp(redirect, locale, plan, billing);
     } catch {
       setServerError(t.errGeneric);
       setSubmitting(false);
@@ -249,10 +254,17 @@ export function ForgotPassword({ t, onBack }: { t: Dict["auth"]; onBack: () => v
 
 export function SigninForm({
   t,
+  locale,
   plan,
   billing,
   onForgot,
-}: { t: Dict["auth"]; plan?: Plan; billing?: Billing; onForgot: () => void }) {
+}: {
+  t: Dict["auth"];
+  locale: Locale;
+  plan?: Plan;
+  billing?: Billing;
+  onForgot: () => void;
+}) {
   const idPrefix = useId();
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
@@ -276,7 +288,7 @@ export function SigninForm({
         setSubmitting(false);
         return;
       }
-      goToApp(redirect, plan, billing);
+      goToApp(redirect, locale, plan, billing);
     } catch {
       setServerError(t.errGeneric);
       setSubmitting(false);
@@ -427,7 +439,7 @@ export function AuthModal({
       ) : (
         <>
           <a
-            href="/api/auth/google/start"
+            href={googleStartHref(locale)}
             className="mt-6 inline-flex min-h-[50px] w-full items-center justify-center gap-[10px] rounded-[13px] border border-ink/15 bg-white px-6 py-[14px] text-[15px] font-medium text-ink no-underline"
           >
             <GoogleGlyph />
@@ -442,7 +454,7 @@ export function AuthModal({
 
           {tab === "signup" ? (
             <>
-              <SignupForm t={t} plan={plan} billing={billing} />
+              <SignupForm t={t} locale={locale} plan={plan} billing={billing} />
               <p className="mt-5 text-center text-[13px] leading-[1.55] text-muted-2">
                 {t.hasAccount}
                 <button
@@ -458,6 +470,7 @@ export function AuthModal({
             <>
               <SigninForm
                 t={t}
+                locale={locale}
                 plan={plan}
                 billing={billing}
                 onForgot={() => setForgotOpen(true)}

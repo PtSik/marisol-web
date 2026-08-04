@@ -3,11 +3,28 @@
 import type { Dict, Locale } from "@/lib/i18n/dict";
 import { useEffect, useRef, useState } from "react";
 
-function useLangOptions(t: Dict["lang"], path: string) {
+function useLangOptions(t: Dict["lang"], path: string, byQuery: boolean) {
   // UTM (and any other query) must survive the language switch — read after mount so the
   // server-rendered href stays valid without it.
   const [query, setQuery] = useState("");
   useEffect(() => setQuery(window.location.search), []);
+
+  // The marketing site switches language by path. Onboarding has no `/es` route — it carries the
+  // locale as `?lang=es` — so there the switch rewrites that param and keeps the path put, which
+  // also keeps the `plan`/`billing` the client picked on the pricing card.
+  if (byQuery) {
+    const href = (locale: Locale) => {
+      const params = new URLSearchParams(query);
+      if (locale === "es") params.set("lang", "es");
+      else params.delete("lang");
+      const qs = params.toString();
+      return `${path || "/"}${qs ? `?${qs}` : ""}`;
+    };
+    return [
+      { code: "en" as const, href: href("en"), label: t.en, aria: t.enAria },
+      { code: "es" as const, href: href("es"), label: t.es, aria: t.esAria },
+    ];
+  }
 
   return [
     { code: "en" as const, href: `${path || "/"}${query}`, label: t.en, aria: t.enAria },
@@ -77,8 +94,15 @@ export function LangSwitch({
   t,
   path = "",
   className = "",
-}: { locale: Locale; t: Dict["lang"]; path?: string; className?: string }) {
-  const options = useLangOptions(t, path);
+  byQuery = false,
+}: {
+  locale: Locale;
+  t: Dict["lang"];
+  path?: string;
+  className?: string;
+  byQuery?: boolean;
+}) {
+  const options = useLangOptions(t, path, byQuery);
   const current = options.find((o) => o.code === locale) ?? options[0];
 
   const menuRef = useRef<HTMLDetailsElement>(null);
@@ -140,7 +164,7 @@ export function LangMenuItem({
   path = "",
   onSelect,
 }: { locale: Locale; t: Dict["lang"]; path?: string; onSelect?: () => void }) {
-  const options = useLangOptions(t, path);
+  const options = useLangOptions(t, path, false);
   const current = options.find((o) => o.code === locale) ?? options[0];
   const rest = options.filter((o) => o.code !== current.code);
 

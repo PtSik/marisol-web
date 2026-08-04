@@ -1,6 +1,7 @@
 import { env } from "cloudflare:workers";
 import { ForwardingCard } from "@/components/onboarding/ForwardingCard";
 import { PortalHeading, PortalNotice } from "@/components/portal/PortalHeading";
+import { onboardingHref, parseLocale } from "@/lib/i18n/dict";
 import { en } from "@/lib/i18n/en";
 import { getLead, getLeadIdForAccount } from "@/lib/leads";
 import { PLAN_LABELS, normalizePlan } from "@/lib/plans";
@@ -27,7 +28,7 @@ function Tile({ label, value, hint }: { label: string; value: string; hint?: Rea
 export default async function PortalOverviewPage({
   searchParams,
 }: {
-  searchParams: Promise<{ plan?: string; billing?: string }>;
+  searchParams: Promise<{ plan?: string; billing?: string; lang?: string }>;
 }) {
   const cfEnv = env as unknown as PortalEnv;
   const { session, shops, activeShop: shop, activeLeadId } = await getPortalContext(cfEnv);
@@ -43,12 +44,13 @@ export default async function PortalOverviewPage({
       redirect(`/onboarding/thanks?session_id=${paid.stripeSessionId}`);
     }
 
-    const { plan, billing } = await searchParams;
-    const query = new URLSearchParams();
-    if (plan) query.set("plan", plan);
-    if (billing) query.set("billing", billing);
-    const qs = query.toString();
-    redirect(qs ? `/onboarding?${qs}` : "/onboarding");
+    // `lang` rides along too: this redirect is the last hop of the Spanish funnel, and the wizard
+    // reads its locale from the query alone.
+    const { plan, billing, lang } = await searchParams;
+    const params: Record<string, string> = {};
+    if (plan) params.plan = plan;
+    if (billing) params.billing = billing;
+    redirect(onboardingHref(parseLocale(lang), params));
   }
 
   const lead = activeLeadId ? await getLead(cfEnv.LEADS_KV, activeLeadId) : null;
