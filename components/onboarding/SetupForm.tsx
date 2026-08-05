@@ -85,7 +85,14 @@ export function SetupForm({
     <>
       <ThanksHeading title={dict.thanks.finishTitle} lead={dict.thanks.finishLead} />
       <div className="mt-9 rounded-[24px] bg-cream-100 p-[clamp(20px,4vw,34px)]">
-        <SetupFields setup={setup} vertical={vertical} errors={errors} t={t} patch={patch} />
+        <SetupFields
+          setup={setup}
+          vertical={vertical}
+          errors={errors}
+          t={t}
+          locale={locale}
+          patch={patch}
+        />
         {submitError && (
           <p role="alert" className="mt-5 text-center text-[13.5px] font-medium text-[#B4452C]">
             {submitError}

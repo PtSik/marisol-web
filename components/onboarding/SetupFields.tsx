@@ -3,7 +3,7 @@
 import { Field, type FieldErrors } from "@/components/onboarding/Field";
 import { inputCls } from "@/components/onboarding/fieldStyles";
 import { CARRIERS, type Carrier } from "@/lib/forwarding";
-import { type Dict, fill } from "@/lib/i18n/dict";
+import { type Dict, type Locale, fill } from "@/lib/i18n/dict";
 import {
   DAYS,
   PHONE_RE,
@@ -108,12 +108,14 @@ export function SetupFields({
   vertical,
   errors,
   t,
+  locale,
   patch,
 }: {
   setup: SetupDetails;
   vertical: Vertical;
   errors: FieldErrors;
   t: Dict["setup"];
+  locale: Locale;
   patch: (partial: Partial<SetupDetails>) => void;
 }) {
   return (
@@ -369,6 +371,18 @@ export function SetupFields({
               {t.carrierOptions[id]}
             </option>
           ))}
+        </select>
+      </Field>
+
+      <Field label={t.primaryLanguage} htmlFor="ob-primary-language" hint={t.primaryLanguageHint}>
+        <select
+          id="ob-primary-language"
+          className={`${inputCls} max-w-[420px]`}
+          value={setup.primaryLanguage ?? locale}
+          onChange={(e) => patch({ primaryLanguage: e.target.value as Locale })}
+        >
+          <option value="en">{t.primaryLanguageOptions.en}</option>
+          <option value="es">{t.primaryLanguageOptions.es}</option>
         </select>
       </Field>
 

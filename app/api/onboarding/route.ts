@@ -58,6 +58,7 @@ interface OnboardingEnv extends PlanPriceEnv {
   VOICE_AGENT_API_URL?: string;
   ADMIN_API_KEY?: string;
   GROOMING_AGENT_ID?: string;
+  BARBER_AGENT_ID?: string;
   TWILIO_ACCOUNT_SID?: string;
   TWILIO_AUTH_TOKEN?: string;
 }

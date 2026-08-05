@@ -501,6 +501,13 @@ export const en = {
       other_mobile: "Another mobile carrier (Mint, Cricket, Metro…)",
       voip: "Landline, VoIP or business line (Comcast, Spectrum, Ooma…)",
     },
+    primaryLanguage: "Which language should it answer in first?",
+    primaryLanguageHint:
+      "It speaks both either way — this only picks the greeting. It follows the caller from there.",
+    primaryLanguageOptions: {
+      en: "English first",
+      es: "Spanish first",
+    },
     notes: "Anything else we should know? (optional)",
     notesPlaceholder: "Parking info, walk-in policy, a second language…",
     errHours:
@@ -527,6 +534,7 @@ export const en = {
         "Check your staff list — everyone needs a name, and their hours must start before they end.",
       "invalid forwardNumber": "Enter the number your customers currently call.",
       "invalid carrier": "Pick your phone carrier from the list.",
+      "invalid primaryLanguage": "Pick which language it should answer in first.",
       "invalid calendar": "Pick one of the calendar options.",
       "invalid notes": "Your note is too long — keep it under 2,000 characters.",
       "invalid timezone": "Pick a time zone from the list.",

@@ -23,6 +23,7 @@ interface AddSalonEnv extends PortalEnv {
   STRIPE_PRICE_EXTRA_LOCATION_MONTHLY?: string;
   STRIPE_PRICE_EXTRA_LOCATION_ANNUAL?: string;
   GROOMING_AGENT_ID?: string;
+  BARBER_AGENT_ID?: string;
   TWILIO_ACCOUNT_SID?: string;
   TWILIO_AUTH_TOKEN?: string;
   STRIPE_REFERRAL_COUPON?: string;

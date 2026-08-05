@@ -22,6 +22,7 @@ import { type VoiceAgentEnv, voiceAgentFetch } from "@/lib/voiceAgent";
 export interface ProvisioningEnv extends VoiceAgentEnv {
   LEADS_KV?: KVNamespace;
   GROOMING_AGENT_ID?: string;
+  BARBER_AGENT_ID?: string;
   TWILIO_ACCOUNT_SID?: string;
   TWILIO_AUTH_TOKEN?: string;
   RESEND_API_KEY?: string;
@@ -100,7 +101,7 @@ export function toShopStaff(setup: SetupDetails): Array<Record<string, unknown>>
 export function buildShopPayload(
   lead: CheckoutLead,
   twilioNumber: string,
-  groomingAgentId: string | undefined,
+  agentIds: { grooming?: string; barber?: string },
 ): Record<string, unknown> {
   const { basics, setup } = lead;
   if (!setup) throw new Error("lead has no setup details");
@@ -119,9 +120,17 @@ export function buildShopPayload(
     integration: "none",
     status: "active",
     reminders_enabled: normalizePlan(lead.plan) !== "basic",
+    // Which language the agent opens in. The client's explicit pick wins; otherwise we inherit
+    // the funnel they arrived through, so an /es lead gets a Spanish-first agent by default.
+    // Either way language_detection keeps the call bilingual once it's running.
+    primary_language: setup.primaryLanguage ?? lead.locale ?? "en",
   };
-  if (basics.vertical === "grooming" && groomingAgentId) {
-    payload.elevenlabs_agent_id = groomingAgentId;
+  // Pinned per vertical rather than left to voice-agent's ELEVENLABS_TEMPLATE_AGENT_ID fallback:
+  // relying on that env var meant every non-grooming shop silently inherited the barber agent,
+  // which only held while barber was the sole other vertical.
+  const agentId = basics.vertical === "grooming" ? agentIds.grooming : agentIds.barber;
+  if (agentId) {
+    payload.elevenlabs_agent_id = agentId;
   }
   return payload;
 }
@@ -257,7 +266,10 @@ export async function provisionLead(
   }
 
   try {
-    const payload = buildShopPayload(lead, bought.number, env.GROOMING_AGENT_ID);
+    const payload = buildShopPayload(lead, bought.number, {
+      grooming: env.GROOMING_AGENT_ID,
+      barber: env.BARBER_AGENT_ID,
+    });
     const shop = await createShop(env, payload);
     if (!shop) {
       await releaseTwilioNumber(env, bought.sid);

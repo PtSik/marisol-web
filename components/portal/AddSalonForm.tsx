@@ -234,6 +234,7 @@ export function AddSalonForm({
               vertical={vertical}
               errors={errors}
               t={en.setup}
+              locale="en"
               patch={(partial) => setSetup((s) => ({ ...s, ...partial }))}
             />
           </div>

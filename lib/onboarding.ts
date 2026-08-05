@@ -1,4 +1,5 @@
 import { type Carrier, isCarrier } from "@/lib/forwarding";
+import type { Locale } from "@/lib/i18n/dict";
 
 export const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 export const PHONE_RE = /^(?=(?:\D*\d){7})[+()\-.\s\d]{7,20}$/;
@@ -93,6 +94,9 @@ export interface SetupDetails {
   // Optional: leads created before the carrier question exists still validate, and the forwarding
   // card falls back to showing both code families.
   carrier?: Carrier;
+  // Optional: leads created before this question existed fall back to the funnel locale.
+  // Picks the language the agent *opens* in, not the only one it speaks.
+  primaryLanguage?: Locale;
   notes: string;
 }
 
@@ -179,6 +183,10 @@ export function validateSetupPayload(setup: unknown): string | null {
   if (!isShortString(s.forwardNumber) || !PHONE_RE.test(s.forwardNumber))
     return "invalid forwardNumber";
   if (s.carrier !== undefined && !isCarrier(s.carrier)) return "invalid carrier";
+  // Guarded here rather than left to the shops CHECK constraint: without this a bad value
+  // reaches provisioning and surfaces as a raw Postgres error mid-signup instead of a 400.
+  if (s.primaryLanguage !== undefined && s.primaryLanguage !== "en" && s.primaryLanguage !== "es")
+    return "invalid primaryLanguage";
   if (s.calendar !== "google_calendar" && s.calendar !== "none") return "invalid calendar";
   if (typeof s.notes !== "string" || s.notes.length > 2000) return "invalid notes";
 

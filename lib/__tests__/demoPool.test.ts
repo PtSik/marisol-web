@@ -121,7 +121,14 @@ describe("assignNumber", () => {
     if (!result.ok) return;
     expect(result.number.phone_e164).toBe("+17860000000");
     expect(patched).toEqual([
-      { shopId: "shop-0", update: { name: lead.shop_name, elevenlabs_agent_id: "agent_en" } },
+      {
+        shopId: "shop-0",
+        update: {
+          name: lead.shop_name,
+          elevenlabs_agent_id: "agent_en",
+          primary_language: "en",
+        },
+      },
     ]);
   });
 
@@ -187,7 +194,7 @@ describe("release and sweep", () => {
 
     expect(patched.at(-1)).toEqual({
       shopId: "shop-0",
-      update: { name: "Marisol Demo", elevenlabs_agent_id: "agent_en" },
+      update: { name: "Marisol Demo", elevenlabs_agent_id: "agent_en", primary_language: "en" },
     });
     expect((await poolStatus(d1(sqlite))).free).toBe(1);
   });

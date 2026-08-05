@@ -87,11 +87,18 @@ function DemoStage({ t, personas, locale }: WidgetProps) {
       return;
     }
     try {
-      const { token, maxDurationSeconds, dynamicVariables } = await fetchConversationToken(agent);
+      const { token, maxDurationSeconds, dynamicVariables } = await fetchConversationToken(
+        agent,
+        locale,
+      );
       conversation.startSession({
         conversationToken: token,
         connectionType: "webrtc",
         dynamicVariables,
+        // Phone calls get their opening language from the shop row via the personalization
+        // webhook; the widget has no shop, so the page's own locale stands in. Without this a
+        // visitor on /es was greeted in English by an agent the page had just described as bilingual.
+        ...(locale === "es" ? { overrides: { agent: { language: "es" } } } : {}),
       });
       if (endTimer.current) clearTimeout(endTimer.current);
       endTimer.current = setTimeout(() => conversation.endSession(), maxDurationSeconds * 1000);
@@ -99,7 +106,7 @@ function DemoStage({ t, personas, locale }: WidgetProps) {
     } catch {
       setError(t.errorConnect);
     }
-  }, [persona, conversation, t]);
+  }, [persona, conversation, t, locale]);
 
   const end = useCallback(() => {
     if (endTimer.current) clearTimeout(endTimer.current);

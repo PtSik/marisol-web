@@ -39,8 +39,9 @@ const hoursFrom = (iso: string, hours: number): string =>
   new Date(new Date(iso).getTime() + hours * 3_600_000).toISOString();
 
 function agentFor(env: DemoPoolEnv, lang: string): string | undefined {
-  // Falls back to the English clone until a Spanish-opening clone exists — the prompt still
-  // switches to Spanish as soon as the caller speaks it, so this degrades the opening line only.
+  // The opening line no longer depends on this: assignNumber sets the shop's primary_language,
+  // which the personalization webhook turns into a language override. A dedicated ES clone is
+  // now only worth setting if it needs a genuinely different prompt, not just a Spanish greeting.
   const es = env.DEMO_POOL_AGENT_ID_ES?.trim();
   if (lang === "es" && es) return es;
   return env.DEMO_POOL_AGENT_ID?.trim() || undefined;
@@ -110,6 +111,9 @@ export async function assignNumber(
   const patched = await patchShop(env, claimed.shop_id, {
     name: lead.shop_name,
     ...(agentId ? { elevenlabs_agent_id: agentId } : {}),
+    // The opening language now rides on the shop, so a Spanish lead gets a Spanish-opening demo
+    // off the one English clone — no second agent to keep in sync with the first.
+    primary_language: lang,
   });
   if (!patched) {
     await releaseNumber(env, claimed.phone_e164, now).catch(() => {});
@@ -136,6 +140,9 @@ export async function releaseNumber(
   await patchShop(env, row.shop_id, {
     name: IDLE_SHOP_NAME,
     ...(env.DEMO_POOL_AGENT_ID ? { elevenlabs_agent_id: env.DEMO_POOL_AGENT_ID } : {}),
+    // Reset with the name: a recycled number that still opens in Spanish for the next
+    // English prospect is the same leak as one still answering as the last salon.
+    primary_language: "en",
   });
   await db
     .prepare(

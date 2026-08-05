@@ -508,6 +508,13 @@ export const es: Dict = {
       other_mobile: "Otra compañía celular (Mint, Cricket, Metro…)",
       voip: "Línea fija, VoIP o de negocio (Comcast, Spectrum, Ooma…)",
     },
+    primaryLanguage: "¿En qué idioma debe contestar primero?",
+    primaryLanguageHint:
+      "Habla los dos de todas formas — esto solo elige el saludo. Después sigue al cliente.",
+    primaryLanguageOptions: {
+      en: "Primero en inglés",
+      es: "Primero en español",
+    },
     notes: "¿Algo más que debamos saber? (opcional)",
     notesPlaceholder: "Estacionamiento, política de walk-ins, un segundo idioma…",
     errHours:
@@ -532,6 +539,7 @@ export const es: Dict = {
         "Revisa tu lista de personal — cada persona necesita nombre, y su horario debe empezar antes de terminar.",
       "invalid forwardNumber": "Escribe el número al que tus clientes llaman hoy.",
       "invalid carrier": "Elige tu compañía telefónica de la lista.",
+      "invalid primaryLanguage": "Elige en qué idioma debe contestar primero.",
       "invalid calendar": "Elige una de las opciones de calendario.",
       "invalid notes": "Tu nota es muy larga — máximo 2,000 caracteres.",
       "invalid timezone": "Elige una zona horaria de la lista.",

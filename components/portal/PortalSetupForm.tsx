@@ -61,7 +61,14 @@ export function PortalSetupForm({
 
   return (
     <div className="mt-7 rounded-[24px] bg-cream-100 p-[clamp(20px,4vw,34px)]">
-      <SetupFields setup={setup} vertical={vertical} errors={errors} t={en.setup} patch={patch} />
+      <SetupFields
+        setup={setup}
+        vertical={vertical}
+        errors={errors}
+        t={en.setup}
+        locale="en"
+        patch={patch}
+      />
 
       <div className="mt-7">
         <Field
