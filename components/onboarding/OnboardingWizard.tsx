@@ -295,6 +295,17 @@ export function OnboardingWizard({
             </Field>
           </div>
 
+          <Field label={t.address} htmlFor="ob-address" hint={t.addressHint}>
+            <input
+              id="ob-address"
+              className={inputCls}
+              value={basics.address ?? ""}
+              onChange={(e) => patch({ address: e.target.value })}
+              placeholder={t.addressPlaceholder}
+              autoComplete="street-address"
+            />
+          </Field>
+
           <Field label={t.timezone} htmlFor="ob-tz">
             <select
               id="ob-tz"

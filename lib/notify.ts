@@ -75,12 +75,11 @@ function formatServices(services: ServiceEntry[]): string {
   return services
     .filter((s) => s.name.trim())
     .map((s) => {
-      const extra = [
-        s.durationMin.trim() && `${s.durationMin} min`,
-        s.price.trim() && `$${s.price}`,
-      ]
-        .filter(Boolean)
-        .join(", ");
+      const dur = s.durationMaxMin?.trim()
+        ? `${s.durationMin.trim()}-${s.durationMaxMin.trim()}`
+        : s.durationMin.trim();
+      const price = s.priceMax?.trim() ? `${s.price.trim()}-${s.priceMax.trim()}` : s.price.trim();
+      const extra = [dur && `${dur} min`, price && `$${price}`].filter(Boolean).join(", ");
       return extra ? `${s.name} (${extra})` : s.name;
     })
     .join("; ");
@@ -102,6 +101,7 @@ function leadCard(lead: CheckoutLead): string {
       ["Email", basics.email],
       ["Business phone", basics.businessPhone],
       ["Owner mobile", basics.ownerMobile],
+      ["Address", basics.address],
       ["Timezone", basics.timezone],
     ]),
     section("Plan", [

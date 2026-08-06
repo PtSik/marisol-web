@@ -163,35 +163,75 @@ export function SetupFields({
                 <label className="sr-only" htmlFor={`ob-svc-dur-${i}`}>
                   {fill(t.serviceDurationAria, { n: i + 1 })}
                 </label>
-                <div className="relative">
+                <div className="flex items-center gap-1">
                   <input
                     id={`ob-svc-dur-${i}`}
                     type="number"
                     min="5"
                     step="5"
-                    className={`${inputCls} w-[110px] pr-11`}
+                    className={`${inputCls} w-[74px]`}
                     value={svc.durationMin}
                     onChange={(e) => setSvc({ durationMin: e.target.value })}
                   />
-                  <span className="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 text-[12.5px] text-muted-2">
-                    {t.serviceMinAbbr}
+                  <span aria-hidden="true" className="text-[12.5px] text-muted-2">
+                    –
                   </span>
+                  <label className="sr-only" htmlFor={`ob-svc-dur-max-${i}`}>
+                    {fill(t.serviceDurationMaxAria, { n: i + 1 })}
+                  </label>
+                  <div className="relative">
+                    <input
+                      id={`ob-svc-dur-max-${i}`}
+                      type="number"
+                      min="5"
+                      step="5"
+                      className={`${inputCls} w-[96px] pr-11`}
+                      value={svc.durationMaxMin ?? ""}
+                      onChange={(e) => setSvc({ durationMaxMin: e.target.value })}
+                      placeholder={t.serviceRangeOptional}
+                    />
+                    <span className="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 text-[12.5px] text-muted-2">
+                      {t.serviceMinAbbr}
+                    </span>
+                  </div>
                 </div>
                 <label className="sr-only" htmlFor={`ob-svc-price-${i}`}>
                   {fill(t.servicePriceAria, { n: i + 1 })}
                 </label>
-                <div className="relative">
-                  <span className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-[13.5px] text-muted-2">
-                    $
+                <div className="flex items-center gap-1">
+                  <div className="relative">
+                    <span className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-[13.5px] text-muted-2">
+                      $
+                    </span>
+                    <input
+                      id={`ob-svc-price-${i}`}
+                      type="number"
+                      min="0"
+                      className={`${inputCls} w-[86px] pl-7`}
+                      value={svc.price}
+                      onChange={(e) => setSvc({ price: e.target.value })}
+                    />
+                  </div>
+                  <span aria-hidden="true" className="text-[12.5px] text-muted-2">
+                    –
                   </span>
-                  <input
-                    id={`ob-svc-price-${i}`}
-                    type="number"
-                    min="0"
-                    className={`${inputCls} w-[86px] pl-7`}
-                    value={svc.price}
-                    onChange={(e) => setSvc({ price: e.target.value })}
-                  />
+                  <label className="sr-only" htmlFor={`ob-svc-price-max-${i}`}>
+                    {fill(t.servicePriceMaxAria, { n: i + 1 })}
+                  </label>
+                  <div className="relative">
+                    <span className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-[13.5px] text-muted-2">
+                      $
+                    </span>
+                    <input
+                      id={`ob-svc-price-max-${i}`}
+                      type="number"
+                      min="0"
+                      className={`${inputCls} w-[92px] pl-7`}
+                      value={svc.priceMax ?? ""}
+                      onChange={(e) => setSvc({ priceMax: e.target.value })}
+                      placeholder={t.serviceRangeOptional}
+                    />
+                  </div>
                 </div>
                 <button
                   type="button"

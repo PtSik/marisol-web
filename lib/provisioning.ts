@@ -63,17 +63,32 @@ export function toShopHours(hours: WeekHours): Record<string, string> {
 
 // personalization.ts renders services_json via `array.join(', ')`, so store readable
 // strings (an array of objects would render as "[object Object]").
+//
+// Fields within one service are joined with " / " rather than ", " on purpose: the array join uses
+// commas too, so a comma here made the whole list ambiguous to the agent — "Haircut — 30 min, $25,
+// Beard Trim — 20 min, $15" gives it no way to see where one service ends.
 export function toShopServices(services: ServiceEntry[]): string[] {
   return services
     .filter((s) => s.name.trim())
     .map((s) => {
       const parts = [s.name.trim()];
-      const dur = s.durationMin.trim();
-      const price = s.price.trim();
+      const dur = range(s.durationMin, s.durationMaxMin);
+      const price = range(s.price, s.priceMax);
       if (dur) parts.push(`${dur} min`);
       if (price) parts.push(`$${price}`);
-      return dur || price ? `${parts[0]} — ${parts.slice(1).join(", ")}` : parts[0];
+      return dur || price ? `${parts[0]} — ${parts.slice(1).join(" / ")}` : parts[0];
     });
+}
+
+// "60-180" when the owner gave an upper bound, "90" when they left it blank. Grooming needs the
+// spread (a full groom is a different job on a Yorkie and a matted Bernedoodle); a barbershop
+// doesn't, and gets the flat value it always had.
+function range(lower: string, upper?: string): string {
+  const lo = lower.trim();
+  const hi = (upper ?? "").trim();
+  if (!lo) return hi;
+  if (!hi || hi === lo) return lo;
+  return `${lo}-${hi}`;
 }
 
 // staff_json carries a stable id per member so voice-agent can key per-staff config on it
@@ -117,6 +132,12 @@ export function buildShopPayload(
     hours_json: JSON.stringify(toShopHours(setup.hours)),
     services_json: JSON.stringify(toShopServices(setup.services)),
     staff_json: JSON.stringify(toShopStaff(setup)),
+    // The agent answers "where are you?" and "do you take walk-ins?" from these. `notes` has been
+    // collected by the wizard since day one — its placeholder literally says "Parking info, walk-in
+    // policy…" — but it only ever reached the team notification email, never the shop row, so the
+    // agent escalated on questions the owner had already answered for us.
+    address: basics.address?.trim() || null,
+    notes: setup.notes.trim() || null,
     integration: "none",
     status: "active",
     reminders_enabled: normalizePlan(lead.plan) !== "basic",

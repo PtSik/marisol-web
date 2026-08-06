@@ -1,4 +1,5 @@
-export const DEMO_PHONE = process.env.NEXT_PUBLIC_DEMO_PHONE ?? "+1 (833) 659-6941";
+// Same line the grooming demo agent answers on (see DEMO_AGENTS in lib/demoAgents.ts).
+export const DEMO_PHONE = process.env.NEXT_PUBLIC_DEMO_PHONE ?? "+1 (878) 867-8115";
 
 export const telHref = `tel:${DEMO_PHONE.replace(/[^0-9+]/g, "")}`;
 

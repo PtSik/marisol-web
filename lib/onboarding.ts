@@ -12,6 +12,11 @@ export interface ServiceEntry {
   name: string;
   durationMin: string;
   price: string;
+  // Optional upper bounds. A grooming full groom is 60 minutes on a Yorkie and 3 hours on a matted
+  // Bernedoodle, and the price moves with it — one number is always a lie for those shops. Left blank
+  // (the barbershop case, and every shop onboarded before these existed) the entry stays a flat value.
+  durationMaxMin?: string;
+  priceMax?: string;
 }
 
 // Names come from the dictionary (`setup.servicePresets`) so they follow the client's language.
@@ -21,10 +26,12 @@ export const SERVICE_PRESETS: Record<Vertical, Omit<ServiceEntry, "name">[]> = {
     { durationMin: "20", price: "20" },
     { durationMin: "45", price: "50" },
   ],
+  // Grooming ships with ranges filled in: the spread is the point for this vertical, and a pre-filled
+  // example teaches it faster than help text. A nail trim stays flat — it doesn't vary by dog.
   grooming: [
-    { durationMin: "60", price: "45" },
-    { durationMin: "90", price: "65" },
-    { durationMin: "120", price: "85" },
+    { durationMin: "45", durationMaxMin: "75", price: "40", priceMax: "55" },
+    { durationMin: "75", durationMaxMin: "120", price: "55", priceMax: "75" },
+    { durationMin: "120", durationMaxMin: "210", price: "75", priceMax: "110" },
     { durationMin: "15", price: "15" },
   ],
 };
@@ -73,6 +80,10 @@ export interface BusinessBasics {
   ownerName: string;
   email: string;
   businessPhone: string;
+  // Where the shop actually is. Callers ask this constantly and the agent used to escalate on it.
+  // Optional: leads created before this field existed still validate, and the agent treats an empty
+  // address as "we were never told" rather than inventing one.
+  address?: string;
   ownerMobile: string;
   timezone: string;
 }
@@ -125,6 +136,7 @@ export function defaultBasics(vertical: Vertical = "barbershop"): BusinessBasics
     email: "",
     businessPhone: "",
     ownerMobile: "",
+    address: "",
     timezone: DEFAULT_TIMEZONE,
   };
 }
@@ -146,6 +158,22 @@ const TIME_RE = /^\d{2}:\d{2}$/;
 
 function isShortString(value: unknown, max = 120): value is string {
   return typeof value === "string" && value.length <= max;
+}
+
+// Range upper bounds are optional everywhere: a barbershop leaves them blank, and shops onboarded
+// before they existed have no such key at all.
+function isOptionalShortString(value: unknown, max = 120): boolean {
+  return value === undefined || value === null || isShortString(value, max);
+}
+
+// Only compares when both sides are present and numeric — a blank upper bound means "no range",
+// not "zero", and free text is left to the length checks above.
+function aboveIsBelow(lower: unknown, upper: unknown): boolean {
+  if (typeof lower !== "string" || typeof upper !== "string") return false;
+  if (!lower.trim() || !upper.trim()) return false;
+  const lo = Number(lower);
+  const hi = Number(upper);
+  return Number.isFinite(lo) && Number.isFinite(hi) && hi < lo;
 }
 
 // Shared by the browser and the worker — the form imports this rather than keeping its own copy,
@@ -203,7 +231,18 @@ export function validateSetupPayload(setup: unknown): string | null {
       (svc) =>
         isShortString(svc?.name) &&
         isShortString(svc?.durationMin, 5) &&
-        isShortString(svc?.price, 10),
+        isShortString(svc?.price, 10) &&
+        isOptionalShortString(svc?.durationMaxMin, 5) &&
+        isOptionalShortString(svc?.priceMax, 10),
+    )
+  )
+    return "invalid services";
+  // An upper bound below its lower bound would be spoken to callers as "ninety to sixty dollars".
+  if (
+    s.services.some(
+      (svc) =>
+        aboveIsBelow(svc?.durationMin, svc?.durationMaxMin) ||
+        aboveIsBelow(svc?.price, svc?.priceMax),
     )
   )
     return "invalid services";
@@ -229,6 +268,7 @@ export function isBusinessBasics(value: unknown): value is BusinessBasics {
     ["businessName", "ownerName", "email", "businessPhone", "ownerMobile"].every(
       (key) => typeof v[key] === "string",
     ) &&
+    isOptionalShortString(v.address, 300) &&
     isTimezoneId(v.timezone)
   );
 }

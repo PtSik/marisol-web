@@ -57,6 +57,10 @@ export async function POST(request: Request): Promise<Response> {
         hours_json: JSON.stringify(toShopHours(setup.hours)),
         services_json: JSON.stringify(toShopServices(setup.services)),
         staff_json: JSON.stringify(toShopStaff(setup)),
+        // Editable after onboarding too, otherwise a client who moves premises or changes their
+        // walk-in policy has no way to tell the agent.
+        address: lead.basics.address?.trim() || null,
+        notes: setup.notes.trim() || null,
         ...(timezone ? { timezone } : {}),
       })
     : false;
