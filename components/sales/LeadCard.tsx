@@ -1,3 +1,4 @@
+import type { DemoKnowledge } from "@/lib/sales/demoKnowledge";
 import { formatUsPhone } from "@/lib/sales/derive";
 import { OUTCOME_LABELS, type Outcome, type SalesLead } from "@/lib/sales/leads";
 import { contactLabel, promoCodeFor } from "@/lib/sales/offer";
@@ -35,6 +36,30 @@ function Chip({ className, children }: { className: string; children: ReactNode 
     <span className={`inline-block rounded-full px-2.5 py-0.5 text-xs font-medium ${className}`}>
       {children}
     </span>
+  );
+}
+
+// Sits next to the demo buttons, not in the collapsed Details block: the whole point is that the rep
+// reads it before dialling. Since voice-agent#34 the agent no longer deflects on price — it reads the
+// listed range aloud — so an owner hearing our demo menu quoted as his own is the default outcome,
+// not an edge case. Better the rep gets ahead of it ("prices are a placeholder — what do you charge
+// for a full groom?") than gets corrected mid-call.
+function DemoKnows({ knows }: { knows: DemoKnowledge }) {
+  const dim = "text-muted-2";
+  return (
+    <p className="mt-2 text-xs text-muted">
+      <span className="font-medium uppercase tracking-wide text-muted-2">Demo will know</span>{" "}
+      <span className={knows.hours ? "text-ink" : dim}>hours {knows.hours ? "✓" : "✗"}</span>
+      {" · "}
+      <span className={knows.address ? "text-ink" : dim}>address {knows.address ? "✓" : "✗"}</span>
+      {" · "}
+      {knows.servicesFromSite ? (
+        <span className="text-ink">prices from their site ({knows.serviceCount})</span>
+      ) : (
+        <span className="text-[#8A5D17]">prices from our demo menu — it will quote them</span>
+      )}
+      {!knows.servicesFromSite && knows.note ? <span className={dim}> · {knows.note}</span> : null}
+    </p>
   );
 }
 
@@ -213,6 +238,7 @@ export function LeadCard({ lead, back, focus = false, history }: LeadCardProps) 
               : "ask first: “can I text you the number?”"}
           </span>
         </div>
+        <DemoKnows knows={lead.demoKnows} />
       </form>
 
       {lead.demo_number && (

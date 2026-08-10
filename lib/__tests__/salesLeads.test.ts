@@ -35,7 +35,8 @@ function d1(db: Database): D1Database {
 }
 
 const SCHEMA = `${await Bun.file("d1/0001_outreach.sql").text()}
-${await Bun.file("d1/0002_demo_pool.sql").text()}`;
+${await Bun.file("d1/0002_demo_pool.sql").text()}
+${await Bun.file("d1/0003_lead_enrichment.sql").text()}`;
 
 interface SeedOptions {
   id: string;
@@ -44,6 +45,7 @@ interface SeedOptions {
   score?: number;
   neighborhood?: string;
   hours?: string | null;
+  address?: string | null;
   reviewCount?: number;
 }
 
@@ -52,9 +54,9 @@ let db: D1Database;
 
 function seed(options: SeedOptions): void {
   sqlite.run(
-    `INSERT INTO leads (id, shop_name, phone_e164, slug, neighborhood, hours, review_count,
+    `INSERT INTO leads (id, shop_name, phone_e164, slug, neighborhood, hours, address, review_count,
        is_mobile, is_chain, booking_app, es_strength, price_confidence, score, tier, imported_at)
-     VALUES (?, ?, ?, ?, ?, ?, ?, 0, 0, 'none', 'none', 'low', ?, ?, '2026-07-30T00:00:00Z')`,
+     VALUES (?, ?, ?, ?, ?, ?, ?, ?, 0, 0, 'none', 'none', 'low', ?, ?, '2026-07-30T00:00:00Z')`,
     [
       options.id,
       options.name,
@@ -62,6 +64,7 @@ function seed(options: SeedOptions): void {
       options.name.toLowerCase().replace(/\W+/g, "-"),
       options.neighborhood ?? "Hialeah",
       options.hours === undefined ? "Monday: 9:00 AM – 5:00 PM" : options.hours,
+      options.address ?? null,
       options.reviewCount ?? 100,
       options.score ?? 7,
       options.tier ?? "B",
@@ -76,6 +79,67 @@ beforeEach(() => {
   sqlite = new Database(":memory:");
   sqlite.run(SCHEMA);
   db = d1(sqlite);
+});
+
+describe("demoKnows", () => {
+  const FULL_WEEK =
+    "Monday: 9:00 AM – 5:00 PM | Tuesday: 9:00 AM – 5:00 PM | Wednesday: 9:00 AM – 5:00 PM | " +
+    "Thursday: 9:00 AM – 5:00 PM | Friday: 9:00 AM – 5:00 PM | Saturday: 10:00 AM – 4:00 PM | " +
+    "Sunday: Closed";
+
+  function enrich(id: string, confidence: string, services: string | null, note: string | null) {
+    sqlite.run(
+      `INSERT INTO lead_enrichment (lead_id, services, service_confidence, fetched_at, note)
+       VALUES (?, ?, ?, '2026-08-01T00:00:00Z', ?)`,
+      [id, services, confidence, note],
+    );
+  }
+
+  it("reports the demo menu when nothing has been enriched", async () => {
+    seed({ id: "3051110001", name: "Bare", hours: FULL_WEEK, address: "1 Main St" });
+
+    const lead = await getLead(db, "3051110001");
+    expect(lead?.demoKnows).toMatchObject({ hours: true, address: true, servicesFromSite: false });
+    expect(lead?.demoKnows.serviceCount).toBeGreaterThan(0);
+  });
+
+  it("reports the site's own menu once the lead is enriched", async () => {
+    seed({ id: "3051110001", name: "Enriched", hours: FULL_WEEK, address: "1 Main St" });
+    enrich(
+      "3051110001",
+      "high",
+      JSON.stringify([{ name: "Full Groom", price: "70" }, { name: "Nail Trim" }]),
+      null,
+    );
+
+    const lead = await getLead(db, "3051110001");
+    expect(lead?.demoKnows).toMatchObject({ servicesFromSite: true, serviceCount: 2 });
+  });
+
+  it("carries the note explaining why a scrape was not good enough", async () => {
+    seed({ id: "3051110001", name: "Weak", hours: null, address: null });
+    enrich("3051110001", "low", JSON.stringify([{ name: "Full Groom" }]), "no published prices");
+
+    const lead = await getLead(db, "3051110001");
+    expect(lead?.demoKnows).toMatchObject({
+      hours: false,
+      address: false,
+      servicesFromSite: false,
+      note: "no published prices",
+    });
+  });
+
+  it("keeps the enrichment columns off the lead itself", async () => {
+    // They ride along on the join only so `decorate` can fold them in; leaking them would give
+    // callers a second, unformatted source of truth for what the demo knows.
+    seed({ id: "3051110001", name: "Clean" });
+    enrich("3051110001", "high", JSON.stringify([{ name: "Full Groom" }]), null);
+
+    const lead = (await getLead(db, "3051110001")) as unknown as Row;
+    for (const key of ["services", "service_confidence", "enrichment_note"]) {
+      expect(key in lead).toBe(false);
+    }
+  });
 });
 
 describe("listLeads", () => {

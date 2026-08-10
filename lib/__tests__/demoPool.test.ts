@@ -1,5 +1,6 @@
 import { Database } from "bun:sqlite";
 import { beforeEach, describe, expect, it } from "bun:test";
+import { DEMO_SERVICES } from "@/lib/demoServices";
 import {
   type DemoPoolEnv,
   assignNumber,
@@ -33,7 +34,8 @@ function d1(db: Database): D1Database {
 }
 
 const SCHEMA = `${await Bun.file("d1/0001_outreach.sql").text()}
-${await Bun.file("d1/0002_demo_pool.sql").text()}`;
+${await Bun.file("d1/0002_demo_pool.sql").text()}
+${await Bun.file("d1/0003_lead_enrichment.sql").text()}`;
 
 let sqlite: Database;
 let patched: { shopId: string; update: Record<string, unknown> }[];
@@ -56,7 +58,15 @@ function makeEnv(overrides: Partial<DemoPoolEnv> = {}): DemoPoolEnv {
   };
 }
 
-const lead = { id: "13051112222", shop_name: "Rose's Grooming House" };
+const lead = {
+  id: "13051112222",
+  shop_name: "Rose's Grooming House",
+  hours:
+    "Monday: 9:00 AM \u2013 6:00 PM | Tuesday: 9:00 AM \u2013 6:00 PM | " +
+    "Wednesday: 9:00 AM \u2013 6:00 PM | Thursday: 9:00 AM \u2013 6:00 PM | " +
+    "Friday: 9:00 AM \u2013 6:00 PM | Saturday: 10:00 AM \u2013 4:00 PM | Sunday: Closed",
+  address: "1165 W 49th St, Hialeah, FL 33012",
+};
 
 function seedLead() {
   sqlite.run(
@@ -67,6 +77,28 @@ function seedLead() {
   sqlite.run(
     "INSERT INTO lead_state (lead_id, updated_at) VALUES (?, '2026-08-03T00:00:00.000Z')",
     [lead.id],
+  );
+}
+
+// A lead whose website we managed to read. `high` is the only confidence that reaches the agent.
+function seedEnrichment(confidence = "high") {
+  sqlite.run(
+    `INSERT INTO lead_enrichment (lead_id, services, service_confidence, fetched_at)
+     VALUES (?, ?, ?, '2026-08-06T00:00:00.000Z')`,
+    [
+      lead.id,
+      JSON.stringify([
+        {
+          name: "Full Groom",
+          durationMin: "60",
+          durationMaxMin: "150",
+          price: "70",
+          priceMax: "130",
+        },
+        { name: "Nail Trim", durationMin: "15", price: "18" },
+      ]),
+      confidence,
+    ],
   );
 }
 
@@ -111,7 +143,7 @@ beforeEach(() => {
 });
 
 describe("assignNumber", () => {
-  it("leases a number and renames the shop to the prospect's salon", async () => {
+  it("leases a number and rewrites the shop to answer as the prospect's salon", async () => {
     seedLead();
     seedNumbers(2);
 
@@ -120,16 +152,60 @@ describe("assignNumber", () => {
     expect(result.ok).toBe(true);
     if (!result.ok) return;
     expect(result.number.phone_e164).toBe("+17860000000");
-    expect(patched).toEqual([
-      {
-        shopId: "shop-0",
-        update: {
-          name: lead.shop_name,
-          elevenlabs_agent_id: "agent_en",
-          primary_language: "en",
-        },
-      },
-    ]);
+    expect(patched).toHaveLength(1);
+
+    const { shopId, update } = patched[0];
+    expect(shopId).toBe("shop-0");
+    expect(update.name).toBe(lead.shop_name);
+    expect(update.elevenlabs_agent_id).toBe("agent_en");
+    expect(update.primary_language).toBe("en");
+    // Their own street, not the demo shop's — the agent states an address as fact.
+    expect(update.address).toBe(lead.address);
+    expect(JSON.parse(update.hours_json as string)).toMatchObject({
+      Mon: "9:00am-6:00pm",
+      Sun: "closed",
+    });
+  });
+
+  it("quotes the site's own prices when the scrape is trustworthy", () => {
+    seedLead();
+    seedEnrichment("high");
+    seedNumbers(1);
+
+    return assignNumber(makeEnv(), lead, "en").then(() => {
+      expect(JSON.parse(patched[0].update.services_json as string)).toEqual([
+        "Full Groom — 60-150 min / $70-130",
+        "Nail Trim — 15 min / $18",
+      ]);
+    });
+  });
+
+  it("sends the reviewed menu rather than nothing when there is no trustworthy scrape", async () => {
+    // Omitting `services_json` would leave whatever the recycled shop last held, and the agent is
+    // now told to read a listed price aloud — so silence here means quoting someone else's prices.
+    seedLead();
+    seedEnrichment("low");
+    seedNumbers(1);
+
+    await assignNumber(makeEnv(), lead, "en");
+
+    const menu = JSON.parse(patched[0].update.services_json as string) as string[];
+    expect(menu.length).toBe(DEMO_SERVICES.grooming.length);
+    expect(menu.some((s) => s.startsWith("Full Groom —"))).toBe(true);
+  });
+
+  it("still generates a demo for a lead with no hours, address or enrichment", async () => {
+    seedLead();
+    seedNumbers(1);
+
+    const result = await assignNumber(makeEnv(), { id: lead.id, shop_name: lead.shop_name }, "en");
+
+    expect(result.ok).toBe(true);
+    // Hours are the one field allowed to be absent: a bad value there is rejected server-side and
+    // would fail the whole generation.
+    expect("hours_json" in patched[0].update).toBe(false);
+    expect(patched[0].update.address).toBeNull();
+    expect(patched[0].update.services_json).toBeDefined();
   });
 
   it("is idempotent per lead, so a double-clicked button leases one number", async () => {
@@ -192,10 +268,23 @@ describe("release and sweep", () => {
 
     await releaseForLead(env, lead.id);
 
-    expect(patched.at(-1)).toEqual({
-      shopId: "shop-0",
-      update: { name: "Marisol Demo", elevenlabs_agent_id: "agent_en", primary_language: "en" },
+    const reset = patched.at(-1);
+    expect(reset?.shopId).toBe("shop-0");
+    expect(reset?.update).toMatchObject({
+      name: "Marisol Demo",
+      elevenlabs_agent_id: "agent_en",
+      primary_language: "en",
+      address: "210 Coral Way, Miami, FL 33145",
     });
+    // Every field the assign could set has to come back, or the next prospect inherits the last
+    // one's hours and price list on a recycled number.
+    expect(JSON.parse(reset?.update.hours_json as string)).toEqual({
+      "Mon-Fri": "8am-6pm",
+      Sat: "9am-4pm",
+    });
+    expect(JSON.parse(reset?.update.services_json as string).length).toBe(
+      DEMO_SERVICES.grooming.length,
+    );
     expect((await poolStatus(d1(sqlite))).free).toBe(1);
   });
 

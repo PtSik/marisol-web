@@ -1,5 +1,6 @@
 import { type NotifyEnv, notifyTeam } from "@/lib/notify";
 import { patchShop } from "@/lib/provisioning";
+import { type EnrichmentRow, NEUTRAL_DEMO_PATCH, demoShopPatch } from "@/lib/sales/demoKnowledge";
 import { type TwilioEnv, listInboundCalls } from "@/lib/twilio";
 import type { VoiceAgentEnv } from "@/lib/voiceAgent";
 
@@ -15,8 +16,6 @@ const TTL_HOURS = 12;
 // Owners often call a second time to show someone, so the number stays theirs for an hour after
 // the call ends rather than being recycled the moment they hang up.
 const GRACE_HOURS = 1;
-
-const IDLE_SHOP_NAME = "Marisol Demo";
 
 export interface DemoNumber {
   phone_e164: string;
@@ -77,7 +76,7 @@ export async function poolStatus(db: D1Database): Promise<PoolStatus> {
 // same row; if rewriting the shop then fails, the claim is rolled back and no number is burnt.
 export async function assignNumber(
   env: DemoPoolEnv,
-  lead: { id: string; shop_name: string },
+  lead: { id: string; shop_name: string; hours?: string | null; address?: string | null },
   lang: "en" | "es",
   now = new Date(),
 ): Promise<AssignResult> {
@@ -107,14 +106,20 @@ export async function assignNumber(
     return { ok: false, reason: "pool_full", freeAt: nextFreeAt ?? undefined };
   }
 
-  const agentId = agentFor(env, lang);
-  const patched = await patchShop(env, claimed.shop_id, {
-    name: lead.shop_name,
-    ...(agentId ? { elevenlabs_agent_id: agentId } : {}),
-    // The opening language now rides on the shop, so a Spanish lead gets a Spanish-opening demo
-    // off the one English clone — no second agent to keep in sync with the first.
-    primary_language: lang,
-  });
+  // Best-effort: a lead we never enriched still gets a demo, just on the reviewed menu.
+  const enrichment = await db
+    .prepare("SELECT services, service_confidence, note FROM lead_enrichment WHERE lead_id = ?")
+    .bind(lead.id)
+    .first<EnrichmentRow>()
+    .catch(() => null);
+
+  // Name, language, address, hours and menu in one PATCH. The opening language rides on the shop,
+  // so a Spanish lead gets a Spanish-opening demo off the one English clone.
+  const patched = await patchShop(
+    env,
+    claimed.shop_id,
+    demoShopPatch({ lead, enrichment, lang, agentId: agentFor(env, lang) }),
+  );
   if (!patched) {
     await releaseNumber(env, claimed.phone_e164, now).catch(() => {});
     return { ok: false, reason: "failed" };
@@ -137,12 +142,11 @@ export async function releaseNumber(
     .first<DemoNumber>();
   if (!row) return;
 
+  // Reset with the name: a recycled number still holding the last prospect's language, hours,
+  // street address or price list is the same leak as one still answering as their salon.
   await patchShop(env, row.shop_id, {
-    name: IDLE_SHOP_NAME,
+    ...NEUTRAL_DEMO_PATCH,
     ...(env.DEMO_POOL_AGENT_ID ? { elevenlabs_agent_id: env.DEMO_POOL_AGENT_ID } : {}),
-    // Reset with the name: a recycled number that still opens in Spanish for the next
-    // English prospect is the same leak as one still answering as the last salon.
-    primary_language: "en",
   });
   await db
     .prepare(

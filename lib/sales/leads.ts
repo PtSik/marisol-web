@@ -1,3 +1,4 @@
+import { type DemoKnowledge, demoKnowledge } from "@/lib/sales/demoKnowledge";
 import { type EsStrength, type Tier, hook, openNow } from "@/lib/sales/derive";
 
 export const OUTCOMES = [
@@ -77,6 +78,17 @@ export interface LeadRow {
 export interface SalesLead extends LeadRow {
   openState: ReturnType<typeof openNow>;
   hookLine: string;
+  // What the demo will and will not be able to answer for this lead. Computed here rather than in
+  // the card so the rep sees the same verdict `assignNumber` will act on.
+  demoKnows: DemoKnowledge;
+}
+
+// The enrichment columns ride along on the query but are not part of a lead. `decorate` folds them
+// into `demoKnows` and drops them, so nothing downstream has to know the table exists.
+interface LeadQueryRow extends LeadRow {
+  services: string | null;
+  service_confidence: string | null;
+  enrichment_note: string | null;
 }
 
 export interface LeadFilters {
@@ -90,21 +102,30 @@ export interface LeadFilters {
 const SELECT = `
   SELECT l.*, s.outcome, s.attempts, s.owner, s.last_contact_at, s.next_followup, s.note,
          s.demo_lang, s.demo_requested_at, s.demo_called_at,
-         d.phone_e164 AS demo_number, COALESCE(d.grace_until, d.expires_at) AS demo_expires_at
+         d.phone_e164 AS demo_number, COALESCE(d.grace_until, d.expires_at) AS demo_expires_at,
+         e.services, e.service_confidence, e.note AS enrichment_note
   FROM leads l
   JOIN lead_state s ON s.lead_id = l.id
   LEFT JOIN demo_numbers d ON d.lead_id = l.id AND d.state IN ('assigned', 'grace')
+  LEFT JOIN lead_enrichment e ON e.lead_id = l.id
 `;
 
-function decorate(row: LeadRow, now: Date): SalesLead {
+function decorate(row: LeadQueryRow, now: Date): SalesLead {
+  const { services, service_confidence, enrichment_note, ...lead } = row;
   return {
-    ...row,
-    openState: openNow(row.hours, now),
+    ...lead,
+    openState: openNow(lead.hours, now),
     hookLine: hook({
-      booking_app: row.booking_app,
-      is_mobile: row.is_mobile === 1,
-      review_count: row.review_count,
-      es_strength: row.es_strength,
+      booking_app: lead.booking_app,
+      is_mobile: lead.is_mobile === 1,
+      review_count: lead.review_count,
+      es_strength: lead.es_strength,
+    }),
+    demoKnows: demoKnowledge(lead, {
+      services,
+      // A lead with no enrichment row at all reads the same as one we tried and could not use.
+      service_confidence: service_confidence ?? "none",
+      note: enrichment_note,
     }),
   };
 }
@@ -145,13 +166,13 @@ export async function listLeads(
   const { results } = await db
     .prepare(sql)
     .bind(...binds)
-    .all<LeadRow>();
+    .all<LeadQueryRow>();
   const leads = (results ?? []).map((row) => decorate(row, now));
   return filters.openOnly ? leads.filter((l) => l.openState === "open") : leads;
 }
 
 export async function getLead(db: D1Database, id: string, now = new Date()) {
-  const row = await db.prepare(`${SELECT} WHERE l.id = ?`).bind(id).first<LeadRow>();
+  const row = await db.prepare(`${SELECT} WHERE l.id = ?`).bind(id).first<LeadQueryRow>();
   return row ? decorate(row, now) : null;
 }
 
