@@ -197,7 +197,7 @@ function DemoStage({ t, personas, locale }: WidgetProps) {
           </div>
           <fieldset className="m-0 flex flex-col gap-1 rounded-xl border-0 bg-cream/90 p-1 shadow-[0_6px_18px_-10px_rgba(36,27,20,0.5)]">
             <legend className="sr-only">{t.personaLegend}</legend>
-            {(["barbershop", "grooming"] as const).map((p) => (
+            {(["grooming", "barbershop"] as const).map((p) => (
               <button
                 key={p}
                 type="button"

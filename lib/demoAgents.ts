@@ -37,7 +37,7 @@ export const DEMO_AGENTS: DemoAgent[] = [
   },
 ];
 
-export const DEFAULT_PERSONA: DemoPersona = "barbershop";
+export const DEFAULT_PERSONA: DemoPersona = "grooming";
 
 export function getDemoAgent(persona: DemoPersona): DemoAgent {
   const found = DEMO_AGENTS.find((a) => a.persona === persona);

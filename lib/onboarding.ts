@@ -4,7 +4,7 @@ import type { Locale } from "@/lib/i18n/dict";
 export const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 export const PHONE_RE = /^(?=(?:\D*\d){7})[+()\-.\s\d]{7,20}$/;
 
-export const VERTICAL_IDS = ["barbershop", "grooming"] as const;
+export const VERTICAL_IDS = ["grooming", "barbershop"] as const;
 
 export type Vertical = (typeof VERTICAL_IDS)[number];
 
@@ -128,7 +128,7 @@ export function newStaffEntry(): StaffEntry {
   return { id: `stf_${crypto.randomUUID().slice(0, 8)}`, name: "", hours: null };
 }
 
-export function defaultBasics(vertical: Vertical = "barbershop"): BusinessBasics {
+export function defaultBasics(vertical: Vertical = "grooming"): BusinessBasics {
   return {
     vertical,
     businessName: "",

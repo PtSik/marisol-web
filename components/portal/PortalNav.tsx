@@ -57,11 +57,9 @@ function SalonSwitcher({ shops, activeShopId }: { shops: NavShop[]; activeShopId
 }
 
 export function PortalNav({
-  email,
   shops = [],
   activeShopId,
 }: {
-  email: string;
   shops?: NavShop[];
   activeShopId?: string;
 }) {
@@ -97,7 +95,7 @@ export function PortalNav({
         </ul>
         <div className="flex items-center gap-3">
           <SalonSwitcher shops={shops} activeShopId={activeShopId} />
-          <SignOutButton email={email} label={en.auth.signOut} />
+          <SignOutButton label={en.auth.signOut} />
         </div>
       </div>
     </nav>

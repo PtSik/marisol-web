@@ -69,7 +69,7 @@ function Shell({
             <LogoMark className="h-5 w-5 rounded-[3.5px]" />
             Marisol
           </a>
-          {email && <SignOutButton email={email} label={getDict(locale).auth.signOut} />}
+          {email && <SignOutButton label={getDict(locale).auth.signOut} />}
         </div>
       </nav>
       <main className="mx-auto max-w-[720px] px-[22px] pb-[clamp(48px,7vw,88px)] pt-[clamp(40px,6vw,72px)]">

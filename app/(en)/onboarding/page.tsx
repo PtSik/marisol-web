@@ -48,7 +48,7 @@ export default async function OnboardingPage({ searchParams }: OnboardingProps) 
               {t.back}
             </a>
             <LangSwitch locale={locale} t={getDict(locale).lang} path="/onboarding" byQuery />
-            <SignOutButton email={session.email} label={getDict(locale).auth.signOut} />
+            <SignOutButton label={getDict(locale).auth.signOut} />
           </div>
         </div>
       </nav>
