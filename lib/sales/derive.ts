@@ -50,15 +50,21 @@ export function scoreLead(lead: ScorableLead): number {
   else score += 2;
 
   if (lead.review_count >= 50 && lead.review_count <= 250) score += 2;
-  if (lead.review_count > 800) score -= 3;
 
   return score;
 }
 
-// Chains and very large shops go to a collapsed group instead of the call queue: 800+ reviews means
-// a front desk already answers the phone, so there is no pain to sell against.
+// Chains go to a collapsed group instead of the call queue: a franchise location decides nothing on
+// its own, so the sale takes months and runs through a head office.
+//
+// Review count deliberately does NOT send a lead here any more. It used to — 800+ reviews was read
+// as "a front desk already answers the phone" — but the count measures a shop's age and volume, not
+// its staffing, and the two come apart exactly where our best leads are. A mobile groomer drives a
+// van; there is no front desk at 200 reviews or at 2000, and the extra volume is extra missed
+// calls. The rule was burying seven independent shops, three of them the strongest mobile groomers
+// in Miami (Nadia at 1954 reviews, Boujee at 934, Deluxe at 871).
 export function tier(lead: Pick<ScorableLead, "is_chain" | "review_count">, score: number): Tier {
-  if (lead.is_chain || lead.review_count > 800) return "X";
+  if (lead.is_chain) return "X";
   if (score >= 9) return "A";
   if (score >= 6) return "B";
   return "C";
@@ -69,11 +75,45 @@ export interface HookInput {
   is_mobile: boolean;
   review_count: number;
   es_strength: EsStrength;
+  hours?: string | null;
+  website?: string | null;
+}
+
+// Below this a shop is closed more than it is open by a wide margin — the bottom quartile of the
+// Broward and north-Florida lists (33% of 249 leads; the median is 48h). Anything looser stops
+// separating: 48h alone would cover 57% of the list, the mistake `query_es` made.
+const NARROW_HOURS_WEEKLY = 40 * 60;
+
+/** Minutes a shop is open across the week, or `null` when Places gave us no usable hours. */
+export function weeklyOpenMinutes(hours: string | null | undefined): number | null {
+  if (!hours?.trim()) return null;
+  let total = 0;
+  let parsed = false;
+  for (const day of DAY_NAMES) {
+    const intervals = parseDayHours(hours, day);
+    if (intervals === null) continue;
+    parsed = true;
+    for (const interval of intervals) total += interval.close - interval.open;
+  }
+  return parsed ? total : null;
 }
 
 // The one line that tells a rep why this lead is worth dialling, strongest signal first, three max.
+//
+// Hours and website lead, because they are the signals that survive outside Miami: the Spanish
+// hook is 0% of the Jacksonville and St. Augustine lists and 3% of Broward, while Places gives us
+// hours for 94% of leads and a quarter of them have no website at all. "closed 132h/week" is also
+// the shop's own number rather than an inference, which is what makes it usable in an opener.
 export function hook(lead: HookInput): string {
   const parts: string[] = [];
+
+  const openMinutes = weeklyOpenMinutes(lead.hours);
+  if (openMinutes !== null && openMinutes <= NARROW_HOURS_WEEKLY) {
+    parts.push(`closed ${Math.round((7 * 24 * 60 - openMinutes) / 60)}h/week`);
+  }
+  // Distinct from "no booking system": a shop with no site at all has no way in but the phone.
+  if (lead.website !== undefined && !lead.website?.trim()) parts.push("no website");
+
   const app = lead.booking_app.trim().toLowerCase();
   if (app === "none") parts.push("no booking system");
   else if (BOOKING_SYSTEMS.has(app)) parts.push(`uses ${app}`);

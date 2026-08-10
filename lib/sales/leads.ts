@@ -120,6 +120,8 @@ function decorate(row: LeadQueryRow, now: Date): SalesLead {
       is_mobile: lead.is_mobile === 1,
       review_count: lead.review_count,
       es_strength: lead.es_strength,
+      hours: lead.hours,
+      website: lead.website,
     }),
     demoKnows: demoKnowledge(lead, {
       services,

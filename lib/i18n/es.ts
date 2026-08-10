@@ -444,6 +444,8 @@ export const es: Dict = {
     errBusinessPhone: "Escribe un número de teléfono válido.",
     errOwnerMobile: "Escribe un número de celular válido.",
     errSubmit: "Algo salió mal al iniciar el pago. Inténtalo de nuevo.",
+    errPromoPlan:
+      "Ese código promocional solo aplica al plan Complete. Cambia a Complete para usarlo, o borra el código para seguir con este plan.",
     bookCallBefore: "¿Prefieres platicarlo primero? ",
     bookCallLink: "Agenda una llamada de 15 min",
     bookCallAfter: " — sin pagar nada. La llamada es en inglés.",

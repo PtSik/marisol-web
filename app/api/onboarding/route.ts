@@ -281,6 +281,14 @@ async function handleCheckout(
     body: params,
   });
   if (!res.ok) {
+    // A campaign code is tied to one product (HIALEAH20 and friends only discount Complete), and
+    // Stripe refuses the whole session when the code matches nothing in the order. Forwarded as its
+    // own machine code, because "please try again" for a rule a retry cannot satisfy just sends the
+    // owner round the same loop — the same reason setup errors are translated in lib/i18n/dict.ts.
+    const failure = (await res.json().catch(() => null)) as { error?: { code?: string } } | null;
+    if (failure?.error?.code === "coupon_applies_to_nothing") {
+      return Response.json({ error: "promo not applicable" }, { status: 400 });
+    }
     return Response.json({ error: "failed to create checkout session" }, { status: 502 });
   }
 

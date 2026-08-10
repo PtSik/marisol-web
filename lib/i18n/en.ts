@@ -439,6 +439,8 @@ export const en = {
     errBusinessPhone: "Enter a valid phone number.",
     errOwnerMobile: "Enter a valid mobile number.",
     errSubmit: "Something went wrong starting checkout. Please try again.",
+    errPromoPlan:
+      "That promo code only applies to the Complete plan. Switch to Complete to use it, or clear the code to continue on this plan.",
     bookCallBefore: "Prefer to talk it through first? ",
     bookCallLink: "Book a 15-min call",
     bookCallAfter: " — no payment needed.",

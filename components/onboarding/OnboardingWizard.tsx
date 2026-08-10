@@ -169,6 +169,13 @@ export function OnboardingWizard({
           : "/portal";
         return;
       }
+      // A promo code that does not cover the chosen plan is the owner's to fix, not a retry — name
+      // the plan instead of the generic failure. Anything else keeps the old message.
+      if (body.error === "promo not applicable") {
+        setSubmitError(t.errPromoPlan);
+        setSubmitting(false);
+        return;
+      }
       if (!res.ok || !body.url) {
         throw new Error(body.error ?? "checkout failed");
       }

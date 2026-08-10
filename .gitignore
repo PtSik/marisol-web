@@ -12,5 +12,7 @@ out/
 .thumbnail
 scripts/
 docs/
-d1/seed-leads.sql
+# Scraped lead data — real businesses with phone numbers and addresses. The generator writes one
+# file per area (seed-leads-fort-lauderdale.sql and friends), so match the whole family.
+d1/seed-leads*.sql
 d1/seed-demo-pool.sql

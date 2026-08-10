@@ -10,8 +10,19 @@ import {
   tier,
   toE164,
   uniqueSlug,
+  weeklyOpenMinutes,
 } from "@/lib/sales/derive";
 import { looksLikeKey, normaliseRep } from "@/lib/salesAuth";
+
+const DAYS = [
+  "Monday",
+  "Tuesday",
+  "Wednesday",
+  "Thursday",
+  "Friday",
+  "Saturday",
+  "Sunday",
+] as const;
 
 // Places returns Spanish results for a Spanish query everywhere in Miami, so query_es appears on 89
 // of 120 leads and means nothing. Treating it as a signal would send Spanish demos to English shops.
@@ -49,8 +60,11 @@ describe("scoreLead", () => {
     expect(scoreLead({ ...base, review_count: 300 })).toBe(scoreLead(base));
   });
 
-  it("penalises shops big enough to already answer their phone", () => {
-    expect(scoreLead({ ...base, review_count: 900 })).toBe(scoreLead(base) - 3);
+  it("does not penalise a shop for being busy", () => {
+    // Review count tracks age and volume, not staffing. A mobile groomer with 2000 reviews has no
+    // more of a front desk than one with 200 — it just misses more calls.
+    expect(scoreLead({ ...base, review_count: 900 })).toBe(scoreLead(base));
+    expect(scoreLead({ ...base, review_count: 2976 })).toBe(scoreLead(base));
   });
 
   it("demotes a booking system without excluding it", () => {
@@ -71,9 +85,15 @@ describe("scoreLead", () => {
 });
 
 describe("tier", () => {
-  it("pushes chains and 800+ review shops out of the queue", () => {
+  it("pushes chains out of the queue", () => {
     expect(tier({ is_chain: true, review_count: 10 }, 12)).toBe("X");
-    expect(tier({ is_chain: false, review_count: 934 }, 12)).toBe("X");
+  });
+
+  it("keeps a busy independent shop in the queue", () => {
+    // Boujee Mobile Pet Grooming: 934 reviews, mobile, no booking system. It sat in X until
+    // 2026-08-10 and is a tier A lead.
+    expect(tier({ is_chain: false, review_count: 934 }, 9)).toBe("A");
+    expect(tier({ is_chain: false, review_count: 2976 }, 5)).toBe("C");
   });
 
   it("bands the rest by score", () => {
@@ -236,6 +256,28 @@ describe("openNow", () => {
   });
 });
 
+describe("weeklyOpenMinutes", () => {
+  // Happy Paws Pet Grooming, St. Augustine — the real row this threshold was chosen against.
+  const happyPaws =
+    "Monday: Closed | Tuesday: 8:00 AM – 5:00 PM | Wednesday: 8:00 AM – 5:00 PM | " +
+    "Thursday: 8:00 AM – 5:00 PM | Friday: 8:00 AM – 5:00 PM | Saturday: Closed | Sunday: Closed";
+
+  it("adds up the week", () => {
+    expect(weeklyOpenMinutes(happyPaws)).toBe(36 * 60);
+  });
+
+  it("counts a shop that never closes", () => {
+    const always = DAYS.map((d) => `${d}: Open 24 hours`).join(" | ");
+    expect(weeklyOpenMinutes(always)).toBe(7 * 24 * 60);
+  });
+
+  it("returns null when Places gave us nothing usable", () => {
+    expect(weeklyOpenMinutes(null)).toBeNull();
+    expect(weeklyOpenMinutes("")).toBeNull();
+    expect(weeklyOpenMinutes("Hours not listed")).toBeNull();
+  });
+});
+
 describe("hook", () => {
   it("leads with the missing booking system and caps at three signals", () => {
     const line = hook({
@@ -251,6 +293,54 @@ describe("hook", () => {
     expect(
       hook({ booking_app: "moego", is_mobile: false, review_count: 40, es_strength: "none" }),
     ).toBe("uses moego · 40 reviews");
+  });
+
+  it("gives a north-Florida storefront something to open with", () => {
+    // Happy Paws had no Spanish signal, is not mobile and has no site: the old hook was "56
+    // reviews" and nothing else, which is not an opener.
+    const line = hook({
+      booking_app: "unknown",
+      is_mobile: false,
+      review_count: 56,
+      es_strength: "none",
+      hours:
+        "Monday: Closed | Tuesday: 8:00 AM – 5:00 PM | Wednesday: 8:00 AM – 5:00 PM | " +
+        "Thursday: 8:00 AM – 5:00 PM | Friday: 8:00 AM – 5:00 PM | Saturday: Closed | Sunday: Closed",
+      website: null,
+    });
+    expect(line).toBe("closed 132h/week · no website · 56 reviews");
+  });
+
+  it("stays quiet about hours for a shop that is open most of the week", () => {
+    // 66h/week — above the threshold, so it says nothing rather than dressing up a normal week.
+    const line = hook({
+      booking_app: "none",
+      is_mobile: false,
+      review_count: 120,
+      es_strength: "none",
+      hours: DAYS.map((d) => `${d}: 9:00 AM – 6:00 PM`).join(" | "),
+      website: "https://example.com",
+    });
+    expect(line).toBe("no booking system · 120 reviews");
+  });
+
+  it("says nothing about hours or a website when neither was passed", () => {
+    // Callers that predate the fields must keep their old line exactly.
+    expect(
+      hook({ booking_app: "none", is_mobile: false, review_count: 12, es_strength: "none" }),
+    ).toBe("no booking system · 12 reviews");
+  });
+
+  it("does not invent an hours claim when Places listed none", () => {
+    const line = hook({
+      booking_app: "none",
+      is_mobile: false,
+      review_count: 12,
+      es_strength: "none",
+      hours: null,
+      website: "https://example.com",
+    });
+    expect(line).toBe("no booking system · 12 reviews");
   });
 });
 

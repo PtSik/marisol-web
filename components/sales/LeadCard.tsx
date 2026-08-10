@@ -283,7 +283,11 @@ export function LeadCard({ lead, back, focus = false, history }: LeadCardProps) 
           Details
         </summary>
         <dl className="mt-2 grid grid-cols-[max-content_1fr] gap-x-4 gap-y-1 text-sm">
-          {lead.address && <Row label="Address">{lead.address}</Row>}
+          {/* Called out rather than hidden: in the metros the team closes in person, a lead with no
+              address is one nobody can drive to, and a blank row read as "not worth showing". */}
+          <Row label="Address">
+            {lead.address ?? <span className="text-muted">none on file — phone only</span>}
+          </Row>
           {lead.rating !== null && (
             <Row label="Rating">
               {lead.rating}★ · {lead.review_count} reviews
