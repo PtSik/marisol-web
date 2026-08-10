@@ -194,7 +194,7 @@ export const en = {
   pricing: {
     badge: "Pricing",
     title: { before: "Flat pricing. ", accent: "Every call", after: " answered." },
-    subtitle: "No setup fee, no contract, no per-minute charges. Cancel anytime, keep your number.",
+    subtitle: "No contract, no per-minute charges. Cancel anytime, keep your number.",
     billingLegend: "Billing period",
     monthly: "Monthly",
     annual: "Annual · save up to ${amount}",
@@ -264,7 +264,7 @@ export const en = {
       ],
       cta: "Talk to sales",
     },
-    guarantee: "No setup fee. No contract. Flat rate — no overage charges.",
+    guarantee: "No contract. Flat rate — no overage charges.",
     extraLocationNote: "Additional location: +${price}/mo, from Complete up.",
     trialNote: "{days} days free trial — cancel before it ends and you're never charged.",
     locationsNote: "Running a chain? ",

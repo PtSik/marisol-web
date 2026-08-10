@@ -199,7 +199,7 @@ export const es: Dict = {
     badge: "Precios",
     title: { before: "Precio fijo. ", accent: "Cada llamada", after: " contestada." },
     subtitle:
-      "Sin costo de instalación, sin contrato, sin cobros por minuto. Cancela cuando quieras y quédate con tu número.",
+      "Sin contrato, sin cobros por minuto. Cancela cuando quieras y quédate con tu número.",
     billingLegend: "Periodo de facturación",
     monthly: "Mensual",
     annual: "Anual · ahorra hasta ${amount}",
@@ -269,7 +269,7 @@ export const es: Dict = {
       ],
       cta: "Habla con ventas",
     },
-    guarantee: "Sin costo de instalación. Sin contrato. Precio fijo — sin cargos por excedente.",
+    guarantee: "Sin contrato. Precio fijo — sin cargos por excedente.",
     extraLocationNote: "Local adicional: +${price}/mes, desde Complete en adelante.",
     trialNote: "{days} días de prueba gratis — cancela antes de que termine y nunca se te cobra.",
     locationsNote: "¿Tienes una cadena? ",
