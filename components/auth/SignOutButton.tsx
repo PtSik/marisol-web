@@ -3,7 +3,7 @@
 export function SignOutButton({ label }: { label: string }) {
   return (
     <form method="post" action="/api/auth/logout" className="flex items-center gap-3">
-      <button type="submit" className="text-[14px] font-medium text-teal">
+      <button type="submit" className="whitespace-nowrap text-[14px] font-medium text-teal">
         {label}
       </button>
     </form>

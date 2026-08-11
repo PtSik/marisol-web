@@ -97,7 +97,7 @@ function LoginForm({ error }: { error: boolean }) {
 
 function Counter({ label, value }: { label: string; value: ReactNode }) {
   return (
-    <div>
+    <div className="whitespace-nowrap">
       <div className="font-display text-[24px] leading-none tracking-tight">{value}</div>
       <div className="mt-0.5 text-xs uppercase tracking-wide text-muted-2">{label}</div>
     </div>
@@ -201,7 +201,10 @@ export default async function SalesPage({
             <LogoMark className="h-5 w-5 rounded-[3.5px]" />
             Marisol <span className="text-[15px] text-muted">sales</span>
           </a>
-          <div className="flex items-center gap-6">
+          {/* flex-wrap: 5 two-word stats plus gap-6 don't fit one row on a phone, and without wrap
+              the browser squeezes each Counter until its label breaks mid-word ("TO" / "CALL")
+              instead of dropping whole counters to a second line. */}
+          <div className="flex flex-wrap items-center gap-x-6 gap-y-2">
             <Counter label="to call" value={stats.queue} />
             <Counter label="called today" value={stats.calledToday} />
             <Counter label="demos queued" value={stats.demoRequested} />
