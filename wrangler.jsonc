@@ -5,6 +5,9 @@
   "compatibility_flags": ["nodejs_compat"],
   "main": "vinext/server/app-router-entry",
   "preview_urls": true,
+  "observability": {
+    "enabled": true
+  },
   "assets": {
     "not_found_handling": "none",
     "binding": "ASSETS"

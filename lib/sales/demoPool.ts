@@ -8,6 +8,7 @@ export interface DemoPoolEnv extends VoiceAgentEnv, TwilioEnv, NotifyEnv {
   OUTREACH_DB?: D1Database;
   DEMO_POOL_AGENT_ID?: string;
   DEMO_POOL_AGENT_ID_ES?: string;
+  RATE_LIMIT_KV?: KVNamespace;
 }
 
 // Twelve hours, not twenty-four: staggered daily expiries mean day two starts holding day one's
@@ -211,12 +212,23 @@ async function noteCall(
   });
 }
 
+const SWEEP_LOCK_SECONDS = 20;
+
+async function claimSweepLock(kv: KVNamespace | undefined): Promise<boolean> {
+  if (!kv) return true;
+  const key = "sales:sweep-lock";
+  if (await kv.get(key)) return false;
+  await kv.put(key, "1", { expirationTtl: SWEEP_LOCK_SECONDS }).catch(() => {});
+  return true;
+}
+
 // Runs on every /sales render, which is what replaces a cron — this Worker has no triggers and
 // its `worker/index.ts` never executes. Never throws: a demo that fails to expire must not take
 // down the page the rep is calling from.
 export async function sweepDemoPool(env: DemoPoolEnv, now = new Date()): Promise<void> {
   const db = env.OUTREACH_DB;
   if (!db) return;
+  if (!(await claimSweepLock(env.RATE_LIMIT_KV))) return;
   try {
     const { results } = await db
       .prepare("SELECT * FROM demo_numbers WHERE state IN ('assigned', 'grace')")

@@ -9,6 +9,7 @@ export interface SalesQuery {
   mode?: string;
   view?: string;
   lead?: string;
+  low?: string;
 }
 
 export function buildQuery(current: SalesQuery, patch: SalesQuery): string {

@@ -6,8 +6,10 @@ import { LeadTable } from "@/components/sales/LeadTable";
 import { type DemoPoolEnv, poolStatus, sweepDemoPool } from "@/lib/sales/demoPool";
 import type { EsStrength, Tier } from "@/lib/sales/derive";
 import {
+  type LeadFilters,
   type Outcome,
   type SalesLead,
+  countLeads,
   counters,
   getLead as getSalesLead,
   isOutcome,
@@ -33,6 +35,8 @@ interface SalesEnv extends DemoPoolEnv {
 // The queue opens on everything worth calling; tier X stays in its own collapsed group.
 const ALL_TIERS: Tier[] = ["A", "B", "C"];
 const AB_TIERS: Tier[] = ["A", "B"];
+
+const QUEUE_PAGE_SIZE = 60;
 
 const NOTICE: Record<string, string> = {
   saved: "Result saved.",
@@ -112,6 +116,7 @@ function parseQuery(raw: Record<string, string | undefined>): SalesQuery {
     mode: raw.mode === "focus" ? "focus" : "",
     view: raw.view === "list" ? "list" : "",
     lead: raw.lead ?? "",
+    low: raw.low === "1" ? "1" : "",
   };
 }
 
@@ -161,13 +166,20 @@ export default async function SalesPage({
   // demos and notices that an owner called back. Same trade the referral settlement makes.
   await sweepDemoPool(cfEnv);
 
-  const [leads, lowPriority, areas, stats, pool] = await Promise.all([
-    listLeads(db, filters),
-    listLeads(db, { ...filters, tiers: ["X"] }),
+  const showLow = query.mode !== "focus" && query.low === "1";
+  const lowFilters: LeadFilters = { ...filters, tiers: ["X"] };
+
+  const [leads, totalLeads, lowPriority, lowPriorityCount, areas, stats, pool] = await Promise.all([
+    listLeads(db, filters, undefined, QUEUE_PAGE_SIZE),
+    filters.openOnly ? null : countLeads(db, filters),
+    showLow ? listLeads(db, lowFilters, undefined, QUEUE_PAGE_SIZE) : Promise.resolve([]),
+    showLow ? null : countLeads(db, lowFilters),
     neighborhoods(db),
     counters(db, new Date(), { neighborhood: filters.neighborhood, tiers: filters.tiers }),
     poolStatus(db),
   ]);
+  const queueTotal = totalLeads ?? leads.length;
+  const lowTotal = showLow ? lowPriority.length : (lowPriorityCount ?? 0);
 
   const back = buildQuery(query, {});
   // A row picked out of the list view names its lead; the focus button just takes the top of the queue.
@@ -221,7 +233,7 @@ export default async function SalesPage({
           <section className="mt-4">
             <div className="flex items-center justify-between gap-4">
               <h1 className="font-display text-[24px] tracking-tight">
-                Next up <span className="text-[16px] text-muted">({leads.length} left)</span>
+                Next up <span className="text-[16px] text-muted">({queueTotal} left)</span>
               </h1>
               <a
                 href={`/sales${buildQuery(query, { mode: "", lead: "" })}`}
@@ -241,7 +253,7 @@ export default async function SalesPage({
             <section className="mt-6">
               <div className="flex flex-wrap items-center justify-between gap-3">
                 <h1 className="font-display text-[24px] tracking-tight">
-                  Call queue <span className="text-[16px] text-muted">({leads.length})</span>
+                  Call queue <span className="text-[16px] text-muted">({queueTotal})</span>
                 </h1>
                 {leads.length > 0 && (
                   <a
@@ -252,6 +264,12 @@ export default async function SalesPage({
                   </a>
                 )}
               </div>
+              {queueTotal > leads.length && (
+                <p className="mt-1 text-sm text-muted">
+                  Showing the top {leads.length} of {queueTotal} — narrow the filters above to see
+                  the rest.
+                </p>
+              )}
 
               {leads.length === 0 ? (
                 <p className="mt-4 text-muted">
@@ -270,27 +288,44 @@ export default async function SalesPage({
               )}
             </section>
 
-            {lowPriority.length > 0 && (
-              <details className="mt-10">
-                <summary className="cursor-pointer font-display text-[24px] tracking-tight">
-                  Low priority{" "}
-                  <span className="text-[16px] text-muted">({lowPriority.length})</span>
-                </summary>
+            {lowTotal > 0 && (
+              <section id="low-priority" className="mt-10">
+                <h2 className="font-display text-[24px] tracking-tight">
+                  {showLow ? (
+                    <>
+                      Low priority <span className="text-[16px] text-muted">({lowTotal})</span>{" "}
+                      <a
+                        href={`/sales${buildQuery(query, { low: "" })}#low-priority`}
+                        className="text-[16px] text-teal no-underline"
+                      >
+                        hide
+                      </a>
+                    </>
+                  ) : (
+                    <a
+                      href={`/sales${buildQuery(query, { low: "1" })}#low-priority`}
+                      className="text-ink no-underline"
+                    >
+                      Low priority <span className="text-[16px] text-muted">({lowTotal})</span>
+                    </a>
+                  )}
+                </h2>
                 <p className="mt-1 text-sm text-muted">
                   Chains and shops over 800 reviews — someone already answers their phone.
                 </p>
-                {query.view === "list" ? (
-                  <div className="mt-4">
-                    <LeadTable leads={lowPriority} query={query} />
-                  </div>
-                ) : (
-                  <div className="mt-4 grid gap-4 lg:grid-cols-2">
-                    {lowPriority.map((lead) => (
-                      <LeadCard key={lead.id} lead={lead} back={back} />
-                    ))}
-                  </div>
-                )}
-              </details>
+                {showLow &&
+                  (query.view === "list" ? (
+                    <div className="mt-4">
+                      <LeadTable leads={lowPriority} query={query} />
+                    </div>
+                  ) : (
+                    <div className="mt-4 grid gap-4 lg:grid-cols-2">
+                      {lowPriority.map((lead) => (
+                        <LeadCard key={lead.id} lead={lead} back={back} />
+                      ))}
+                    </div>
+                  ))}
+              </section>
             )}
           </>
         )}

@@ -132,11 +132,7 @@ function decorate(row: LeadQueryRow, now: Date): SalesLead {
   };
 }
 
-export async function listLeads(
-  db: D1Database,
-  filters: LeadFilters,
-  now = new Date(),
-): Promise<SalesLead[]> {
+function buildWhere(filters: LeadFilters, now: Date): { clause: string; binds: unknown[] } {
   const where: string[] = [];
   const binds: unknown[] = [];
 
@@ -161,16 +157,43 @@ export async function listLeads(
     binds.push(filters.outcome);
   }
 
-  const sql = `${SELECT}${where.length > 0 ? ` WHERE ${where.join(" AND ")}` : ""}
+  return { clause: where.length > 0 ? ` WHERE ${where.join(" AND ")}` : "", binds };
+}
+
+export async function listLeads(
+  db: D1Database,
+  filters: LeadFilters,
+  now = new Date(),
+  limit?: number,
+): Promise<SalesLead[]> {
+  const { clause, binds } = buildWhere(filters, now);
+  const capped = limit != null && !filters.openOnly;
+
+  const sql = `${SELECT}${clause}
     ORDER BY CASE l.tier WHEN 'A' THEN 0 WHEN 'B' THEN 1 WHEN 'C' THEN 2 ELSE 3 END,
-             l.score DESC, l.review_count DESC`;
+             l.score DESC, l.review_count DESC${capped ? " LIMIT ?" : ""}`;
 
   const { results } = await db
     .prepare(sql)
-    .bind(...binds)
+    .bind(...binds, ...(capped ? [limit] : []))
     .all<LeadQueryRow>();
   const leads = (results ?? []).map((row) => decorate(row, now));
   return filters.openOnly ? leads.filter((l) => l.openState === "open") : leads;
+}
+
+export async function countLeads(
+  db: D1Database,
+  filters: LeadFilters,
+  now = new Date(),
+): Promise<number> {
+  const { clause, binds } = buildWhere(filters, now);
+  const row = await db
+    .prepare(
+      `SELECT COUNT(*) AS n FROM leads l JOIN lead_state s ON s.lead_id = l.id${clause}`,
+    )
+    .bind(...binds)
+    .first<{ n: number }>();
+  return row?.n ?? 0;
 }
 
 export async function getLead(db: D1Database, id: string, now = new Date()) {
