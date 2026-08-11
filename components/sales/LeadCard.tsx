@@ -194,7 +194,9 @@ export function LeadCard({ lead, back, focus = false, history }: LeadCardProps) 
               name="note"
               defaultValue={lead.note ?? ""}
               placeholder="Note — saved with the result"
-              className="w-full rounded-[10px] border border-ink/15 bg-white px-3 py-2 text-sm"
+              // text-base, not text-sm — anything under 16px makes iOS Safari zoom the page in on
+              // focus, which can shove the outcome buttons that actually submit this form off-screen.
+              className="w-full rounded-[10px] border border-ink/15 bg-white px-3 py-2 text-base"
             />
           </label>
           <label className="block text-sm text-muted">
@@ -203,7 +205,7 @@ export function LeadCard({ lead, back, focus = false, history }: LeadCardProps) 
               type="date"
               name="next_followup"
               defaultValue={lead.next_followup ?? ""}
-              className="rounded-[10px] border border-ink/15 bg-white px-3 py-2 text-sm"
+              className="rounded-[10px] border border-ink/15 bg-white px-3 py-2 text-base"
             />
           </label>
         </div>

@@ -71,7 +71,7 @@ function LoginForm({ error }: { error: boolean }) {
           maxLength={24}
           autoComplete="nickname"
           placeholder="goes on the calls you log"
-          className="mt-1.5 w-full rounded-[10px] border border-ink/15 bg-white px-3 py-2.5 text-[15px]"
+          className="mt-1.5 w-full rounded-[10px] border border-ink/15 bg-white px-3 py-2.5 text-base"
         />
         <label htmlFor="sales-key" className="mt-4 block text-sm text-muted">
           Team key
@@ -81,7 +81,7 @@ function LoginForm({ error }: { error: boolean }) {
           name="key"
           type="password"
           required
-          className="mt-1.5 w-full rounded-[10px] border border-ink/15 bg-white px-3 py-2.5 text-[15px]"
+          className="mt-1.5 w-full rounded-[10px] border border-ink/15 bg-white px-3 py-2.5 text-base"
         />
         {error && <p className="mt-2 text-sm text-[#B3261E]">Wrong key or name. Try again.</p>}
         <button
