@@ -91,8 +91,12 @@ export function LeadCard({ lead, back, focus = false, history }: LeadCardProps) 
         <div className="min-w-0">
           <div className="flex items-center gap-2">
             <Chip className={TIER_STYLE[lead.tier] ?? TIER_STYLE.C}>{lead.tier}</Chip>
+            {/* min-w-0: a flex item's default min-width is auto (= its content), which blocks
+                shrinking and defeats `truncate` — a long shop name was overflowing this row, which
+                had no clipping ancestor above it (see globals.css's overflow-x: clip on the body),
+                so it cut half the card off on narrow screens instead of ellipsizing. */}
             <h3
-              className={`truncate font-display tracking-tight ${focus ? "text-[28px]" : "text-[19px]"}`}
+              className={`min-w-0 truncate font-display tracking-tight ${focus ? "text-[28px]" : "text-[19px]"}`}
             >
               {lead.shop_name}
             </h3>
