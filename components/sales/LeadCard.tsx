@@ -86,7 +86,7 @@ export function LeadCard({ lead, back, focus = false, history }: LeadCardProps) 
   const promo = promoCodeFor(lead.neighborhood);
 
   return (
-    <article className="rounded-[18px] border border-ink/10 bg-cream/80 p-5">
+    <article className="min-w-0 rounded-[18px] border border-ink/10 bg-cream/80 p-5">
       <div className="flex flex-wrap items-start justify-between gap-2">
         <div className="min-w-0">
           <div className="flex items-center gap-2">
