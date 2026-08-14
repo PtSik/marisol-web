@@ -10,7 +10,13 @@ export interface SalesQuery {
   view?: string;
   lead?: string;
   low?: string;
+  page?: string;
+  lowPage?: string;
 }
+
+// A narrower result set makes the page the rep is on meaningless, so every filter link goes back to
+// the first page of both lists. The view toggle does not — it shows the same leads differently.
+const FIRST_PAGE: SalesQuery = { page: "", lowPage: "" };
 
 export function buildQuery(current: SalesQuery, patch: SalesQuery): string {
   const params = new URLSearchParams();
@@ -41,7 +47,12 @@ function Chip({
 
 function Group({ label, children }: { label: string; children: React.ReactNode }) {
   return (
-    <div className="flex flex-wrap items-center gap-1.5">
+    <div
+      // biome-ignore lint/a11y/useSemanticElements: these are navigation links, not form controls — <fieldset>/<legend> would claim otherwise
+      role="group"
+      aria-label={label}
+      className="flex flex-wrap items-center gap-1.5"
+    >
       <span className="text-xs font-medium uppercase tracking-wide text-muted-2">{label}</span>
       {children}
     </div>
@@ -56,71 +67,135 @@ export interface FilterBarProps {
 export function FilterBar({ query, neighborhoods }: FilterBarProps) {
   const toggle = (key: keyof SalesQuery, value: string): SalesQuery => ({
     [key]: query[key] === value ? "" : value,
+    ...FIRST_PAGE,
   });
 
+  const hasActiveFilters = Boolean(
+    query.neighborhood || query.tier || query.outcome || query.open || query.es,
+  );
+
   return (
-    <div className="mt-4 space-y-2 rounded-[18px] border border-ink/10 bg-cream/80 p-4">
-      <Group label="Area">
-        <Chip href={buildQuery(query, { neighborhood: "" })} active={!query.neighborhood}>
-          all
-        </Chip>
-        {neighborhoods.map((n) => (
-          <Chip
-            key={n}
-            href={buildQuery(query, toggle("neighborhood", n))}
-            active={query.neighborhood === n}
+    <div className="mt-4 rounded-[18px] border border-ink/10 bg-cream/80 p-4">
+      {/* Seventeen areas open on the bar pushed the queue off a phone screen; closed on every load
+          the group costs one row and still names what is selected. */}
+      <details className="group rounded-[12px] border border-ink/15 bg-white">
+        <summary className="flex min-h-11 cursor-pointer list-none items-center justify-between gap-3 px-3.5 py-2.5 [&::-webkit-details-marker]:hidden focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-teal">
+          <span className="flex flex-wrap items-baseline gap-x-1.5">
+            <span className="text-xs font-medium uppercase tracking-wide text-muted-2">Area:</span>
+            <span className="text-sm font-medium text-ink">{query.neighborhood || "All"}</span>
+          </span>
+          <svg
+            width="16"
+            height="16"
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="currentColor"
+            strokeWidth="2.4"
+            strokeLinecap="round"
+            strokeLinejoin="round"
+            aria-hidden="true"
+            className="shrink-0 text-muted-2 transition-transform duration-200 group-open:rotate-180"
           >
-            {n}
+            <polyline points="6 9 12 15 18 9" />
+          </svg>
+        </summary>
+        <div
+          // biome-ignore lint/a11y/useSemanticElements: these are navigation links, not form controls — <fieldset>/<legend> would claim otherwise
+          role="group"
+          aria-label="Area"
+          className="flex flex-wrap items-center gap-1.5 border-t border-ink/10 px-3.5 py-3"
+        >
+          <Chip
+            href={buildQuery(query, { neighborhood: "", ...FIRST_PAGE })}
+            active={!query.neighborhood}
+          >
+            all
           </Chip>
-        ))}
-      </Group>
+          {neighborhoods.map((n) => (
+            <Chip
+              key={n}
+              href={buildQuery(query, toggle("neighborhood", n))}
+              active={query.neighborhood === n}
+            >
+              {n}
+            </Chip>
+          ))}
+        </div>
+      </details>
 
-      <Group label="Tier">
-        {/* Default. Tier X keeps its own collapsed group, so nothing is listed twice. */}
-        <Chip href={buildQuery(query, { tier: "" })} active={!query.tier}>
-          show all
-        </Chip>
-        <Chip href={buildQuery(query, toggle("tier", "AB"))} active={query.tier === "AB"}>
-          A + B
-        </Chip>
-        {["A", "B", "C"].map((t) => (
-          <Chip key={t} href={buildQuery(query, toggle("tier", t))} active={query.tier === t}>
-            {t}
+      <div className="mt-3 space-y-2 border-t border-ink/10 pt-3">
+        <Group label="Tier">
+          {/* Default. Tier X keeps its own collapsed group, so nothing is listed twice. */}
+          <Chip href={buildQuery(query, { tier: "", ...FIRST_PAGE })} active={!query.tier}>
+            show all
           </Chip>
-        ))}
-      </Group>
-
-      <Group label="State">
-        <Chip href={buildQuery(query, { outcome: "" })} active={!query.outcome}>
-          to call
-        </Chip>
-        {(["no_answer", "interested", "demo_sent", "callback"] as Outcome[]).map((o) => (
-          <Chip key={o} href={buildQuery(query, toggle("outcome", o))} active={query.outcome === o}>
-            {OUTCOME_LABELS[o]}
+          <Chip href={buildQuery(query, toggle("tier", "AB"))} active={query.tier === "AB"}>
+            A + B
           </Chip>
-        ))}
-        <Chip href={buildQuery(query, { outcome: "all" })} active={query.outcome === "all"}>
-          everything
-        </Chip>
-      </Group>
+          {["A", "B", "C"].map((t) => (
+            <Chip key={t} href={buildQuery(query, toggle("tier", t))} active={query.tier === t}>
+              {t}
+            </Chip>
+          ))}
+        </Group>
 
-      <Group label="Filters">
-        <Chip href={buildQuery(query, toggle("open", "1"))} active={query.open === "1"}>
-          open now
-        </Chip>
-        <Chip href={buildQuery(query, toggle("es", "strong"))} active={query.es === "strong"}>
-          Spanish signal
-        </Chip>
-      </Group>
+        <Group label="State">
+          <Chip href={buildQuery(query, { outcome: "", ...FIRST_PAGE })} active={!query.outcome}>
+            to call
+          </Chip>
+          {(["no_answer", "interested", "demo_sent", "callback"] as Outcome[]).map((o) => (
+            <Chip
+              key={o}
+              href={buildQuery(query, toggle("outcome", o))}
+              active={query.outcome === o}
+            >
+              {OUTCOME_LABELS[o]}
+            </Chip>
+          ))}
+          <Chip
+            href={buildQuery(query, { outcome: "all", ...FIRST_PAGE })}
+            active={query.outcome === "all"}
+          >
+            everything
+          </Chip>
+        </Group>
 
-      <Group label="View">
-        <Chip href={buildQuery(query, { view: "" })} active={query.view !== "list"}>
-          cards
-        </Chip>
-        <Chip href={buildQuery(query, { view: "list" })} active={query.view === "list"}>
-          list
-        </Chip>
-      </Group>
+        <Group label="Filters">
+          <Chip href={buildQuery(query, toggle("open", "1"))} active={query.open === "1"}>
+            open now
+          </Chip>
+          <Chip href={buildQuery(query, toggle("es", "strong"))} active={query.es === "strong"}>
+            Spanish signal
+          </Chip>
+        </Group>
+
+        <Group label="View">
+          <Chip href={buildQuery(query, { view: "" })} active={query.view !== "list"}>
+            cards
+          </Chip>
+          <Chip href={buildQuery(query, { view: "list" })} active={query.view === "list"}>
+            list
+          </Chip>
+        </Group>
+      </div>
+
+      {hasActiveFilters && (
+        <div className="mt-2 flex justify-end border-t border-ink/10 pt-2">
+          <a
+            href={`/sales${buildQuery(query, {
+              neighborhood: "",
+              tier: "",
+              outcome: "",
+              open: "",
+              es: "",
+              ...FIRST_PAGE,
+            })}`}
+            className="text-sm text-teal no-underline focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-teal"
+          >
+            Clear filters
+          </a>
+        </div>
+      )}
     </div>
   );
 }

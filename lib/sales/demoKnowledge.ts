@@ -1,7 +1,7 @@
 import { DEMO_SERVICES } from "@/lib/demoServices";
 import type { ServiceEntry } from "@/lib/onboarding";
 import { to12h, toShopServices } from "@/lib/provisioning";
-import { parseDayHours } from "@/lib/sales/derive";
+import { type ParsedWeek, parseWeekHours } from "@/lib/sales/derive";
 
 // What a leased demo number answers with when it is nobody's in particular. These are the values the
 // five pool shops were seeded with, and `releaseNumber` has to put every one of them back — a number
@@ -65,13 +65,13 @@ function clockFromMinutes(min: number): string {
 // parse", and confidently telling an owner his own salon is shut on Saturday is worse than saying
 // nothing and keeping the demo shop's generic week.
 export function toShopHoursFromPlaces(
-  hours: string | null | undefined,
+  week: ParsedWeek | null | undefined,
 ): Record<string, string> | null {
-  if (!hours?.trim()) return null;
+  if (!week) return null;
 
   const out: Record<string, string> = {};
   for (let i = 0; i < PLACES_DAYS.length; i++) {
-    const intervals = parseDayHours(hours, PLACES_DAYS[i]);
+    const intervals = week[PLACES_DAYS[i]] ?? null;
     if (intervals === null) return null; // day missing or unparseable
 
     if (intervals.length === 0) {
@@ -145,7 +145,7 @@ export function demoShopPatch({
   };
   if (agentId) patch.elevenlabs_agent_id = agentId;
 
-  const hours = toShopHoursFromPlaces(lead.hours);
+  const hours = toShopHoursFromPlaces(parseWeekHours(lead.hours));
   if (hours) patch.hours_json = JSON.stringify(hours);
 
   return patch;
@@ -170,11 +170,17 @@ export interface DemoKnowledge {
   note: string | null;
 }
 
-export function demoKnowledge(lead: DemoLead, enrichment?: EnrichmentRow | null): DemoKnowledge {
+// `week` is passed in rather than parsed from `lead.hours` so a caller decorating a whole queue
+// parses each lead's hours once and shares it with `openNow` and `hook`.
+export function demoKnowledge(
+  lead: DemoLead,
+  enrichment: EnrichmentRow | null | undefined,
+  week: ParsedWeek | null,
+): DemoKnowledge {
   const services = demoServices(enrichment);
   const fromSite = enrichment?.service_confidence === "high" && services !== DEMO_SERVICES.grooming;
   return {
-    hours: toShopHoursFromPlaces(lead.hours) !== null,
+    hours: toShopHoursFromPlaces(week) !== null,
     address: !!lead.address?.trim(),
     servicesFromSite: fromSite,
     serviceCount: services.length,

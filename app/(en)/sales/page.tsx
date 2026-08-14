@@ -3,6 +3,7 @@ import { LogoMark } from "@/components/Logo";
 import { FilterBar, type SalesQuery, buildQuery } from "@/components/sales/FilterBar";
 import { LeadCard } from "@/components/sales/LeadCard";
 import { LeadTable } from "@/components/sales/LeadTable";
+import { Pager } from "@/components/sales/Pager";
 import { type DemoPoolEnv, poolStatus, sweepDemoPool } from "@/lib/sales/demoPool";
 import type { EsStrength, Tier } from "@/lib/sales/derive";
 import {
@@ -16,6 +17,7 @@ import {
   leadHistory,
   listLeads,
   neighborhoods,
+  parsePageParam,
 } from "@/lib/sales/leads";
 import { SALES_COOKIE, SALES_REP_COOKIE, isSalesCookieValid, normaliseRep } from "@/lib/salesAuth";
 import { cookies } from "next/headers";
@@ -35,8 +37,6 @@ interface SalesEnv extends DemoPoolEnv {
 // The queue opens on everything worth calling; tier X stays in its own collapsed group.
 const ALL_TIERS: Tier[] = ["A", "B", "C"];
 const AB_TIERS: Tier[] = ["A", "B"];
-
-const QUEUE_PAGE_SIZE = 60;
 
 const NOTICE: Record<string, string> = {
   saved: "Result saved.",
@@ -117,6 +117,8 @@ function parseQuery(raw: Record<string, string | undefined>): SalesQuery {
     view: raw.view === "list" ? "list" : "",
     lead: raw.lead ?? "",
     low: raw.low === "1" ? "1" : "",
+    page: raw.page ?? "",
+    lowPage: raw.lowPage ?? "",
   };
 }
 
@@ -169,17 +171,23 @@ export default async function SalesPage({
   const showLow = query.mode !== "focus" && query.low === "1";
   const lowFilters: LeadFilters = { ...filters, tiers: ["X"] };
 
-  const [leads, totalLeads, lowPriority, lowPriorityCount, areas, stats, pool] = await Promise.all([
-    listLeads(db, filters, undefined, QUEUE_PAGE_SIZE),
-    filters.openOnly ? null : countLeads(db, filters),
-    showLow ? listLeads(db, lowFilters, undefined, QUEUE_PAGE_SIZE) : Promise.resolve([]),
-    showLow ? null : countLeads(db, lowFilters),
+  const now = new Date();
+  // Focus mode renders one lead instead of the list, and "Start calling" takes the first of them —
+  // page 1 is the top of the whole queue, whichever page the rep was on when they tapped it.
+  const queuePage = query.mode === "focus" && !query.lead ? 1 : parsePageParam(query.page);
+
+  const [queue, lowQueue, lowCount, areas, stats, pool] = await Promise.all([
+    listLeads(db, filters, now, queuePage),
+    showLow ? listLeads(db, lowFilters, now, parsePageParam(query.lowPage)) : null,
+    showLow ? null : countLeads(db, lowFilters, now),
     neighborhoods(db),
-    counters(db, new Date(), { neighborhood: filters.neighborhood, tiers: filters.tiers }),
+    counters(db, now, { neighborhood: filters.neighborhood, tiers: filters.tiers }),
     poolStatus(db),
   ]);
-  const queueTotal = totalLeads ?? leads.length;
-  const lowTotal = showLow ? lowPriority.length : (lowPriorityCount ?? 0);
+  const leads = queue.leads;
+  const queueTotal = queue.total;
+  const lowPriority = lowQueue?.leads ?? [];
+  const lowTotal = lowQueue?.total ?? lowCount ?? 0;
 
   const back = buildQuery(query, {});
   // A row picked out of the list view names its lead; the focus button just takes the top of the queue.
@@ -253,7 +261,7 @@ export default async function SalesPage({
           <>
             <FilterBar query={query} neighborhoods={areas} />
 
-            <section className="mt-6">
+            <section id="call-queue" className="mt-6">
               <div className="flex flex-wrap items-center justify-between gap-3">
                 <h1 className="font-display text-[24px] tracking-tight">
                   Call queue <span className="text-[16px] text-muted">({queueTotal})</span>
@@ -267,13 +275,16 @@ export default async function SalesPage({
                   </a>
                 )}
               </div>
-              {queueTotal > leads.length && (
-                <p className="mt-1 text-sm text-muted">
-                  Showing the top {leads.length} of {queueTotal} — narrow the filters above to see
-                  the rest.
-                </p>
+              {leads.length > 0 && (
+                <Pager
+                  list="queue"
+                  placement="top"
+                  query={query}
+                  page={queue.page}
+                  totalPages={queue.totalPages}
+                  total={queueTotal}
+                />
               )}
-
               {leads.length === 0 ? (
                 <p className="mt-4 text-muted">
                   Nothing matches these filters — widen the area or the state.
@@ -288,6 +299,16 @@ export default async function SalesPage({
                     <LeadCard key={lead.id} lead={lead} back={back} />
                   ))}
                 </div>
+              )}
+              {leads.length > 0 && (
+                <Pager
+                  list="queue"
+                  placement="bottom"
+                  query={query}
+                  page={queue.page}
+                  totalPages={queue.totalPages}
+                  total={queueTotal}
+                />
               )}
             </section>
 
@@ -316,6 +337,16 @@ export default async function SalesPage({
                 <p className="mt-1 text-sm text-muted">
                   Chains and shops over 800 reviews — someone already answers their phone.
                 </p>
+                {lowQueue && lowPriority.length > 0 && (
+                  <Pager
+                    list="low"
+                    placement="top"
+                    query={query}
+                    page={lowQueue.page}
+                    totalPages={lowQueue.totalPages}
+                    total={lowTotal}
+                  />
+                )}
                 {showLow &&
                   (query.view === "list" ? (
                     <div className="mt-4">
@@ -328,6 +359,16 @@ export default async function SalesPage({
                       ))}
                     </div>
                   ))}
+                {lowQueue && lowPriority.length > 0 && (
+                  <Pager
+                    list="low"
+                    placement="bottom"
+                    query={query}
+                    page={lowQueue.page}
+                    totalPages={lowQueue.totalPages}
+                    total={lowTotal}
+                  />
+                )}
               </section>
             )}
           </>

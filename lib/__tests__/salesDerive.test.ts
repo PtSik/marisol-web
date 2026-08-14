@@ -5,6 +5,7 @@ import {
   hook,
   openNow,
   parseNotes,
+  parseWeekHours,
   scoreLead,
   slugify,
   tier,
@@ -199,7 +200,9 @@ describe("parseNotes", () => {
 const at = (iso: string) => new Date(iso);
 
 describe("openNow", () => {
-  const weekday = "Monday: 9:00 AM – 5:00 PM | Tuesday: 9:00 AM – 5:00 PM | Sunday: Closed";
+  const weekday = parseWeekHours(
+    "Monday: 9:00 AM – 5:00 PM | Tuesday: 9:00 AM – 5:00 PM | Sunday: Closed",
+  );
 
   it("is open inside business hours", () => {
     // Monday 2026-08-03, 14:00 ET = 18:00 UTC
@@ -217,13 +220,15 @@ describe("openNow", () => {
   });
 
   it("separates a missing day from a closed one", () => {
-    expect(openNow("Monday: 9:00 AM – 5:00 PM", at("2026-08-04T18:00:00Z"))).toBe("unknown");
-    expect(openNow("", at("2026-08-03T18:00:00Z"))).toBe("unknown");
-    expect(openNow(null, at("2026-08-03T18:00:00Z"))).toBe("unknown");
+    expect(openNow(parseWeekHours("Monday: 9:00 AM – 5:00 PM"), at("2026-08-04T18:00:00Z"))).toBe(
+      "unknown",
+    );
+    expect(openNow(parseWeekHours(""), at("2026-08-03T18:00:00Z"))).toBe("unknown");
+    expect(openNow(parseWeekHours(null), at("2026-08-03T18:00:00Z"))).toBe("unknown");
   });
 
   it("treats Open 24 hours as always open", () => {
-    const always = "Monday: Open 24 hours | Tuesday: Open 24 hours";
+    const always = parseWeekHours("Monday: Open 24 hours | Tuesday: Open 24 hours");
     expect(openNow(always, at("2026-08-03T06:00:00Z"))).toBe("open");
   });
 
@@ -234,7 +239,7 @@ describe("openNow", () => {
   });
 
   it("keeps a shop open past midnight into the next day", () => {
-    const late = "Friday: 6:00 PM – 2:00 AM | Saturday: Closed";
+    const late = parseWeekHours("Friday: 6:00 PM – 2:00 AM | Saturday: Closed");
     // Saturday 2026-08-08 01:00 ET = 05:00 UTC — still Friday's session
     expect(openNow(late, at("2026-08-08T05:00:00Z"))).toBe("open");
     // Saturday 03:00 ET — that session has ended
@@ -263,18 +268,18 @@ describe("weeklyOpenMinutes", () => {
     "Thursday: 8:00 AM – 5:00 PM | Friday: 8:00 AM – 5:00 PM | Saturday: Closed | Sunday: Closed";
 
   it("adds up the week", () => {
-    expect(weeklyOpenMinutes(happyPaws)).toBe(36 * 60);
+    expect(weeklyOpenMinutes(parseWeekHours(happyPaws))).toBe(36 * 60);
   });
 
   it("counts a shop that never closes", () => {
     const always = DAYS.map((d) => `${d}: Open 24 hours`).join(" | ");
-    expect(weeklyOpenMinutes(always)).toBe(7 * 24 * 60);
+    expect(weeklyOpenMinutes(parseWeekHours(always))).toBe(7 * 24 * 60);
   });
 
   it("returns null when Places gave us nothing usable", () => {
-    expect(weeklyOpenMinutes(null)).toBeNull();
-    expect(weeklyOpenMinutes("")).toBeNull();
-    expect(weeklyOpenMinutes("Hours not listed")).toBeNull();
+    expect(weeklyOpenMinutes(parseWeekHours(null))).toBeNull();
+    expect(weeklyOpenMinutes(parseWeekHours(""))).toBeNull();
+    expect(weeklyOpenMinutes(parseWeekHours("Hours not listed"))).toBeNull();
   });
 });
 
@@ -303,9 +308,10 @@ describe("hook", () => {
       is_mobile: false,
       review_count: 56,
       es_strength: "none",
-      hours:
+      hours: parseWeekHours(
         "Monday: Closed | Tuesday: 8:00 AM – 5:00 PM | Wednesday: 8:00 AM – 5:00 PM | " +
-        "Thursday: 8:00 AM – 5:00 PM | Friday: 8:00 AM – 5:00 PM | Saturday: Closed | Sunday: Closed",
+          "Thursday: 8:00 AM – 5:00 PM | Friday: 8:00 AM – 5:00 PM | Saturday: Closed | Sunday: Closed",
+      ),
       website: null,
     });
     expect(line).toBe("closed 132h/week · no website · 56 reviews");
@@ -318,7 +324,7 @@ describe("hook", () => {
       is_mobile: false,
       review_count: 120,
       es_strength: "none",
-      hours: DAYS.map((d) => `${d}: 9:00 AM – 6:00 PM`).join(" | "),
+      hours: parseWeekHours(DAYS.map((d) => `${d}: 9:00 AM – 6:00 PM`).join(" | ")),
       website: "https://example.com",
     });
     expect(line).toBe("no booking system · 120 reviews");

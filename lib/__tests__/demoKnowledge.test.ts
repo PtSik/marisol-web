@@ -7,6 +7,7 @@ import {
   demoShopPatch,
   toShopHoursFromPlaces,
 } from "@/lib/sales/demoKnowledge";
+import { parseWeekHours } from "@/lib/sales/derive";
 
 const FULL_WEEK =
   "Monday: 6:30 AM – 10:00 PM | Tuesday: 9:00 AM – 5:00 PM | Wednesday: 9:00 AM – 5:00 PM | " +
@@ -24,7 +25,7 @@ function serverAccepts(value: string): boolean {
 
 describe("toShopHoursFromPlaces", () => {
   it("maps a full Places week onto the shop hours shape", () => {
-    expect(toShopHoursFromPlaces(FULL_WEEK)).toEqual({
+    expect(toShopHoursFromPlaces(parseWeekHours(FULL_WEEK))).toEqual({
       Mon: "6:30am-10:00pm",
       Tue: "9:00am-5:00pm",
       Wed: "9:00am-5:00pm",
@@ -36,7 +37,7 @@ describe("toShopHoursFromPlaces", () => {
   });
 
   it("every emitted value clears the server-side validator", () => {
-    const hours = toShopHoursFromPlaces(FULL_WEEK);
+    const hours = toShopHoursFromPlaces(parseWeekHours(FULL_WEEK));
     expect(hours).not.toBeNull();
     for (const value of Object.values(hours as Record<string, string>)) {
       expect(serverAccepts(value)).toBe(true);
@@ -45,12 +46,12 @@ describe("toShopHoursFromPlaces", () => {
 
   it("clamps 'Open 24 hours' into a same-day window", () => {
     const week = FULL_WEEK.replace("Monday: 6:30 AM – 10:00 PM", "Monday: Open 24 hours");
-    expect(toShopHoursFromPlaces(week)?.Mon).toBe("12:00am-11:59pm");
+    expect(toShopHoursFromPlaces(parseWeekHours(week))?.Mon).toBe("12:00am-11:59pm");
   });
 
   it("clamps a past-midnight close rather than emitting an hour the format cannot hold", () => {
     const week = FULL_WEEK.replace("Monday: 6:30 AM – 10:00 PM", "Monday: 8:00 PM – 2:00 AM");
-    const mon = toShopHoursFromPlaces(week)?.Mon;
+    const mon = toShopHoursFromPlaces(parseWeekHours(week))?.Mon;
     expect(mon).toBe("8:00pm-11:59pm");
     expect(serverAccepts(mon as string)).toBe(true);
   });
@@ -60,19 +61,19 @@ describe("toShopHoursFromPlaces", () => {
       "Tuesday: 9:00 AM – 5:00 PM",
       "Tuesday: 9:00 AM – 12:00 PM, 2:00 PM – 6:00 PM",
     );
-    expect(toShopHoursFromPlaces(week)?.Tue).toBe("9:00am-6:00pm");
+    expect(toShopHoursFromPlaces(parseWeekHours(week))?.Tue).toBe("9:00am-6:00pm");
   });
 
   it("gives up on the whole week when one day will not parse", () => {
     // Half a week reads to the agent as "closed the rest of the time", and telling an owner his own
     // salon is shut on Saturday is worse than saying nothing.
     const week = FULL_WEEK.replace("Saturday: 10:00 AM – 4:00 PM", "Saturday: by appointment");
-    expect(toShopHoursFromPlaces(week)).toBeNull();
+    expect(toShopHoursFromPlaces(parseWeekHours(week))).toBeNull();
   });
 
   it("returns null for missing or empty input", () => {
-    expect(toShopHoursFromPlaces(null)).toBeNull();
-    expect(toShopHoursFromPlaces("   ")).toBeNull();
+    expect(toShopHoursFromPlaces(parseWeekHours(null))).toBeNull();
+    expect(toShopHoursFromPlaces(parseWeekHours("   "))).toBeNull();
   });
 });
 
@@ -178,11 +179,15 @@ describe("NEUTRAL_DEMO_PATCH", () => {
 describe("demoKnowledge", () => {
   it("tells the rep what the agent will and will not know", () => {
     expect(
-      demoKnowledge({ shop_name: "A", hours: FULL_WEEK, address: "1 Main St" }, null),
+      demoKnowledge({ shop_name: "A", address: "1 Main St" }, null, parseWeekHours(FULL_WEEK)),
     ).toMatchObject({ hours: true, address: true, servicesFromSite: false });
 
     expect(
-      demoKnowledge({ shop_name: "A", hours: "Monday: by appointment", address: null }, null),
+      demoKnowledge(
+        { shop_name: "A", address: null },
+        null,
+        parseWeekHours("Monday: by appointment"),
+      ),
     ).toMatchObject({ hours: false, address: false, servicesFromSite: false });
   });
 });

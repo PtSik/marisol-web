@@ -1,5 +1,12 @@
 import { type DemoKnowledge, demoKnowledge } from "@/lib/sales/demoKnowledge";
-import { type EsStrength, type Tier, hook, openNow } from "@/lib/sales/derive";
+import {
+  type EsStrength,
+  SHOP_TIMEZONE,
+  type Tier,
+  hook,
+  openNow,
+  parseWeekHours,
+} from "@/lib/sales/derive";
 
 export const OUTCOMES = [
   "new",
@@ -99,6 +106,16 @@ export interface LeadFilters {
   es?: EsStrength;
 }
 
+export const LEADS_PAGE_SIZE = 25;
+
+export interface LeadPage {
+  leads: SalesLead[];
+  page: number;
+  pageSize: number;
+  total: number;
+  totalPages: number;
+}
+
 const SELECT = `
   SELECT l.*, s.outcome, s.attempts, s.owner, s.last_contact_at, s.next_followup, s.note,
          s.demo_lang, s.demo_requested_at, s.demo_called_at,
@@ -110,25 +127,38 @@ const SELECT = `
   LEFT JOIN lead_enrichment e ON e.lead_id = l.id
 `;
 
+const FROM = "FROM leads l JOIN lead_state s ON s.lead_id = l.id";
+
+// `l.id` breaks ties the other three terms leave open. Without it SQLite is free to order two
+// equal-scoring leads differently between the count, the page and the id pass, which silently
+// duplicates one lead across two pages and drops another.
+const ORDER_BY = `CASE l.tier WHEN 'A' THEN 0 WHEN 'B' THEN 1 WHEN 'C' THEN 2 ELSE 3 END,
+                  l.score DESC, l.review_count DESC, l.id ASC`;
+
 function decorate(row: LeadQueryRow, now: Date): SalesLead {
   const { services, service_confidence, enrichment_note, ...lead } = row;
+  const week = parseWeekHours(lead.hours);
   return {
     ...lead,
-    openState: openNow(lead.hours, now),
+    openState: openNow(week, now),
     hookLine: hook({
       booking_app: lead.booking_app,
       is_mobile: lead.is_mobile === 1,
       review_count: lead.review_count,
       es_strength: lead.es_strength,
-      hours: lead.hours,
+      hours: week,
       website: lead.website,
     }),
-    demoKnows: demoKnowledge(lead, {
-      services,
-      // A lead with no enrichment row at all reads the same as one we tried and could not use.
-      service_confidence: service_confidence ?? "none",
-      note: enrichment_note,
-    }),
+    demoKnows: demoKnowledge(
+      lead,
+      {
+        services,
+        // A lead with no enrichment row at all reads the same as one we tried and could not use.
+        service_confidence: service_confidence ?? "none",
+        note: enrichment_note,
+      },
+      week,
+    ),
   };
 }
 
@@ -160,25 +190,117 @@ function buildWhere(filters: LeadFilters, now: Date): { clause: string; binds: u
   return { clause: where.length > 0 ? ` WHERE ${where.join(" AND ")}` : "", binds };
 }
 
+export function parsePageParam(raw: string | undefined): number {
+  if (!raw || !/^\d+$/.test(raw)) return 1;
+  const n = Number.parseInt(raw, 10);
+  return n >= 1 ? n : 1;
+}
+
+function pageBounds(total: number, page: number) {
+  const totalPages = Math.max(1, Math.ceil(total / LEADS_PAGE_SIZE));
+  const clamped = Math.min(Math.max(Math.trunc(page) || 1, 1), totalPages);
+  return { totalPages, page: clamped, offset: (clamped - 1) * LEADS_PAGE_SIZE };
+}
+
+async function countWhere(db: D1Database, clause: string, binds: unknown[]): Promise<number> {
+  const row = await db
+    .prepare(`SELECT COUNT(*) AS n ${FROM}${clause}`)
+    .bind(...binds)
+    .first<{ n: number }>();
+  return row?.n ?? 0;
+}
+
+// Every filter but `openOnly` is a WHERE clause, so the count and the page are two views of one SQL
+// predicate and cannot disagree. `decorate` — the expensive part of a render — only ever sees the
+// page.
+async function listSqlPagedLeads(
+  db: D1Database,
+  filters: LeadFilters,
+  now: Date,
+  page: number,
+): Promise<LeadPage> {
+  const { clause, binds } = buildWhere(filters, now);
+  const total = await countWhere(db, clause, binds);
+  const bounds = pageBounds(total, page);
+
+  const { results } = await db
+    .prepare(`${SELECT}${clause} ORDER BY ${ORDER_BY} LIMIT ? OFFSET ?`)
+    .bind(...binds, LEADS_PAGE_SIZE, bounds.offset)
+    .all<LeadQueryRow>();
+
+  return {
+    leads: (results ?? []).map((row) => decorate(row, now)),
+    page: bounds.page,
+    pageSize: LEADS_PAGE_SIZE,
+    total,
+    totalPages: bounds.totalPages,
+  };
+}
+
+// `openNow` cannot become a WHERE clause — `hours` is free text and D1 has no user functions — so
+// the total and the page order have to come out of one JS pass over every SQL-matching row. Two
+// columns and no `decorate` keep that pass cheap enough to run on each load.
+async function fetchOpenOrderedIds(
+  db: D1Database,
+  filters: LeadFilters,
+  now: Date,
+): Promise<string[]> {
+  const { clause, binds } = buildWhere(filters, now);
+  const { results } = await db
+    .prepare(`SELECT l.id, l.hours ${FROM}${clause} ORDER BY ${ORDER_BY}`)
+    .bind(...binds)
+    .all<{ id: string; hours: string | null }>();
+
+  return (results ?? [])
+    .filter((row) => openNow(parseWeekHours(row.hours), now) === "open")
+    .map((row) => row.id);
+}
+
+async function listOpenOnlyPagedLeads(
+  db: D1Database,
+  filters: LeadFilters,
+  now: Date,
+  page: number,
+): Promise<LeadPage> {
+  const orderedIds = await fetchOpenOrderedIds(db, filters, now);
+  const total = orderedIds.length;
+  const bounds = pageBounds(total, page);
+  const pageIds = orderedIds.slice(bounds.offset, bounds.offset + LEADS_PAGE_SIZE);
+
+  const meta = {
+    page: bounds.page,
+    pageSize: LEADS_PAGE_SIZE,
+    total,
+    totalPages: bounds.totalPages,
+  };
+  if (pageIds.length === 0) return { leads: [], ...meta };
+
+  const { results } = await db
+    .prepare(`${SELECT} WHERE l.id IN (${pageIds.map(() => "?").join(", ")})`)
+    .bind(...pageIds)
+    .all<LeadQueryRow>();
+  const byId = new Map((results ?? []).map((row) => [row.id, row]));
+
+  // `IN` does not promise to return rows in the order of the list, so the page is rebuilt from the
+  // id order the pass above already decided.
+  return {
+    leads: pageIds
+      .map((id) => byId.get(id))
+      .filter((row): row is LeadQueryRow => row !== undefined)
+      .map((row) => decorate(row, now)),
+    ...meta,
+  };
+}
+
 export async function listLeads(
   db: D1Database,
   filters: LeadFilters,
   now = new Date(),
-  limit?: number,
-): Promise<SalesLead[]> {
-  const { clause, binds } = buildWhere(filters, now);
-  const capped = limit != null && !filters.openOnly;
-
-  const sql = `${SELECT}${clause}
-    ORDER BY CASE l.tier WHEN 'A' THEN 0 WHEN 'B' THEN 1 WHEN 'C' THEN 2 ELSE 3 END,
-             l.score DESC, l.review_count DESC${capped ? " LIMIT ?" : ""}`;
-
-  const { results } = await db
-    .prepare(sql)
-    .bind(...binds, ...(capped ? [limit] : []))
-    .all<LeadQueryRow>();
-  const leads = (results ?? []).map((row) => decorate(row, now));
-  return filters.openOnly ? leads.filter((l) => l.openState === "open") : leads;
+  page = 1,
+): Promise<LeadPage> {
+  return filters.openOnly
+    ? listOpenOnlyPagedLeads(db, filters, now, page)
+    : listSqlPagedLeads(db, filters, now, page);
 }
 
 export async function countLeads(
@@ -186,14 +308,11 @@ export async function countLeads(
   filters: LeadFilters,
   now = new Date(),
 ): Promise<number> {
+  // Shares `listLeads`' filtering rather than counting rows the JS-side `openOnly` filter would
+  // later drop — the two used to disagree whenever that filter was on.
+  if (filters.openOnly) return (await fetchOpenOrderedIds(db, filters, now)).length;
   const { clause, binds } = buildWhere(filters, now);
-  const row = await db
-    .prepare(
-      `SELECT COUNT(*) AS n FROM leads l JOIN lead_state s ON s.lead_id = l.id${clause}`,
-    )
-    .bind(...binds)
-    .first<{ n: number }>();
-  return row?.n ?? 0;
+  return countWhere(db, clause, binds);
 }
 
 export async function getLead(db: D1Database, id: string, now = new Date()) {
@@ -366,6 +485,10 @@ export async function leadHistory(db: D1Database, leadId: string): Promise<LeadE
   return results ?? [];
 }
 
+// Hoisted for the same reason as `openNow`'s clock: `toLocaleDateString` builds a formatter on every
+// call, and a /sales render makes this call up to five times.
+const SHOP_DAY = new Intl.DateTimeFormat("en-CA", { timeZone: SHOP_TIMEZONE });
+
 export function today(now = new Date()): string {
-  return now.toLocaleDateString("en-CA", { timeZone: "America/New_York" });
+  return SHOP_DAY.format(now);
 }

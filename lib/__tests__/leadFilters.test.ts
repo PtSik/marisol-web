@@ -1,4 +1,5 @@
 import { describe, expect, test } from "bun:test";
+import { type SalesQuery, buildQuery } from "@/components/sales/FilterBar";
 import { scoreLead, tier } from "@/lib/sales/derive";
 import {
   AREAS,
@@ -400,5 +401,73 @@ describe("tiering stays in step with the existing 120 leads", () => {
       es_strength: "strong" as const,
     };
     expect(tier(chain, scoreLead(chain))).toBe("X");
+  });
+});
+
+describe("FilterBar query hrefs", () => {
+  test("keeps a filter's other params and appends the new one", () => {
+    const current: SalesQuery = { neighborhood: "Hialeah", tier: "A" };
+    expect(buildQuery(current, { outcome: "callback" })).toBe(
+      "?neighborhood=Hialeah&tier=A&outcome=callback",
+    );
+  });
+
+  test("an empty-string patch value removes that param rather than serialising as empty", () => {
+    const current: SalesQuery = { neighborhood: "Hialeah", page: "3" };
+    expect(buildQuery(current, { neighborhood: "" })).toBe("?page=3");
+  });
+
+  test("no params at all serialises to the bare path", () => {
+    expect(buildQuery({}, {})).toBe("");
+  });
+
+  // Criterion 4: a filter link ships `page: "", lowPage: ""` in its patch (mirroring `FIRST_PAGE`
+  // in FilterBar.tsx) precisely so a rep three pages deep who narrows the area does not land on a
+  // page number the narrower result set may no longer have.
+  test("a filter-changing link clears both page params, even when the rep is deep in the queue", () => {
+    const current: SalesQuery = { page: "4", lowPage: "2", tier: "AB" };
+    const href = buildQuery(current, { neighborhood: "Doral", page: "", lowPage: "" });
+    expect(href).toBe("?tier=AB&neighborhood=Doral");
+    expect(href).not.toContain("page=");
+  });
+
+  test("clearing every filter at once (Clear filters) also clears both page params", () => {
+    const current: SalesQuery = {
+      neighborhood: "Hialeah",
+      tier: "AB",
+      outcome: "callback",
+      open: "1",
+      es: "strong",
+      page: "5",
+      lowPage: "3",
+    };
+    const href = buildQuery(current, {
+      neighborhood: "",
+      tier: "",
+      outcome: "",
+      open: "",
+      es: "",
+      page: "",
+      lowPage: "",
+    });
+    expect(href).toBe("");
+  });
+
+  // The View toggle intentionally does not reset pagination — it renders the same matched leads
+  // differently, so the page a rep is on is still meaningful after switching.
+  test("the view toggle does not clear either page param", () => {
+    const current: SalesQuery = { page: "3", lowPage: "2", tier: "AB" };
+    const href = buildQuery(current, { view: "list" });
+    expect(href).toContain("page=3");
+    expect(href).toContain("lowPage=2");
+    expect(href).toContain("view=list");
+  });
+
+  // Deep links: the same starting query plus the same patch always produces the same string, so a
+  // rep who bookmarks or shares a `/sales?...` URL reproduces the same view on a fresh load.
+  test("the same query and patch always produce the same href", () => {
+    const current: SalesQuery = { neighborhood: "Doral", tier: "A", open: "1", page: "2" };
+    const patch: SalesQuery = { es: "strong" };
+    expect(buildQuery(current, patch)).toBe(buildQuery(current, patch));
   });
 });

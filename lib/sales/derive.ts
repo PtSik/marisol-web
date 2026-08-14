@@ -75,7 +75,7 @@ export interface HookInput {
   is_mobile: boolean;
   review_count: number;
   es_strength: EsStrength;
-  hours?: string | null;
+  hours?: ParsedWeek | null;
   website?: string | null;
 }
 
@@ -85,13 +85,13 @@ export interface HookInput {
 const NARROW_HOURS_WEEKLY = 40 * 60;
 
 /** Minutes a shop is open across the week, or `null` when Places gave us no usable hours. */
-export function weeklyOpenMinutes(hours: string | null | undefined): number | null {
-  if (!hours?.trim()) return null;
+export function weeklyOpenMinutes(week: ParsedWeek | null | undefined): number | null {
+  if (!week) return null;
   let total = 0;
   let parsed = false;
   for (const day of DAY_NAMES) {
-    const intervals = parseDayHours(hours, day);
-    if (intervals === null) continue;
+    const intervals = week[day];
+    if (!intervals) continue;
     parsed = true;
     for (const interval of intervals) total += interval.close - interval.open;
   }
@@ -185,12 +185,31 @@ export function toE164(phone: string): string {
   return phone.startsWith("+") ? phone : `+${digits}`;
 }
 
-const DAY_NAMES = ["Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"];
+const DAY_NAMES = [
+  "Sunday",
+  "Monday",
+  "Tuesday",
+  "Wednesday",
+  "Thursday",
+  "Friday",
+  "Saturday",
+] as const;
 
-interface Interval {
+export type DayName = (typeof DAY_NAMES)[number];
+
+const DAY_LOOKUP = new Map(DAY_NAMES.map((day) => [day.toLowerCase(), day]));
+
+export interface Interval {
   open: number;
   close: number;
 }
+
+/**
+ * Every weekday of one shop's hours, parsed once. `null` for a day Places did not list or that
+ * would not parse — distinct from `[]`, which is an explicit "Closed". Keyed on the day union so a
+ * partial week cannot be built by mistake; readers still guard, since a cast can defeat that.
+ */
+export type ParsedWeek = Readonly<Record<DayName, Interval[] | null>>;
 
 function parseClock(raw: string): number | null {
   const match = raw.trim().match(/^(\d{1,2})(?::(\d{2}))?\s*([AaPp])\.?[Mm]\.?$/);
@@ -203,16 +222,7 @@ function parseClock(raw: string): number | null {
   return hour * 60 + minutes;
 }
 
-// Places writes hours as "Monday: 9:00 AM – 5:00 PM | Tuesday: Closed | …", with an en dash and
-// occasionally "Open 24 hours" or several ranges in one day.
-export function parseDayHours(hours: string, dayName: string): Interval[] | null {
-  const segment = hours
-    .split("|")
-    .map((s) => s.trim())
-    .find((s) => s.toLowerCase().startsWith(`${dayName.toLowerCase()}:`));
-  if (!segment) return null;
-
-  const value = segment.slice(segment.indexOf(":") + 1).trim();
+function parseDayValue(value: string): Interval[] | null {
   if (/^closed$/i.test(value)) return [];
   if (/open 24 hours/i.test(value)) return [{ open: 0, close: 24 * 60 }];
 
@@ -228,28 +238,65 @@ export function parseDayHours(hours: string, dayName: string): Interval[] | null
   return intervals.length > 0 ? intervals : null;
 }
 
-export function openNow(hours: string | null | undefined, now = new Date()): OpenState {
-  if (!hours?.trim()) return "unknown";
+// Places writes hours as "Monday: 9:00 AM – 5:00 PM | Tuesday: Closed | …", with an en dash and
+// occasionally "Open 24 hours" or several ranges in one day.
+//
+// The whole week is parsed in one pass because `openNow`, `hook` and `demoKnowledge` all want the
+// same shop's hours: per-day parsing re-split and re-scanned this string 16 times per lead, which
+// on its own put the /sales render over the Worker's CPU budget.
+export function parseWeekHours(hours: string | null | undefined): ParsedWeek | null {
+  if (!hours?.trim()) return null;
 
-  const parts = new Intl.DateTimeFormat("en-US", {
-    timeZone: SHOP_TIMEZONE,
-    weekday: "long",
-    hour: "2-digit",
-    minute: "2-digit",
-    hour12: false,
-  }).formatToParts(now);
+  const week: Record<DayName, Interval[] | null> = {
+    Sunday: null,
+    Monday: null,
+    Tuesday: null,
+    Wednesday: null,
+    Thursday: null,
+    Friday: null,
+    Saturday: null,
+  };
+
+  const seen = new Set<string>();
+  for (const raw of hours.split("|")) {
+    const segment = raw.trim();
+    const colon = segment.indexOf(":");
+    if (colon < 0) continue;
+    const day = DAY_LOOKUP.get(segment.slice(0, colon).toLowerCase());
+    // A repeated day keeps its first segment, as the old per-day lookup did.
+    if (!day || seen.has(day)) continue;
+    seen.add(day);
+    week[day] = parseDayValue(segment.slice(colon + 1).trim());
+  }
+  return week;
+}
+
+// Constructing an Intl.DateTimeFormat costs 20-90x what reusing one does, depending on the engine,
+// and this runs once per lead.
+const SHOP_CLOCK = new Intl.DateTimeFormat("en-US", {
+  timeZone: SHOP_TIMEZONE,
+  weekday: "long",
+  hour: "2-digit",
+  minute: "2-digit",
+  hour12: false,
+});
+
+export function openNow(week: ParsedWeek | null | undefined, now = new Date()): OpenState {
+  if (!week) return "unknown";
+
+  const parts = SHOP_CLOCK.formatToParts(now);
   const get = (type: string) => parts.find((p) => p.type === type)?.value ?? "";
-  const weekday = get("weekday");
+  const weekday = get("weekday") as DayName;
   const hour = Number(get("hour")) % 24;
   const minutes = hour * 60 + Number(get("minute"));
 
-  const today = parseDayHours(hours, weekday);
+  const today = week[weekday] ?? null;
   if (today === null) return "unknown";
   if (today.some((i) => minutes >= i.open && minutes < i.close)) return "open";
 
   // A shop that opened yesterday evening and closes after midnight is still open right now.
   const yesterday = DAY_NAMES[(DAY_NAMES.indexOf(weekday) + 6) % 7];
-  const carryOver = parseDayHours(hours, yesterday) ?? [];
+  const carryOver = week[yesterday] ?? [];
   if (carryOver.some((i) => i.close > 24 * 60 && minutes < i.close - 24 * 60)) return "open";
 
   return "closed";
