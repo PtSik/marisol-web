@@ -72,5 +72,49 @@
     "STRIPE_REFERRAL_COUPON": "marisol_referral_10off",
     // Session cookie is shared across the apex and app.callmarisol.com; unset on localhost dev.
     "COOKIE_DOMAIN": ".callmarisol.com"
+  },
+  "env": {
+    "preview": {
+      "routes": [
+        { "pattern": "test.callmarisol.com", "custom_domain": true }
+      ],
+      "kv_namespaces": [
+        { "binding": "RATE_LIMIT_KV", "id": "63226420204e48b7bc152b561d5f05de" },
+        { "binding": "LEADS_KV", "id": "cfc515ef0b784a4396df923908792bb7" }
+      ],
+      "d1_databases": [
+        {
+          "binding": "OUTREACH_DB",
+          "database_name": "marisol-outreach-preview",
+          "database_id": "efb170b9-28b6-444a-8c0e-6c3a4b26f207"
+        }
+      ],
+      "analytics_engine_datasets": [
+        { "binding": "FUNNEL_AE", "dataset": "kaijiro_funnel" }
+      ],
+      "services": [
+        { "binding": "VOICE_AGENT_API", "service": "voice-agent-api" }
+      ],
+      "vars": {
+        "VOICE_AGENT_API_URL": "https://voice-agent-api.patrykgniewek9.workers.dev",
+        "STRIPE_PRICE_BASIC_MONTHLY": "price_1TzG5B8DgPA5sdCxq7KZXQ5i",
+        "STRIPE_PRICE_BASIC_ANNUAL": "price_1TzG5B8DgPA5sdCxYbBK9dzp",
+        "STRIPE_PRICE_COMPLETE_MONTHLY": "price_1TzBYY8DgPA5sdCxCFeUMtHP",
+        "STRIPE_PRICE_COMPLETE_ANNUAL": "price_1TzBYY8DgPA5sdCxDz2XaPa9",
+        "STRIPE_PRICE_GROWTH_MONTHLY": "price_1TzBYY8DgPA5sdCx6wY10pVQ",
+        "STRIPE_PRICE_GROWTH_ANNUAL": "price_1TzBYZ8DgPA5sdCxhDjNGGTB",
+        "STRIPE_PRICE_EXTRA_LOCATION_MONTHLY": "price_1TzGac8DgPA5sdCxsFmWDOaQ",
+        "STRIPE_PRICE_EXTRA_LOCATION_ANNUAL": "price_1TzGad8DgPA5sdCxfihRvH8m",
+        "RESEND_FROM": "Marisol Leads <leads@getmarisol.com>",
+        "CLIENT_EMAIL_FROM": "Marisol <hello@getmarisol.com>",
+        "GROOMING_AGENT_ID": "agent_2501ktmhtm2wf8789jqdtkbj7jdr",
+        "BARBER_AGENT_ID": "agent_8301ks8brwmbedw8nv1sgnwwcdfw",
+        "DEMO_POOL_AGENT_ID": "agent_3801kx681qx9e199h4skk2139rz2",
+        "DEMO_POOL_AGENT_ID_ES": "",
+        "GCAL_SHARE_EMAIL": "bookings@marisol-voice.iam.gserviceaccount.com",
+        "STRIPE_REFERRAL_COUPON": "marisol_referral_10off",
+        "COOKIE_DOMAIN": ".callmarisol.com"
+      }
+    }
   }
 }
