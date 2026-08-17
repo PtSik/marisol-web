@@ -79,12 +79,8 @@ export function FilterBar({ query, neighborhoods, channel, zips }: FilterBarProp
   });
 
   const walking = channel === "walk";
-  // On a route "open now" is the default rather than a filter, so its chip has to be able to say
-  // "off" out loud — an empty param means on here and off everywhere else.
-  const openOn = walking ? query.open !== "0" : query.open === "1";
-  const openHref = walking
-    ? buildQuery(query, { open: openOn ? "0" : "", ...FIRST_PAGE })
-    : buildQuery(query, toggle("open", "1"));
+  const openOn = query.open === "1";
+  const openHref = buildQuery(query, toggle("open", "1"));
 
   const hasActiveFilters = Boolean(
     query.neighborhood || query.tier || query.outcome || query.open || query.es || query.zip,

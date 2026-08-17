@@ -176,9 +176,7 @@ export default async function SalesPage({
     neighborhood: query.neighborhood || undefined,
     tiers: query.tier === "AB" ? AB_TIERS : query.tier ? [query.tier as Tier] : ALL_TIERS,
     outcome: outcomeFilter(query.outcome ?? ""),
-    // A closed shop on the phone is a voicemail; on foot it is a wasted walk, so the route starts
-    // with it on and the rep turns it off to plan tomorrow.
-    openOnly: channel === "walk" ? query.open !== "0" : query.open === "1",
+    openOnly: query.open === "1",
     es: (query.es || undefined) as EsStrength | undefined,
     channel,
     zip: channel === "walk" && query.zip ? Number(query.zip) : undefined,
@@ -214,26 +212,42 @@ export default async function SalesPage({
   const namedLead = namedFocus ? await getSalesLead(db, namedFocus, now) : null;
   const cardOnly = namedLead !== null;
 
-  const [listedQueue, queueCount, lowQueue, lowCount, mobileQueue, areas, blocks, stats, pool] =
-    await Promise.all([
-      cardOnly ? null : listLeads(db, filters, now, queuePage),
-      cardOnly ? countLeads(db, filters, now) : null,
-      showLow ? listLeads(db, lowFilters, now, parsePageParam(query.lowPage)) : null,
-      showLow || cardOnly ? null : countLeads(db, lowFilters, now),
-      !cardOnly && channel === "walk"
-        ? listLeads(db, mobileFilters, now, parsePageParam(query.mobilePage))
-        : null,
-      cardOnly ? null : neighborhoods(db),
-      !cardOnly && channel === "walk" && filters.neighborhood
-        ? zipsIn(db, filters.neighborhood)
-        : null,
-      counters(db, now, {
-        neighborhood: filters.neighborhood,
-        tiers: filters.tiers,
-        channel,
-      }),
-      poolStatus(db),
-    ]);
+  const [
+    listedQueue,
+    queueCount,
+    lowQueue,
+    lowCount,
+    mobileQueue,
+    openNowCount,
+    routeCount,
+    areas,
+    blocks,
+    stats,
+    pool,
+  ] = await Promise.all([
+    cardOnly ? null : listLeads(db, filters, now, queuePage),
+    cardOnly ? countLeads(db, filters, now) : null,
+    showLow ? listLeads(db, lowFilters, now, parsePageParam(query.lowPage)) : null,
+    showLow || cardOnly ? null : countLeads(db, lowFilters, now),
+    !cardOnly && channel === "walk"
+      ? listLeads(db, mobileFilters, now, parsePageParam(query.mobilePage))
+      : null,
+    // Both halves of "36 of 57 open now", counted whichever way the filter is set — the rep is
+    // deciding whether to turn it on, so the number it would leave them with has to be visible
+    // before they do.
+    !cardOnly && channel === "walk" ? countLeads(db, { ...filters, openOnly: true }, now) : null,
+    !cardOnly && channel === "walk" ? countLeads(db, { ...filters, openOnly: false }, now) : null,
+    cardOnly ? null : neighborhoods(db),
+    !cardOnly && channel === "walk" && filters.neighborhood
+      ? zipsIn(db, filters.neighborhood)
+      : null,
+    counters(db, now, {
+      neighborhood: filters.neighborhood,
+      tiers: filters.tiers,
+      channel,
+    }),
+    poolStatus(db),
+  ]);
 
   // The card's header wants a total and nothing else; the rest of the shape is never rendered.
   const queue: LeadPage = listedQueue ?? {
@@ -337,6 +351,11 @@ export default async function SalesPage({
                 <h1 className="font-display text-[24px] tracking-tight">
                   {walking ? "Walk-in route" : "Call queue"}{" "}
                   <span className="text-[16px] text-muted">({queueTotal})</span>
+                  {walking && routeCount !== null && openNowCount !== null && (
+                    <span className="ml-2 text-[16px] font-normal text-muted-2">
+                      {openNowCount} of {routeCount} open now
+                    </span>
+                  )}
                 </h1>
                 {leads.length > 0 && (
                   <a
