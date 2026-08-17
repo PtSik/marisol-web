@@ -281,14 +281,25 @@ const SHOP_CLOCK = new Intl.DateTimeFormat("en-US", {
   hour12: false,
 });
 
-export function openNow(week: ParsedWeek | null | undefined, now = new Date()): OpenState {
-  if (!week) return "unknown";
+export interface ShopClock {
+  weekday: DayName;
+  /** Minutes since shop-local midnight. */
+  minutes: number;
+}
 
+// `now` is constant across a request, so reading the clock — the expensive half of `openNow` — once
+// and passing it down is what keeps a pass over every lead off the formatter.
+export function shopClock(now: Date): ShopClock {
   const parts = SHOP_CLOCK.formatToParts(now);
   const get = (type: string) => parts.find((p) => p.type === type)?.value ?? "";
-  const weekday = get("weekday") as DayName;
   const hour = Number(get("hour")) % 24;
-  const minutes = hour * 60 + Number(get("minute"));
+  return { weekday: get("weekday") as DayName, minutes: hour * 60 + Number(get("minute")) };
+}
+
+export function openAt(week: ParsedWeek | null | undefined, clock: ShopClock): OpenState {
+  if (!week) return "unknown";
+
+  const { weekday, minutes } = clock;
 
   const today = week[weekday] ?? null;
   if (today === null) return "unknown";
@@ -300,6 +311,11 @@ export function openNow(week: ParsedWeek | null | undefined, now = new Date()): 
   if (carryOver.some((i) => i.close > 24 * 60 && minutes < i.close - 24 * 60)) return "open";
 
   return "closed";
+}
+
+export function openNow(week: ParsedWeek | null | undefined, now = new Date()): OpenState {
+  if (!week) return "unknown";
+  return openAt(week, shopClock(now));
 }
 
 export interface ParsedNotes {

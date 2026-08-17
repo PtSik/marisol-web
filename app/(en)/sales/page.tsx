@@ -7,7 +7,9 @@ import { Pager } from "@/components/sales/Pager";
 import { type DemoPoolEnv, poolStatus, sweepDemoPool } from "@/lib/sales/demoPool";
 import type { EsStrength, Tier } from "@/lib/sales/derive";
 import {
+  LEADS_PAGE_SIZE,
   type LeadFilters,
+  type LeadPage,
   type Outcome,
   type SalesLead,
   countLeads,
@@ -172,31 +174,52 @@ export default async function SalesPage({
   const lowFilters: LeadFilters = { ...filters, tiers: ["X"] };
 
   const now = new Date();
+  // A row picked out of the list view names its lead; the focus button just takes the top of the queue.
+  const namedFocus = query.mode === "focus" ? query.lead || null : null;
   // Focus mode renders one lead instead of the list, and "Start calling" takes the first of them —
   // page 1 is the top of the whole queue, whichever page the rep was on when they tapped it.
-  const queuePage = query.mode === "focus" && !query.lead ? 1 : parsePageParam(query.page);
+  const queuePage = query.mode === "focus" && !namedFocus ? 1 : parsePageParam(query.page);
 
-  const [queue, lowQueue, lowCount, areas, stats, pool] = await Promise.all([
-    listLeads(db, filters, now, queuePage),
+  // Resolved ahead of the rest, because a card render reads none of the list, the areas or the
+  // low-priority count — and `leads` is replaced wholesale by each scraper run, so a bookmarked
+  // `lead=` id can be gone, and then all of it is needed after all.
+  const namedLead = namedFocus ? await getSalesLead(db, namedFocus, now) : null;
+  const cardOnly = namedLead !== null;
+
+  const [listedQueue, queueCount, lowQueue, lowCount, areas, stats, pool] = await Promise.all([
+    cardOnly ? null : listLeads(db, filters, now, queuePage),
+    cardOnly ? countLeads(db, filters, now) : null,
     showLow ? listLeads(db, lowFilters, now, parsePageParam(query.lowPage)) : null,
-    showLow ? null : countLeads(db, lowFilters, now),
-    neighborhoods(db),
+    showLow || cardOnly ? null : countLeads(db, lowFilters, now),
+    cardOnly ? null : neighborhoods(db),
     counters(db, now, { neighborhood: filters.neighborhood, tiers: filters.tiers }),
     poolStatus(db),
   ]);
+
+  // The card's header wants a total and nothing else; the rest of the shape is never rendered.
+  const queue: LeadPage = listedQueue ?? {
+    leads: [],
+    page: 1,
+    pageSize: LEADS_PAGE_SIZE,
+    total: queueCount ?? 0,
+    totalPages: 1,
+  };
   const leads = queue.leads;
   const queueTotal = queue.total;
   const lowPriority = lowQueue?.leads ?? [];
   const lowTotal = lowQueue?.total ?? lowCount ?? 0;
 
   const back = buildQuery(query, {});
-  // A row picked out of the list view names its lead; the focus button just takes the top of the queue.
   const focusLead: SalesLead | undefined =
-    query.mode === "focus"
-      ? ((query.lead ? await getSalesLead(db, query.lead) : leads[0]) ?? undefined)
-      : undefined;
+    query.mode === "focus" ? ((namedFocus ? namedLead : leads[0]) ?? undefined) : undefined;
   const history = focusLead ? await leadHistory(db, focusLead.id) : undefined;
   const notice = raw.saved ? NOTICE[raw.saved] : undefined;
+
+  // The count and the page rows come from two separate D1 statements, so a page can come back empty
+  // while the queue is not (a concurrent write, or a read replica behind the count). Hiding the
+  // pager there leaves the rep on an empty page with no control to get back.
+  const showQueuePager = queue.totalPages > 1 || leads.length > 0;
+  const showLowPager = Boolean(lowQueue && (lowQueue.totalPages > 1 || lowPriority.length > 0));
 
   return (
     <>
@@ -259,7 +282,7 @@ export default async function SalesPage({
           </section>
         ) : (
           <>
-            <FilterBar query={query} neighborhoods={areas} />
+            <FilterBar query={query} neighborhoods={areas ?? []} />
 
             <section id="call-queue" className="mt-6">
               <div className="flex flex-wrap items-center justify-between gap-3">
@@ -275,7 +298,7 @@ export default async function SalesPage({
                   </a>
                 )}
               </div>
-              {leads.length > 0 && (
+              {showQueuePager && (
                 <Pager
                   list="queue"
                   placement="top"
@@ -287,7 +310,9 @@ export default async function SalesPage({
               )}
               {leads.length === 0 ? (
                 <p className="mt-4 text-muted">
-                  Nothing matches these filters — widen the area or the state.
+                  {queue.totalPages > 1
+                    ? "This page came back empty — the queue moved while you were on it. Step back with Prev."
+                    : "Nothing matches these filters — widen the area or the state."}
                 </p>
               ) : query.view === "list" ? (
                 <div className="mt-4">
@@ -300,7 +325,7 @@ export default async function SalesPage({
                   ))}
                 </div>
               )}
-              {leads.length > 0 && (
+              {showQueuePager && (
                 <Pager
                   list="queue"
                   placement="bottom"
@@ -337,7 +362,7 @@ export default async function SalesPage({
                 <p className="mt-1 text-sm text-muted">
                   Chains and shops over 800 reviews — someone already answers their phone.
                 </p>
-                {lowQueue && lowPriority.length > 0 && (
+                {lowQueue && showLowPager && (
                   <Pager
                     list="low"
                     placement="top"
@@ -359,7 +384,7 @@ export default async function SalesPage({
                       ))}
                     </div>
                   ))}
-                {lowQueue && lowPriority.length > 0 && (
+                {lowQueue && showLowPager && (
                   <Pager
                     list="low"
                     placement="bottom"

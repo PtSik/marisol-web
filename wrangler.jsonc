@@ -75,12 +75,12 @@
   },
   "env": {
     "preview": {
-      "routes": [
-        { "pattern": "test.callmarisol.com", "custom_domain": true }
-      ],
+      "routes": [{ "pattern": "test.callmarisol.com", "custom_domain": true }],
+      // Own namespaces, never production's: LEADS_KV is the client portal's store and the referral
+      // ledger writes to it, so a preview deploy sharing it would edit live customer records.
       "kv_namespaces": [
-        { "binding": "RATE_LIMIT_KV", "id": "63226420204e48b7bc152b561d5f05de" },
-        { "binding": "LEADS_KV", "id": "cfc515ef0b784a4396df923908792bb7" }
+        { "binding": "RATE_LIMIT_KV", "id": "ed787a950ffb4088a8e2e376861a085b" },
+        { "binding": "LEADS_KV", "id": "ab23530cd4f6422688111f851037a1c6" }
       ],
       "d1_databases": [
         {
@@ -90,11 +90,9 @@
         }
       ],
       "analytics_engine_datasets": [
-        { "binding": "FUNNEL_AE", "dataset": "kaijiro_funnel" }
+        { "binding": "FUNNEL_AE", "dataset": "kaijiro_funnel_preview" }
       ],
-      "services": [
-        { "binding": "VOICE_AGENT_API", "service": "voice-agent-api" }
-      ],
+      "services": [{ "binding": "VOICE_AGENT_API", "service": "voice-agent-api" }],
       "vars": {
         "VOICE_AGENT_API_URL": "https://voice-agent-api.patrykgniewek9.workers.dev",
         "STRIPE_PRICE_BASIC_MONTHLY": "price_1TzG5B8DgPA5sdCxq7KZXQ5i",
@@ -113,7 +111,11 @@
         "DEMO_POOL_AGENT_ID_ES": "",
         "GCAL_SHARE_EMAIL": "bookings@marisol-voice.iam.gserviceaccount.com",
         "STRIPE_REFERRAL_COUPON": "marisol_referral_10off",
-        "COOKIE_DOMAIN": ".callmarisol.com"
+        // Scoped to the preview host so a session minted on test/ never travels to the apex or the
+        // app.callmarisol.com dashboard. Production's own cookies still reach this host — hence the
+        // distinct names, so the two can never be confused for one another.
+        "COOKIE_DOMAIN": "test.callmarisol.com",
+        "COOKIE_PREFIX": "preview_"
       }
     }
   }

@@ -3,11 +3,16 @@ import { type PortalEnv, findAccountByEmail } from "@/lib/portalApi";
 import { cookies } from "next/headers";
 import { redirect } from "next/navigation";
 
-export const PORTAL_COOKIE = "marisol_session";
-export const OAUTH_STATE_COOKIE = "marisol_oauth";
+// Production's cookies carry Domain=.callmarisol.com, so the browser sends them to the preview host
+// too. Two cookies of one name would then arrive together and `jar.get` would pick between them by
+// nothing in particular, so preview names its own (COOKIE_PREFIX); production leaves it unset.
+const named = (base: string) => `${(env as { COOKIE_PREFIX?: string }).COOKIE_PREFIX ?? ""}${base}`;
+
+export const portalCookieName = () => named("marisol_session");
+export const oauthStateCookieName = () => named("marisol_oauth");
 // Which salon the portal is currently showing. Only ever honoured after it is checked against the
 // account's own shops, so a forged value buys nothing — it just falls back to the first salon.
-export const SHOP_COOKIE = "marisol_shop";
+export const shopCookieName = () => named("marisol_shop");
 
 const SESSION_TTL_SECONDS = 30 * 24 * 60 * 60;
 const STATE_TTL_SECONDS = 600;
@@ -94,12 +99,12 @@ function b64urlDecode(value: string): string {
   return atob(padded.padEnd(padded.length + ((4 - (padded.length % 4)) % 4), "="));
 }
 
-export const sessionCookie = (id: string) => cookie(PORTAL_COOKIE, id, SESSION_TTL_SECONDS);
-export const clearedSessionCookie = () => cookie(PORTAL_COOKIE, "", 0);
+export const sessionCookie = (id: string) => cookie(portalCookieName(), id, SESSION_TTL_SECONDS);
+export const clearedSessionCookie = () => cookie(portalCookieName(), "", 0);
 export const stateCookie = (payload: OauthState) =>
-  cookie(OAUTH_STATE_COOKIE, b64urlEncode(JSON.stringify(payload)), STATE_TTL_SECONDS);
-export const clearedStateCookie = () => cookie(OAUTH_STATE_COOKIE, "", 0);
-export const shopCookie = (shopId: string) => cookie(SHOP_COOKIE, shopId, SESSION_TTL_SECONDS);
+  cookie(oauthStateCookieName(), b64urlEncode(JSON.stringify(payload)), STATE_TTL_SECONDS);
+export const clearedStateCookie = () => cookie(oauthStateCookieName(), "", 0);
+export const shopCookie = (shopId: string) => cookie(shopCookieName(), shopId, SESSION_TTL_SECONDS);
 
 // Falls back to "bare string ⇒ state" so a state cookie minted before this deploy still validates.
 export function parseOauthState(raw: string | undefined): OauthState | null {
@@ -117,12 +122,12 @@ export function parseOauthState(raw: string | undefined): OauthState | null {
 
 export async function sessionIdFromCookies(): Promise<string | undefined> {
   const jar = await cookies();
-  return jar.get(PORTAL_COOKIE)?.value;
+  return jar.get(portalCookieName())?.value;
 }
 
 export async function shopIdFromCookies(): Promise<string | undefined> {
   const jar = await cookies();
-  return jar.get(SHOP_COOKIE)?.value;
+  return jar.get(shopCookieName())?.value;
 }
 
 // Every /portal page starts here: no session (or one KV expired out from under the cookie)

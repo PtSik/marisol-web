@@ -1,11 +1,14 @@
 import { type DemoKnowledge, demoKnowledge } from "@/lib/sales/demoKnowledge";
 import {
   type EsStrength,
+  type OpenState,
   SHOP_TIMEZONE,
+  type ShopClock,
   type Tier,
   hook,
-  openNow,
+  openAt,
   parseWeekHours,
+  shopClock,
 } from "@/lib/sales/derive";
 
 export const OUTCOMES = [
@@ -83,7 +86,7 @@ export interface LeadRow {
 }
 
 export interface SalesLead extends LeadRow {
-  openState: ReturnType<typeof openNow>;
+  openState: OpenState;
   hookLine: string;
   // What the demo will and will not be able to answer for this lead. Computed here rather than in
   // the card so the rep sees the same verdict `assignNumber` will act on.
@@ -135,12 +138,12 @@ const FROM = "FROM leads l JOIN lead_state s ON s.lead_id = l.id";
 const ORDER_BY = `CASE l.tier WHEN 'A' THEN 0 WHEN 'B' THEN 1 WHEN 'C' THEN 2 ELSE 3 END,
                   l.score DESC, l.review_count DESC, l.id ASC`;
 
-function decorate(row: LeadQueryRow, now: Date): SalesLead {
+function decorate(row: LeadQueryRow, clock: ShopClock): SalesLead {
   const { services, service_confidence, enrichment_note, ...lead } = row;
   const week = parseWeekHours(lead.hours);
   return {
     ...lead,
-    openState: openNow(week, now),
+    openState: openAt(week, clock),
     hookLine: hook({
       booking_app: lead.booking_app,
       is_mobile: lead.is_mobile === 1,
@@ -228,8 +231,9 @@ async function listSqlPagedLeads(
     .bind(...binds, LEADS_PAGE_SIZE, bounds.offset)
     .all<LeadQueryRow>();
 
+  const clock = shopClock(now);
   return {
-    leads: (results ?? []).map((row) => decorate(row, now)),
+    leads: (results ?? []).map((row) => decorate(row, clock)),
     page: bounds.page,
     pageSize: LEADS_PAGE_SIZE,
     total,
@@ -251,8 +255,9 @@ async function fetchOpenOrderedIds(
     .bind(...binds)
     .all<{ id: string; hours: string | null }>();
 
+  const clock = shopClock(now);
   return (results ?? [])
-    .filter((row) => openNow(parseWeekHours(row.hours), now) === "open")
+    .filter((row) => openAt(parseWeekHours(row.hours), clock) === "open")
     .map((row) => row.id);
 }
 
@@ -283,11 +288,12 @@ async function listOpenOnlyPagedLeads(
 
   // `IN` does not promise to return rows in the order of the list, so the page is rebuilt from the
   // id order the pass above already decided.
+  const clock = shopClock(now);
   return {
     leads: pageIds
       .map((id) => byId.get(id))
       .filter((row): row is LeadQueryRow => row !== undefined)
-      .map((row) => decorate(row, now)),
+      .map((row) => decorate(row, clock)),
     ...meta,
   };
 }
@@ -317,7 +323,7 @@ export async function countLeads(
 
 export async function getLead(db: D1Database, id: string, now = new Date()) {
   const row = await db.prepare(`${SELECT} WHERE l.id = ?`).bind(id).first<LeadQueryRow>();
-  return row ? decorate(row, now) : null;
+  return row ? decorate(row, shopClock(now)) : null;
 }
 
 export interface Counters {

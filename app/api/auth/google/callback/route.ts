@@ -4,9 +4,9 @@ import { callbackUrl, exchangeCode, verifyIdToken } from "@/lib/googleLogin";
 import { appHref } from "@/lib/i18n/dict";
 import { type PortalEnv, createAccount, findAccountByEmail, patchAccount } from "@/lib/portalApi";
 import {
-  OAUTH_STATE_COOKIE,
   clearedStateCookie,
   createSession,
+  oauthStateCookieName,
   parseOauthState,
   sessionCookie,
 } from "@/lib/session";
@@ -33,7 +33,7 @@ export async function GET(request: Request): Promise<Response> {
   const { GOOGLE_LOGIN_CLIENT_ID, GOOGLE_LOGIN_CLIENT_SECRET } = cfEnv;
 
   const jar = await cookies();
-  const oauthState = parseOauthState(jar.get(OAUTH_STATE_COOKIE)?.value);
+  const oauthState = parseOauthState(jar.get(oauthStateCookieName())?.value);
 
   if (!GOOGLE_LOGIN_CLIENT_ID || !GOOGLE_LOGIN_CLIENT_SECRET) {
     return toLogin(request, "not_configured");
