@@ -6,6 +6,7 @@ import { LeadTable } from "@/components/sales/LeadTable";
 import { Pager } from "@/components/sales/Pager";
 import { type DemoPoolEnv, poolStatus, sweepDemoPool } from "@/lib/sales/demoPool";
 import type { EsStrength, Tier } from "@/lib/sales/derive";
+import { type Channel, channelForArea } from "@/lib/sales/leadFilters";
 import {
   LEADS_PAGE_SIZE,
   type LeadFilters,
@@ -20,6 +21,7 @@ import {
   listLeads,
   neighborhoods,
   parsePageParam,
+  zipsIn,
 } from "@/lib/sales/leads";
 import { SALES_COOKIE, SALES_REP_COOKIE, isSalesCookieValid, normaliseRep } from "@/lib/salesAuth";
 import { cookies } from "next/headers";
@@ -121,7 +123,18 @@ function parseQuery(raw: Record<string, string | undefined>): SalesQuery {
     low: raw.low === "1" ? "1" : "",
     page: raw.page ?? "",
     lowPage: raw.lowPage ?? "",
+    mobilePage: raw.mobilePage ?? "",
+    route: raw.route === "1" || raw.route === "0" ? raw.route : "",
+    zip: raw.zip && /^\d{1,5}$/.test(raw.zip) ? raw.zip : "",
   };
+}
+
+// An area the team works on foot opens on its route without anyone setting a filter; `route` is
+// what a rep uses to override that in either direction.
+function channelFor(query: SalesQuery): Channel {
+  if (query.route === "1") return "walk";
+  if (query.route === "0") return "call";
+  return query.neighborhood ? channelForArea(query.neighborhood) : "call";
 }
 
 function outcomeFilter(value: string): Outcome | "queue" | undefined {
@@ -158,12 +171,17 @@ export default async function SalesPage({
   const repCookie = jar.get(SALES_REP_COOKIE)?.value;
   const rep = normaliseRep(repCookie && decodeURIComponent(repCookie)) ?? "";
 
-  const filters = {
+  const channel = channelFor(query);
+  const filters: LeadFilters = {
     neighborhood: query.neighborhood || undefined,
     tiers: query.tier === "AB" ? AB_TIERS : query.tier ? [query.tier as Tier] : ALL_TIERS,
     outcome: outcomeFilter(query.outcome ?? ""),
-    openOnly: query.open === "1",
+    // A closed shop on the phone is a voicemail; on foot it is a wasted walk, so the route starts
+    // with it on and the rep turns it off to plan tomorrow.
+    openOnly: channel === "walk" ? query.open !== "0" : query.open === "1",
     es: (query.es || undefined) as EsStrength | undefined,
+    channel,
+    zip: channel === "walk" && query.zip ? Number(query.zip) : undefined,
   };
 
   // This Worker has no cron triggers, so the panel the reps keep open is the tick that expires
@@ -172,6 +190,16 @@ export default async function SalesPage({
 
   const showLow = query.mode !== "focus" && query.low === "1";
   const lowFilters: LeadFilters = { ...filters, tiers: ["X"] };
+
+  // The route excludes vans, which are the highest-scoring leads we have — so on a route they get
+  // their own list instead of vanishing. Dialled, never walked: `channel: "call"` also puts them
+  // back in score order, the block-first ordering being meaningless without a door.
+  const mobileFilters: LeadFilters = {
+    ...filters,
+    channel: "call",
+    zip: undefined,
+    mobile: true,
+  };
 
   const now = new Date();
   // A row picked out of the list view names its lead; the focus button just takes the top of the queue.
@@ -186,15 +214,26 @@ export default async function SalesPage({
   const namedLead = namedFocus ? await getSalesLead(db, namedFocus, now) : null;
   const cardOnly = namedLead !== null;
 
-  const [listedQueue, queueCount, lowQueue, lowCount, areas, stats, pool] = await Promise.all([
-    cardOnly ? null : listLeads(db, filters, now, queuePage),
-    cardOnly ? countLeads(db, filters, now) : null,
-    showLow ? listLeads(db, lowFilters, now, parsePageParam(query.lowPage)) : null,
-    showLow || cardOnly ? null : countLeads(db, lowFilters, now),
-    cardOnly ? null : neighborhoods(db),
-    counters(db, now, { neighborhood: filters.neighborhood, tiers: filters.tiers }),
-    poolStatus(db),
-  ]);
+  const [listedQueue, queueCount, lowQueue, lowCount, mobileQueue, areas, blocks, stats, pool] =
+    await Promise.all([
+      cardOnly ? null : listLeads(db, filters, now, queuePage),
+      cardOnly ? countLeads(db, filters, now) : null,
+      showLow ? listLeads(db, lowFilters, now, parsePageParam(query.lowPage)) : null,
+      showLow || cardOnly ? null : countLeads(db, lowFilters, now),
+      !cardOnly && channel === "walk"
+        ? listLeads(db, mobileFilters, now, parsePageParam(query.mobilePage))
+        : null,
+      cardOnly ? null : neighborhoods(db),
+      !cardOnly && channel === "walk" && filters.neighborhood
+        ? zipsIn(db, filters.neighborhood)
+        : null,
+      counters(db, now, {
+        neighborhood: filters.neighborhood,
+        tiers: filters.tiers,
+        channel,
+      }),
+      poolStatus(db),
+    ]);
 
   // The card's header wants a total and nothing else; the rest of the shape is never rendered.
   const queue: LeadPage = listedQueue ?? {
@@ -208,6 +247,8 @@ export default async function SalesPage({
   const queueTotal = queue.total;
   const lowPriority = lowQueue?.leads ?? [];
   const lowTotal = lowQueue?.total ?? lowCount ?? 0;
+  const mobileLeads = mobileQueue?.leads ?? [];
+  const mobileTotal = mobileQueue?.total ?? 0;
 
   const back = buildQuery(query, {});
   const focusLead: SalesLead | undefined =
@@ -218,8 +259,10 @@ export default async function SalesPage({
   // The count and the page rows come from two separate D1 statements, so a page can come back empty
   // while the queue is not (a concurrent write, or a read replica behind the count). Hiding the
   // pager there leaves the rep on an empty page with no control to get back.
+  const walking = channel === "walk";
   const showQueuePager = queue.totalPages > 1 || leads.length > 0;
   const showLowPager = Boolean(lowQueue && (lowQueue.totalPages > 1 || lowPriority.length > 0));
+  const showMobilePager = Boolean(mobileQueue && mobileQueue.totalPages > 1);
 
   return (
     <>
@@ -236,8 +279,8 @@ export default async function SalesPage({
               the browser squeezes each Counter until its label breaks mid-word ("TO" / "CALL")
               instead of dropping whole counters to a second line. */}
           <div className="flex flex-wrap items-center gap-x-6 gap-y-2">
-            <Counter label="to call" value={stats.queue} />
-            <Counter label="called today" value={stats.calledToday} />
+            <Counter label={walking ? "to visit" : "to call"} value={stats.queue} />
+            <Counter label={walking ? "visited today" : "called today"} value={stats.calledToday} />
             <Counter label="demos queued" value={stats.demoRequested} />
             <Counter label="demos heard" value={stats.demosHeard} />
             <Counter label="numbers free" value={`${pool.free}/${pool.free + pool.busy}`} />
@@ -277,24 +320,30 @@ export default async function SalesPage({
               </a>
             </div>
             <div className="mt-4">
-              <LeadCard lead={focusLead} back={back} focus history={history} />
+              <LeadCard lead={focusLead} back={back} focus channel={channel} history={history} />
             </div>
           </section>
         ) : (
           <>
-            <FilterBar query={query} neighborhoods={areas ?? []} />
+            <FilterBar
+              query={query}
+              neighborhoods={areas ?? []}
+              channel={channel}
+              zips={blocks ?? []}
+            />
 
             <section id="call-queue" className="mt-6">
               <div className="flex flex-wrap items-center justify-between gap-3">
                 <h1 className="font-display text-[24px] tracking-tight">
-                  Call queue <span className="text-[16px] text-muted">({queueTotal})</span>
+                  {walking ? "Walk-in route" : "Call queue"}{" "}
+                  <span className="text-[16px] text-muted">({queueTotal})</span>
                 </h1>
                 {leads.length > 0 && (
                   <a
                     href={`/sales${buildQuery(query, { mode: "focus" })}`}
                     className="rounded-[10px] bg-teal px-4 py-2 text-sm font-medium text-white no-underline"
                   >
-                    Start calling
+                    {walking ? "Start walking" : "Start calling"}
                   </a>
                 )}
               </div>
@@ -312,16 +361,18 @@ export default async function SalesPage({
                 <p className="mt-4 text-muted">
                   {queue.totalPages > 1
                     ? "This page came back empty — the queue moved while you were on it. Step back with Prev."
-                    : "Nothing matches these filters — widen the area or the state."}
+                    : walking && filters.openOnly
+                      ? "Nothing on this block is open right now — turn off “open now” to plan ahead, or pick another block."
+                      : "Nothing matches these filters — widen the area or the state."}
                 </p>
               ) : query.view === "list" ? (
                 <div className="mt-4">
-                  <LeadTable leads={leads} query={query} />
+                  <LeadTable leads={leads} query={query} channel={channel} />
                 </div>
               ) : (
                 <div className="mt-4 grid gap-4 lg:grid-cols-2">
                   {leads.map((lead) => (
-                    <LeadCard key={lead.id} lead={lead} back={back} />
+                    <LeadCard key={lead.id} lead={lead} back={back} channel={channel} />
                   ))}
                 </div>
               )}
@@ -336,6 +387,48 @@ export default async function SalesPage({
                 />
               )}
             </section>
+
+            {walking && mobileTotal > 0 && (
+              <section id="mobile-groomers" className="mt-10">
+                <h2 className="font-display text-[24px] tracking-tight">
+                  Call from the road <span className="text-[16px] text-muted">({mobileTotal})</span>
+                </h2>
+                <p className="mt-1 text-sm text-muted">
+                  Mobile groomers in this area — no door to walk into, so phone them instead.
+                </p>
+                {showMobilePager && mobileQueue && (
+                  <Pager
+                    list="mobile"
+                    placement="top"
+                    query={query}
+                    page={mobileQueue.page}
+                    totalPages={mobileQueue.totalPages}
+                    total={mobileTotal}
+                  />
+                )}
+                {query.view === "list" ? (
+                  <div className="mt-4">
+                    <LeadTable leads={mobileLeads} query={query} channel="call" />
+                  </div>
+                ) : (
+                  <div className="mt-4 grid gap-4 lg:grid-cols-2">
+                    {mobileLeads.map((lead) => (
+                      <LeadCard key={lead.id} lead={lead} back={back} channel="call" />
+                    ))}
+                  </div>
+                )}
+                {showMobilePager && mobileQueue && (
+                  <Pager
+                    list="mobile"
+                    placement="bottom"
+                    query={query}
+                    page={mobileQueue.page}
+                    totalPages={mobileQueue.totalPages}
+                    total={mobileTotal}
+                  />
+                )}
+              </section>
+            )}
 
             {lowTotal > 0 && (
               <section id="low-priority" className="mt-10">
@@ -375,12 +468,12 @@ export default async function SalesPage({
                 {showLow &&
                   (query.view === "list" ? (
                     <div className="mt-4">
-                      <LeadTable leads={lowPriority} query={query} />
+                      <LeadTable leads={lowPriority} query={query} channel={channel} />
                     </div>
                   ) : (
                     <div className="mt-4 grid gap-4 lg:grid-cols-2">
                       {lowPriority.map((lead) => (
-                        <LeadCard key={lead.id} lead={lead} back={back} />
+                        <LeadCard key={lead.id} lead={lead} back={back} channel={channel} />
                       ))}
                     </div>
                   ))}

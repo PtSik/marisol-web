@@ -1,4 +1,5 @@
-import { OUTCOME_LABELS, type Outcome } from "@/lib/sales/leads";
+import type { Channel } from "@/lib/sales/leadFilters";
+import { type Outcome, outcomeLabel } from "@/lib/sales/leads";
 
 export interface SalesQuery {
   neighborhood?: string;
@@ -12,11 +13,15 @@ export interface SalesQuery {
   low?: string;
   page?: string;
   lowPage?: string;
+  mobilePage?: string;
+  /** "1" walks, "0" dials, empty follows the area's own channel. */
+  route?: string;
+  zip?: string;
 }
 
 // A narrower result set makes the page the rep is on meaningless, so every filter link goes back to
-// the first page of both lists. The view toggle does not — it shows the same leads differently.
-const FIRST_PAGE: SalesQuery = { page: "", lowPage: "" };
+// the first page of every list. The view toggle does not — it shows the same leads differently.
+const FIRST_PAGE: SalesQuery = { page: "", lowPage: "", mobilePage: "" };
 
 export function buildQuery(current: SalesQuery, patch: SalesQuery): string {
   const params = new URLSearchParams();
@@ -62,16 +67,27 @@ function Group({ label, children }: { label: string; children: React.ReactNode }
 export interface FilterBarProps {
   query: SalesQuery;
   neighborhoods: string[];
+  channel: Channel;
+  /** Blocks of the current area, in walking order. Empty outside walk mode. */
+  zips: number[];
 }
 
-export function FilterBar({ query, neighborhoods }: FilterBarProps) {
+export function FilterBar({ query, neighborhoods, channel, zips }: FilterBarProps) {
   const toggle = (key: keyof SalesQuery, value: string): SalesQuery => ({
     [key]: query[key] === value ? "" : value,
     ...FIRST_PAGE,
   });
 
+  const walking = channel === "walk";
+  // On a route "open now" is the default rather than a filter, so its chip has to be able to say
+  // "off" out loud — an empty param means on here and off everywhere else.
+  const openOn = walking ? query.open !== "0" : query.open === "1";
+  const openHref = walking
+    ? buildQuery(query, { open: openOn ? "0" : "", ...FIRST_PAGE })
+    : buildQuery(query, toggle("open", "1"));
+
   const hasActiveFilters = Boolean(
-    query.neighborhood || query.tier || query.outcome || query.open || query.es,
+    query.neighborhood || query.tier || query.outcome || query.open || query.es || query.zip,
   );
 
   return (
@@ -106,7 +122,7 @@ export function FilterBar({ query, neighborhoods }: FilterBarProps) {
           className="flex flex-wrap items-center gap-1.5 border-t border-ink/10 px-3.5 py-3"
         >
           <Chip
-            href={buildQuery(query, { neighborhood: "", ...FIRST_PAGE })}
+            href={buildQuery(query, { neighborhood: "", zip: "", ...FIRST_PAGE })}
             active={!query.neighborhood}
           >
             all
@@ -114,7 +130,9 @@ export function FilterBar({ query, neighborhoods }: FilterBarProps) {
           {neighborhoods.map((n) => (
             <Chip
               key={n}
-              href={buildQuery(query, toggle("neighborhood", n))}
+              // A block belongs to one area, so leaving it set across a change of area empties the
+              // queue with no visible cause.
+              href={buildQuery(query, { ...toggle("neighborhood", n), zip: "" })}
               active={query.neighborhood === n}
             >
               {n}
@@ -122,6 +140,25 @@ export function FilterBar({ query, neighborhoods }: FilterBarProps) {
           ))}
         </div>
       </details>
+
+      {walking && zips.length > 0 && (
+        <div className="mt-3 border-t border-ink/10 pt-3">
+          <Group label="Block">
+            <Chip href={buildQuery(query, { zip: "", ...FIRST_PAGE })} active={!query.zip}>
+              whole area
+            </Chip>
+            {zips.map((zip) => (
+              <Chip
+                key={zip}
+                href={buildQuery(query, toggle("zip", String(zip)))}
+                active={query.zip === String(zip)}
+              >
+                {String(zip).padStart(5, "0")}
+              </Chip>
+            ))}
+          </Group>
+        </div>
+      )}
 
       <div className="mt-3 space-y-2 border-t border-ink/10 pt-3">
         <Group label="Tier">
@@ -141,7 +178,7 @@ export function FilterBar({ query, neighborhoods }: FilterBarProps) {
 
         <Group label="State">
           <Chip href={buildQuery(query, { outcome: "", ...FIRST_PAGE })} active={!query.outcome}>
-            to call
+            {walking ? "to visit" : "to call"}
           </Chip>
           {(["no_answer", "interested", "demo_sent", "callback"] as Outcome[]).map((o) => (
             <Chip
@@ -149,7 +186,7 @@ export function FilterBar({ query, neighborhoods }: FilterBarProps) {
               href={buildQuery(query, toggle("outcome", o))}
               active={query.outcome === o}
             >
-              {OUTCOME_LABELS[o]}
+              {outcomeLabel(o, channel)}
             </Chip>
           ))}
           <Chip
@@ -161,11 +198,23 @@ export function FilterBar({ query, neighborhoods }: FilterBarProps) {
         </Group>
 
         <Group label="Filters">
-          <Chip href={buildQuery(query, toggle("open", "1"))} active={query.open === "1"}>
+          <Chip href={openHref} active={openOn}>
             open now
           </Chip>
           <Chip href={buildQuery(query, toggle("es", "strong"))} active={query.es === "strong"}>
             Spanish signal
+          </Chip>
+        </Group>
+
+        <Group label="Working">
+          {/* Both sides are stated outright rather than toggled to empty: empty means "whatever
+              this area does", so toggling off would bounce a rep who chose calls in Stratford
+              straight back onto the route. */}
+          <Chip href={buildQuery(query, { route: "0", zip: "", ...FIRST_PAGE })} active={!walking}>
+            calls
+          </Chip>
+          <Chip href={buildQuery(query, { route: "1", ...FIRST_PAGE })} active={walking}>
+            route
           </Chip>
         </Group>
 
@@ -188,6 +237,7 @@ export function FilterBar({ query, neighborhoods }: FilterBarProps) {
               outcome: "",
               open: "",
               es: "",
+              zip: "",
               ...FIRST_PAGE,
             })}`}
             className="text-sm text-teal no-underline focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-teal"

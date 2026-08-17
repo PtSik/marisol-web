@@ -178,6 +178,10 @@ export function formatUsPhone(phone: string): string {
   return `(${local.slice(0, 3)}) ${local.slice(3, 6)}-${local.slice(6)}`;
 }
 
+/** Opens the pin in whatever maps app the rep's phone uses, without needing coordinates. */
+export const mapsHref = (address: string): string =>
+  `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(address)}`;
+
 export function toE164(phone: string): string {
   const digits = phone.replace(/\D/g, "");
   if (digits.length === 10) return `+1${digits}`;

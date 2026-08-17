@@ -10,6 +10,7 @@ import {
   parseWeekHours,
   shopClock,
 } from "@/lib/sales/derive";
+import { type Channel, OTHER_AREA } from "@/lib/sales/leadFilters";
 
 export const OUTCOMES = [
   "new",
@@ -37,6 +38,20 @@ export const OUTCOME_LABELS: Record<Outcome, string> = {
   dead: "dead",
 };
 
+// The same nine outcomes said the way a doorstep visit ends, so a market worked on foot and one
+// worked by phone stay one funnel — same enum, same history, same counters.
+const WALK_LABELS: Partial<Record<Outcome, string>> = {
+  new: "not visited",
+  no_answer: "owner out",
+  callback: "come back",
+  gatekeeper: "staff only",
+  demo_sent: "demo shown",
+  wrong_number: "not there anymore",
+};
+
+export const outcomeLabel = (outcome: Outcome, channel: Channel = "call"): string =>
+  (channel === "walk" ? WALK_LABELS[outcome] : undefined) ?? OUTCOME_LABELS[outcome];
+
 // Outcomes that mean the rep actually got through to a person — these do not raise the attempt
 // counter a second time on an edit, and they take the lead out of the default queue.
 export const CONTACTED: ReadonlySet<Outcome> = new Set([
@@ -59,6 +74,7 @@ export interface LeadRow {
   slug: string;
   neighborhood: string;
   address: string | null;
+  zip: number | null;
   hours: string | null;
   rating: number | null;
   review_count: number;
@@ -107,6 +123,11 @@ export interface LeadFilters {
   outcome?: Outcome | "queue";
   openOnly?: boolean;
   es?: EsStrength;
+  channel?: Channel;
+  /** One block of the route. Only ever set in walk mode, where it is the unit a rep works. */
+  zip?: number;
+  /** Inverts the route's exclusion: the vans the rep passes but cannot walk into. */
+  mobile?: boolean;
 }
 
 export const LEADS_PAGE_SIZE = 25;
@@ -132,11 +153,18 @@ const SELECT = `
 
 const FROM = "FROM leads l JOIN lead_state s ON s.lead_id = l.id";
 
-// `l.id` breaks ties the other three terms leave open. Without it SQLite is free to order two
+const BY_TIER = "CASE l.tier WHEN 'A' THEN 0 WHEN 'B' THEN 1 WHEN 'C' THEN 2 ELSE 3 END";
+
+// `l.id` breaks ties the other terms leave open. Without it SQLite is free to order two
 // equal-scoring leads differently between the count, the page and the id pass, which silently
 // duplicates one lead across two pages and drops another.
-const ORDER_BY = `CASE l.tier WHEN 'A' THEN 0 WHEN 'B' THEN 1 WHEN 'C' THEN 2 ELSE 3 END,
-                  l.score DESC, l.review_count DESC, l.id ASC`;
+//
+// On foot the ZIP outranks the score: the shop on the next block costs a minute whatever its tier,
+// and the best lead in the metro costs a drive. Score still decides the order inside a ZIP.
+const orderBy = (channel: Channel = "call"): string =>
+  channel === "walk"
+    ? `l.zip IS NULL, l.zip ASC, ${BY_TIER}, l.score DESC, l.id ASC`
+    : `${BY_TIER}, l.score DESC, l.review_count DESC, l.id ASC`;
 
 function decorate(row: LeadQueryRow, clock: ShopClock): SalesLead {
   const { services, service_confidence, enrichment_note, ...lead } = row;
@@ -180,6 +208,18 @@ function buildWhere(filters: LeadFilters, now: Date): { clause: string; binds: u
   if (filters.es) {
     where.push("l.es_strength = ?");
     binds.push(filters.es);
+  }
+  // A van has no door and an address-less lead has nothing to navigate to, so neither belongs on a
+  // route — and `is_mobile` is worth +4, which parks exactly those leads at the top of the queue.
+  // Both stay reachable on the phone, which is the only way they were ever workable.
+  if (filters.mobile) {
+    where.push("l.is_mobile = 1");
+  } else if (filters.channel === "walk") {
+    where.push("l.is_mobile = 0", "l.address IS NOT NULL", "trim(l.address) <> ''");
+  }
+  if (filters.zip !== undefined) {
+    where.push("l.zip = ?");
+    binds.push(filters.zip);
   }
   if (filters.outcome === "queue") {
     // The default queue: never called, or a callback that is due today or overdue.
@@ -227,7 +267,7 @@ async function listSqlPagedLeads(
   const bounds = pageBounds(total, page);
 
   const { results } = await db
-    .prepare(`${SELECT}${clause} ORDER BY ${ORDER_BY} LIMIT ? OFFSET ?`)
+    .prepare(`${SELECT}${clause} ORDER BY ${orderBy(filters.channel)} LIMIT ? OFFSET ?`)
     .bind(...binds, LEADS_PAGE_SIZE, bounds.offset)
     .all<LeadQueryRow>();
 
@@ -251,7 +291,7 @@ async function fetchOpenOrderedIds(
 ): Promise<string[]> {
   const { clause, binds } = buildWhere(filters, now);
   const { results } = await db
-    .prepare(`SELECT l.id, l.hours ${FROM}${clause} ORDER BY ${ORDER_BY}`)
+    .prepare(`SELECT l.id, l.hours ${FROM}${clause} ORDER BY ${orderBy(filters.channel)}`)
     .bind(...binds)
     .all<{ id: string; hours: string | null }>();
 
@@ -339,11 +379,14 @@ export interface Counters {
 export async function counters(
   db: D1Database,
   now = new Date(),
-  scope: { neighborhood?: string; tiers?: Tier[] } = {},
+  scope: { neighborhood?: string; tiers?: Tier[]; channel?: Channel } = {},
 ): Promise<Counters> {
   const day = today(now);
   const tiers = scope.tiers ?? [];
   const tierClause = tiers.length > 0 ? ` AND l.tier IN (${tiers.map(() => "?").join(", ")})` : "";
+  // Same exclusions as the route itself, or "left to visit" counts doors that are not there.
+  const walkClause =
+    scope.channel === "walk" ? " AND l.is_mobile = 0 AND trim(COALESCE(l.address, '')) <> ''" : "";
 
   const row = await db
     .prepare(
@@ -355,7 +398,7 @@ export async function counters(
          SUM(CASE WHEN s.demo_called_at IS NOT NULL THEN 1 ELSE 0 END) AS demosHeard
        FROM lead_state s
        JOIN leads l ON l.id = s.lead_id
-       WHERE (?2 IS NULL OR l.neighborhood = ?2)${tierClause}`,
+       WHERE (?2 IS NULL OR l.neighborhood = ?2)${tierClause}${walkClause}`,
     )
     .bind(day, scope.neighborhood ?? null, ...tiers)
     .first<{
@@ -375,9 +418,34 @@ export async function counters(
 
 export async function neighborhoods(db: D1Database): Promise<string[]> {
   const { results } = await db
-    .prepare("SELECT DISTINCT neighborhood FROM leads ORDER BY neighborhood")
+    .prepare(
+      // `Other` is the catch-all, so it belongs after the real areas rather than alphabetically
+      // between North Miami and St. Augustine.
+      `SELECT DISTINCT neighborhood FROM leads
+        ORDER BY neighborhood = ?, neighborhood`,
+    )
+    .bind(OTHER_AREA)
     .all<{ neighborhood: string }>();
   return (results ?? []).map((r) => r.neighborhood).filter(Boolean);
+}
+
+/**
+ * The blocks a route covers, in walking order. Scoped to one area — a bare ZIP list is unusable.
+ *
+ * Excludes the same leads the route itself does, or a block whose only lead is a van offers the rep
+ * a walk with nothing to walk into: 06461 in Stratford is exactly that today.
+ */
+export async function zipsIn(db: D1Database, neighborhood: string): Promise<number[]> {
+  const { results } = await db
+    .prepare(
+      `SELECT DISTINCT zip FROM leads
+        WHERE neighborhood = ? AND zip IS NOT NULL
+          AND is_mobile = 0 AND trim(COALESCE(address, '')) <> ''
+        ORDER BY zip`,
+    )
+    .bind(neighborhood)
+    .all<{ zip: number }>();
+  return (results ?? []).map((r) => r.zip);
 }
 
 export interface StateUpdate {

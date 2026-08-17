@@ -10,11 +10,23 @@ out/
 *.log
 .DS_Store
 .thumbnail
-scripts/
+# Scripts stay local — they hold keys, one-off jobs and scraped data. The exceptions are the two
+# that carry no secrets and exist to keep D1 agreeing with the rules in lib/: the lead sourcing CLI,
+# lost twice with the sourcing rules inside it, and the area reclassifier, whose absence turns the
+# next change to AREAS into a hand-written migration restating every ZIP range. Written as
+# `scripts/*` rather than `scripts/`, because git does not descend into an excluded directory and
+# a negation under one never matches.
+scripts/*
+!scripts/get-leads.ts
+!scripts/reclassify-areas.ts
 docs/
 # Scraped lead data — real businesses with phone numbers and addresses. The generator writes one
 # file per area (seed-leads-fort-lauderdale.sql and friends), so match the whole family.
 d1/seed-leads*.sql
 d1/seed-demo-pool.sql
+# Generated from the live table, so it carries the same real phone numbers as a seed file.
+d1/backfill-zip.sql
+# One-off output of scripts/reclassify-areas.ts, regenerated whenever AREAS changes.
+d1/reclassify-areas.sql
 # Working notes, internal specs, sales material — anything that stays off the remote
 /local/

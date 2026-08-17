@@ -1,7 +1,8 @@
 import { buildQuery } from "@/components/sales/FilterBar";
 import type { SalesQuery } from "@/components/sales/FilterBar";
-import { formatUsPhone } from "@/lib/sales/derive";
-import { OUTCOME_LABELS, type SalesLead } from "@/lib/sales/leads";
+import { formatUsPhone, mapsHref } from "@/lib/sales/derive";
+import type { Channel } from "@/lib/sales/leadFilters";
+import { type SalesLead, outcomeLabel } from "@/lib/sales/leads";
 import { contactLabel, promoCodeFor } from "@/lib/sales/offer";
 
 const TIER_STYLE: Record<string, string> = {
@@ -19,7 +20,12 @@ const OPEN_DOT = {
 
 const CELL = "px-3 py-2 align-middle";
 
-export function LeadTable({ leads, query }: { leads: SalesLead[]; query: SalesQuery }) {
+export function LeadTable({
+  leads,
+  query,
+  channel = "call",
+}: { leads: SalesLead[]; query: SalesQuery; channel?: Channel }) {
+  const walking = channel === "walk";
   return (
     <div className="overflow-x-auto rounded-[18px] border border-ink/10 bg-cream/80">
       <table className="w-full min-w-[820px] border-collapse text-sm">
@@ -29,7 +35,7 @@ export function LeadTable({ leads, query }: { leads: SalesLead[]; query: SalesQu
               Shop
             </th>
             <th scope="col" className={CELL}>
-              Phone
+              {walking ? "Address" : "Phone"}
             </th>
             <th scope="col" className={CELL}>
               Area
@@ -68,9 +74,20 @@ export function LeadTable({ leads, query }: { leads: SalesLead[]; query: SalesQu
                 </div>
               </td>
               <td className={CELL}>
-                <a href={`tel:${lead.phone_e164}`} className="font-medium text-ink no-underline">
-                  {formatUsPhone(lead.phone_e164)}
-                </a>
+                {walking && lead.address ? (
+                  <a
+                    href={mapsHref(lead.address)}
+                    target="_blank"
+                    rel="noreferrer"
+                    className="text-ink no-underline"
+                  >
+                    {lead.address}
+                  </a>
+                ) : (
+                  <a href={`tel:${lead.phone_e164}`} className="font-medium text-ink no-underline">
+                    {formatUsPhone(lead.phone_e164)}
+                  </a>
+                )}
               </td>
               <td className={`${CELL} text-muted`}>{lead.neighborhood}</td>
               <td className={CELL}>
@@ -81,9 +98,9 @@ export function LeadTable({ leads, query }: { leads: SalesLead[]; query: SalesQu
                 )}
               </td>
               <td className={`${CELL} ${lead.attempts === 0 ? "text-teal" : "text-[#8A5D17]"}`}>
-                {contactLabel(lead.attempts)}
+                {contactLabel(lead.attempts, channel)}
               </td>
-              <td className={`${CELL} text-muted`}>{OUTCOME_LABELS[lead.outcome]}</td>
+              <td className={`${CELL} text-muted`}>{outcomeLabel(lead.outcome, channel)}</td>
               <td className={CELL}>
                 <a
                   href={`/sales${buildQuery(query, { mode: "focus", lead: lead.id })}`}

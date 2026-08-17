@@ -1,11 +1,12 @@
 import { type SalesQuery, buildQuery } from "@/components/sales/FilterBar";
 
-export type PagerList = "queue" | "low";
+export type PagerList = "queue" | "low" | "mobile";
 type Placement = "top" | "bottom";
 
 const NAV_LABEL: Record<PagerList, string> = {
   queue: "Pagination — call queue",
   low: "Pagination — low priority",
+  mobile: "Pagination — mobile groomers",
 };
 
 // Paging is a full navigation, so without a fragment every Next lands the rep back above the nav
@@ -13,6 +14,13 @@ const NAV_LABEL: Record<PagerList, string> = {
 const ANCHOR: Record<PagerList, string> = {
   queue: "#call-queue",
   low: "#low-priority",
+  mobile: "#mobile-groomers",
+};
+
+const PAGE_PARAM: Record<PagerList, keyof SalesQuery> = {
+  queue: "page",
+  low: "lowPage",
+  mobile: "mobilePage",
 };
 
 const FOCUS_RING =
@@ -29,6 +37,28 @@ interface Variant {
   inert: string;
   marker: Marker;
 }
+
+// The lists under the queue are secondary and share one quieter treatment.
+const SECONDARY_TOP: Variant = {
+  nav: "mt-2 flex flex-wrap items-center justify-between gap-2",
+  status: "text-xs text-muted",
+  solo: "mt-2 text-xs text-muted",
+  controls: "flex items-center gap-3 text-xs",
+  active: `inline-flex min-h-11 items-center text-teal no-underline ${FOCUS_RING}`,
+  inert: "inline-flex min-h-11 items-center text-muted-3",
+  marker: "arrow",
+};
+
+const SECONDARY_BOTTOM: Variant = {
+  nav: "mt-4 flex flex-wrap items-center justify-between gap-3 border-t border-ink/10 pt-3",
+  status: "text-xs text-muted",
+  solo: "mt-3 border-t border-ink/10 pt-3 text-center text-xs text-muted",
+  controls: "flex items-center gap-2",
+  active: `flex min-h-11 items-center rounded-[10px] border border-ink/10 px-3.5 py-2 text-xs text-muted no-underline hover:border-ink/25 ${FOCUS_RING}`,
+  inert:
+    "flex min-h-11 items-center rounded-[10px] border border-ink/10 px-3.5 py-2 text-xs text-muted-3",
+  marker: "text",
+};
 
 const VARIANTS: Record<`${PagerList}-${Placement}`, Variant> = {
   "queue-top": {
@@ -50,25 +80,10 @@ const VARIANTS: Record<`${PagerList}-${Placement}`, Variant> = {
     inert: "rounded-[10px] border border-ink/10 px-4 py-3 text-sm text-muted-3",
     marker: "text",
   },
-  "low-top": {
-    nav: "mt-2 flex flex-wrap items-center justify-between gap-2",
-    status: "text-xs text-muted",
-    solo: "mt-2 text-xs text-muted",
-    controls: "flex items-center gap-3 text-xs",
-    active: `inline-flex min-h-11 items-center text-teal no-underline ${FOCUS_RING}`,
-    inert: "inline-flex min-h-11 items-center text-muted-3",
-    marker: "arrow",
-  },
-  "low-bottom": {
-    nav: "mt-4 flex flex-wrap items-center justify-between gap-3 border-t border-ink/10 pt-3",
-    status: "text-xs text-muted",
-    solo: "mt-3 border-t border-ink/10 pt-3 text-center text-xs text-muted",
-    controls: "flex items-center gap-2",
-    active: `flex min-h-11 items-center rounded-[10px] border border-ink/10 px-3.5 py-2 text-xs text-muted no-underline hover:border-ink/25 ${FOCUS_RING}`,
-    inert:
-      "flex min-h-11 items-center rounded-[10px] border border-ink/10 px-3.5 py-2 text-xs text-muted-3",
-    marker: "text",
-  },
+  "low-top": SECONDARY_TOP,
+  "low-bottom": SECONDARY_BOTTOM,
+  "mobile-top": SECONDARY_TOP,
+  "mobile-bottom": SECONDARY_BOTTOM,
 };
 
 function Chevron({ dir }: { dir: "prev" | "next" }) {
@@ -153,8 +168,7 @@ export function Pager({ list, placement, query, page, totalPages, total }: Pager
   }
 
   const href = (target: number) => {
-    const value = target > 1 ? String(target) : "";
-    const patch: SalesQuery = list === "queue" ? { page: value } : { lowPage: value };
+    const patch: SalesQuery = { [PAGE_PARAM[list]]: target > 1 ? String(target) : "" };
     return `/sales${buildQuery(query, patch)}${ANCHOR[list]}`;
   };
 

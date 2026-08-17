@@ -4,8 +4,10 @@ import { scoreLead, tier } from "@/lib/sales/derive";
 import {
   AREAS,
   ES_QUERY,
+  OTHER_AREA,
   areaForZip,
   bookingAppIn,
+  channelForArea,
   cityOf,
   excludedReason,
   instagramIn,
@@ -246,19 +248,22 @@ describe("area from ZIP, never from the query", () => {
     expect(neighborhoodFor("6630 SW 57th Ave, Miami, FL 33143")).toBe("Kendall");
   });
 
-  test("anything past the metro is labelled by town, not by bare ZIP", () => {
-    // These stay in the list as cold-call stock. "other (34470)" told a rep nothing; three of them
-    // are tier A, because a mobile groomer scores well wherever it happens to be parked.
-    expect(neighborhoodFor("1211 NE 20th St, Ocala, FL 34470")).toBe("other (Ocala)");
-    expect(neighborhoodFor("441 US-441, Lady Lake, FL 32159")).toBe("other (Lady Lake)");
-    expect(neighborhoodFor("7345 Jackson Springs Rd #2, Tampa, FL 33634")).toBe("other (Tampa)");
-    expect(neighborhoodFor("109 Ed Padgett Rd, Lakeland, FL 33809")).toBe("other (Lakeland)");
+  test("anything past a day's drive shares one label", () => {
+    // These stay in the list as cold-call stock — several are tier A, a mobile groomer scoring well
+    // wherever it happens to be parked — but naming each town made 23 filter chips of one lead.
+    expect(neighborhoodFor("1211 NE 20th St, Ocala, FL 34470")).toBe(OTHER_AREA);
+    expect(neighborhoodFor("441 US-441, Lady Lake, FL 32159")).toBe(OTHER_AREA);
+    expect(neighborhoodFor("7345 Jackson Springs Rd #2, Tampa, FL 33634")).toBe(OTHER_AREA);
+    expect(neighborhoodFor("109 Ed Padgett Rd, Lakeland, FL 33809")).toBe(OTHER_AREA);
+    expect(neighborhoodFor("111 S Washington St, Ormond Beach, FL 32174")).toBe(OTHER_AREA);
+    // Long Island, across the Sound from the Connecticut market that found it.
+    expect(neighborhoodFor("1000 N Broadway, Massapequa, NY 11758")).toBe(OTHER_AREA);
   });
 
-  test("falls back to the ZIP when the address has no parseable town", () => {
+  test("an unreadable address is Other, not a bare ZIP", () => {
     // 32601 is Gainesville — inside no configured range, and with no comma there is no town to read.
-    expect(neighborhoodFor("32601")).toBe("other (32601)");
-    expect(neighborhoodFor("no address at all")).toBe("other (?)");
+    expect(neighborhoodFor("32601")).toBe(OTHER_AREA);
+    expect(neighborhoodFor("no address at all")).toBe(OTHER_AREA);
   });
 
   test("the scraped area is the fallback only when Places returned no address", () => {
@@ -326,6 +331,73 @@ describe("area from ZIP, never from the query", () => {
   test("St. Augustine and Jacksonville do not fight over St. Johns county", () => {
     // 32259 (St. Johns / Fruit Cove) is assigned once, to St. Augustine.
     expect(areaForZip(32259)).toBe("St. Augustine");
+  });
+
+  test("greater Bridgeport resolves to Stratford, whichever town the shop is in", () => {
+    expect(neighborhoodFor("1234 Main St, Stratford, CT 06614")).toBe("Stratford");
+    expect(neighborhoodFor("900 Fairfield Ave, Bridgeport, CT 06605")).toBe("Stratford");
+    expect(neighborhoodFor("55 Bridgeport Ave, Shelton, CT 06484")).toBe("Stratford");
+    expect(neighborhoodFor("120 Broad St, Milford, CT 06460")).toBe("Stratford");
+    expect(neighborhoodFor("1500 Post Rd, Fairfield, CT 06824")).toBe("Stratford");
+  });
+
+  test("a CT ZIP resolves without its leading zero, which is how it is stored", () => {
+    // `zips` are numbers and `06614` is an illegal octal literal, so the ranges are written 6614.
+    expect(zipOf("1234 Main St, Stratford, CT 06614")).toBe(6614);
+    expect(areaForZip(6614)).toBe("Stratford");
+    expect(areaForZip(zipOf("25 Quarry Rd, Trumbull, CT 06611"))).toBe("Stratford");
+  });
+
+  test("the ring within about forty minutes of Stratford is part of the area", () => {
+    // A rep drives between towns and walks between doors, so the area is drawn by drive time. Every
+    // one of these is a shorter run from Stratford than Fairfield's own 06824, which was in from
+    // the start; all six sat in `other (…)` until the areas were redrawn.
+    expect(neighborhoodFor("650 Main St #7, Monroe, CT 06468")).toBe("Stratford");
+    expect(neighborhoodFor("204 Main St, Ansonia, CT 06401")).toBe("Stratford");
+    expect(neighborhoodFor("127 Main St, Derby, CT 06418")).toBe("Stratford");
+    expect(neighborhoodFor("1240 Post Rd E, Westport, CT 06880")).toBe("Stratford");
+    expect(neighborhoodFor("224 S Main St A, Newtown, CT 06470")).toBe("Stratford");
+  });
+
+  test("greater New Haven is its own area, dialled rather than walked", () => {
+    expect(neighborhoodFor("100 Chapel St, New Haven, CT 06510")).toBe("New Haven");
+    expect(neighborhoodFor("1292 Whalley Ave, New Haven, CT 06515")).toBe("New Haven");
+    expect(neighborhoodFor("29 Wagner Pl, West Haven, CT 06516")).toBe("New Haven");
+    expect(neighborhoodFor("53 South St, East Haven, CT 06512")).toBe("New Haven");
+    expect(neighborhoodFor("24 Selden St, Woodbridge, CT 06525")).toBe("New Haven");
+    expect(neighborhoodFor("312 E Johnson Ave, Cheshire, CT 06410")).toBe("New Haven");
+    expect(channelForArea("New Haven")).toBe("call");
+  });
+
+  test("Connecticut past the forty-minute ring is Other, not a new area", () => {
+    // Easton (06612) sits inside the Bridgeport-Trumbull range's numeric span but is rural; Weston
+    // (06883) is the same case beside Westport.
+    expect(areaForZip(6612)).toBeNull();
+    expect(areaForZip(6883)).toBeNull();
+    expect(neighborhoodFor("60 Pemberwick Rd A, Greenwich, CT 06831")).toBe(OTHER_AREA);
+    expect(neighborhoodFor("268 Greenwood Ave, Bethel, CT 06801")).toBe(OTHER_AREA);
+    expect(neighborhoodFor("1411 Boston Post Rd #244, Westbrook, CT 06498")).toBe(OTHER_AREA);
+    expect(neighborhoodFor("72 Park Lane Rd, New Milford, CT 06776")).toBe(OTHER_AREA);
+    expect(neighborhoodFor("278 New Milford Turnpike, New Preston, CT 06777")).toBe(OTHER_AREA);
+  });
+
+  test("North Miami is ZIP-only, so it cannot swallow the areas USPS calls Miami", () => {
+    expect(neighborhoodFor("9650 NW 27th Ave, Miami, FL 33147")).toBe("North Miami");
+    expect(neighborhoodFor("1666 NE 123rd St, North Miami, FL 33181")).toBe("North Miami");
+    // The regression this area could cause: `city` is matched before `zips`, so a city list holding
+    // "miami" here would take Westchester, Kendall and West Kendall with it.
+    expect(neighborhoodFor("8950 SW 24th St, Miami, FL 33165")).toBe("Westchester");
+    expect(neighborhoodFor("9000 SW 107th Ave, Miami, FL 33176")).toBe("Kendall");
+    expect(neighborhoodFor("13750 SW 88th St, Miami, FL 33186")).toBe("West Kendall");
+  });
+
+  test("Stratford is walked and every Florida area is dialled", () => {
+    expect(channelForArea("Stratford")).toBe("walk");
+    expect(channelForArea("Hialeah")).toBe("call");
+    expect(channelForArea("Fort Lauderdale")).toBe("call");
+    expect(channelForArea("North Miami")).toBe("call");
+    // `Other` has no entry at all and must not crash into a route.
+    expect(channelForArea(OTHER_AREA)).toBe("call");
   });
 });
 

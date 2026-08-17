@@ -35,7 +35,8 @@ function d1(db: Database): D1Database {
 
 const SCHEMA = `${await Bun.file("d1/0001_outreach.sql").text()}
 ${await Bun.file("d1/0002_demo_pool.sql").text()}
-${await Bun.file("d1/0003_lead_enrichment.sql").text()}`;
+${await Bun.file("d1/0003_lead_enrichment.sql").text()}
+${await Bun.file("d1/0004_walk_route.sql").text()}`;
 
 let sqlite: Database;
 let patched: { shopId: string; update: Record<string, unknown> }[];

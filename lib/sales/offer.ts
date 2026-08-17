@@ -1,3 +1,5 @@
+import type { Channel } from "@/lib/sales/leadFilters";
+
 // One campaign code per neighbourhood, all pointing at the same Stripe coupon
 // (`marisol_neighborhood_20off`): 20% off Complete for twelve months, first transaction only,
 // which lands it at $199.20/mo — the price of Basic. Stripe restricts the coupon to the Complete
@@ -22,11 +24,14 @@ const NEIGHBORHOOD_CODES: Record<string, string> = {
   Jacksonville: "JACKSONVILLE20",
   "St. Augustine": "STAUGUSTINE20",
   "Fort Lauderdale": "FORTLAUDERDALE20",
+  Stratford: "STRATFORD20",
 };
 
 export const promoCodeFor = (neighborhood: string): string | null =>
   NEIGHBORHOOD_CODES[neighborhood] ?? null;
 
-// `attempts` counts dials already logged, so the call the rep is about to make is the next one up.
-export const contactLabel = (attempts: number): string =>
-  attempts === 0 ? "first contact" : `call #${attempts + 1}`;
+// `attempts` counts contacts already logged, so the one the rep is about to make is the next up.
+export const contactLabel = (attempts: number, channel: Channel = "call"): string => {
+  if (attempts === 0) return "first contact";
+  return channel === "walk" ? `visit #${attempts + 1}` : `call #${attempts + 1}`;
+};

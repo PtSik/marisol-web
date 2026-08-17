@@ -13,6 +13,7 @@ import {
   parsePageParam,
   recordOutcome,
   requestDemo,
+  zipsIn,
 } from "@/lib/sales/leads";
 
 // The queries run against a real SQLite file rather than a stub, so schema drift and SQL mistakes
@@ -41,7 +42,8 @@ function d1(db: Database): D1Database {
 
 const SCHEMA = `${await Bun.file("d1/0001_outreach.sql").text()}
 ${await Bun.file("d1/0002_demo_pool.sql").text()}
-${await Bun.file("d1/0003_lead_enrichment.sql").text()}`;
+${await Bun.file("d1/0003_lead_enrichment.sql").text()}
+${await Bun.file("d1/0004_walk_route.sql").text()}`;
 
 interface SeedOptions {
   id: string;
@@ -51,6 +53,8 @@ interface SeedOptions {
   neighborhood?: string;
   hours?: string | null;
   address?: string | null;
+  zip?: number | null;
+  isMobile?: boolean;
   reviewCount?: number;
   esStrength?: string;
   outcome?: string;
@@ -62,9 +66,10 @@ let db: D1Database;
 
 function seed(options: SeedOptions): void {
   sqlite.run(
-    `INSERT INTO leads (id, shop_name, phone_e164, slug, neighborhood, hours, address, review_count,
-       is_mobile, is_chain, booking_app, es_strength, price_confidence, score, tier, imported_at)
-     VALUES (?, ?, ?, ?, ?, ?, ?, ?, 0, 0, 'none', ?, 'low', ?, ?, '2026-07-30T00:00:00Z')`,
+    `INSERT INTO leads (id, shop_name, phone_e164, slug, neighborhood, hours, address, zip,
+       review_count, is_mobile, is_chain, booking_app, es_strength, price_confidence, score, tier,
+       imported_at)
+     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 0, 'none', ?, 'low', ?, ?, '2026-07-30T00:00:00Z')`,
     [
       options.id,
       options.name,
@@ -73,7 +78,9 @@ function seed(options: SeedOptions): void {
       options.neighborhood ?? "Hialeah",
       options.hours === undefined ? "Monday: 9:00 AM – 5:00 PM" : options.hours,
       options.address ?? null,
+      options.zip ?? null,
       options.reviewCount ?? 100,
+      options.isMobile ? 1 : 0,
       options.esStrength ?? "none",
       options.score ?? 7,
       options.tier ?? "B",
@@ -208,6 +215,146 @@ describe("listLeads", () => {
 
     const open = await listLeads(db, { openOnly: true }, new Date("2026-08-03T18:00:00Z"));
     expect(open.leads.map((l) => l.shop_name)).toEqual(["Open"]);
+  });
+});
+
+describe("listLeads on a route", () => {
+  // A van is worth +4 and lands at the top of the call queue; there is no door to walk into.
+  it("drops mobile groomers and leaves them in the call queue", async () => {
+    seed({
+      id: "3051110001",
+      name: "Van",
+      tier: "A",
+      score: 12,
+      address: "1 Main St",
+      isMobile: true,
+    });
+    seed({ id: "3051110002", name: "Shop", tier: "B", score: 8, address: "2 Main St" });
+
+    const route = await listLeads(db, { channel: "walk" });
+    expect(route.leads.map((l) => l.shop_name)).toEqual(["Shop"]);
+
+    const calls = await listLeads(db, {});
+    expect(calls.leads.map((l) => l.shop_name)).toEqual(["Van", "Shop"]);
+  });
+
+  it("drops a lead with no address, and one whose address is blank", async () => {
+    seed({ id: "3051110001", name: "Nowhere", tier: "A", score: 12, address: null });
+    seed({ id: "3051110002", name: "Blank", tier: "A", score: 11, address: "   " });
+    seed({ id: "3051110003", name: "Somewhere", tier: "C", score: 3, address: "3 Main St" });
+
+    const route = await listLeads(db, { channel: "walk" });
+    expect(route.leads.map((l) => l.shop_name)).toEqual(["Somewhere"]);
+  });
+
+  // The block outranks the score: the shop on this corner costs a minute whatever its tier.
+  it("orders by ZIP first and by score only inside a ZIP", async () => {
+    seed({
+      id: "3051110001",
+      name: "Far best",
+      tier: "A",
+      score: 14,
+      address: "1 A St",
+      zip: 6615,
+    });
+    seed({
+      id: "3051110002",
+      name: "Near weak",
+      tier: "C",
+      score: 3,
+      address: "2 B St",
+      zip: 6604,
+    });
+    seed({
+      id: "3051110003",
+      name: "Near best",
+      tier: "A",
+      score: 11,
+      address: "3 B St",
+      zip: 6604,
+    });
+
+    const route = await listLeads(db, { channel: "walk" });
+    expect(route.leads.map((l) => l.shop_name)).toEqual(["Near best", "Near weak", "Far best"]);
+  });
+
+  it("sorts a lead with no ZIP last rather than first", async () => {
+    seed({
+      id: "3051110001",
+      name: "Unplaced",
+      tier: "A",
+      score: 14,
+      address: "1 A St",
+      zip: null,
+    });
+    seed({ id: "3051110002", name: "Placed", tier: "C", score: 2, address: "2 B St", zip: 6614 });
+
+    const route = await listLeads(db, { channel: "walk" });
+    expect(route.leads.map((l) => l.shop_name)).toEqual(["Placed", "Unplaced"]);
+  });
+
+  it("narrows to one block, and counts the same set it lists", async () => {
+    seed({ id: "3051110001", name: "Here", address: "1 A St", zip: 6614 });
+    seed({ id: "3051110002", name: "Also here", address: "2 A St", zip: 6614 });
+    seed({ id: "3051110003", name: "Next town", address: "3 B St", zip: 6460 });
+
+    const filters: LeadFilters = { channel: "walk", zip: 6614 };
+    const block = await listLeads(db, filters);
+    expect(block.leads.map((l) => l.shop_name)).toEqual(["Here", "Also here"]);
+    expect(await countLeads(db, filters)).toBe(2);
+  });
+
+  it("keeps the count and the page agreeing when open-now runs on top of the route", async () => {
+    seed({ id: "3051110001", name: "Open", address: "1 A St", zip: 6614, hours: OPEN_HOURS });
+    seed({ id: "3051110002", name: "Shut", address: "2 A St", zip: 6614, hours: CLOSED_HOURS });
+    seed({
+      id: "3051110003",
+      name: "Open van",
+      address: "3 A St",
+      zip: 6614,
+      hours: OPEN_HOURS,
+      isMobile: true,
+    });
+
+    const filters: LeadFilters = { channel: "walk", openOnly: true };
+    const page = await listLeads(db, filters, NOW);
+    expect(page.leads.map((l) => l.shop_name)).toEqual(["Open"]);
+    expect(page.total).toBe(1);
+    expect(await countLeads(db, filters, NOW)).toBe(1);
+  });
+
+  // The other half of the route's exclusion: what it drops has to be reachable somewhere, or the
+  // highest-scoring leads in the area are simply invisible while a rep is walking it.
+  it("lists exactly the vans the route drops", async () => {
+    seed({
+      id: "3051110001",
+      name: "Van",
+      tier: "A",
+      score: 12,
+      address: "1 A St",
+      isMobile: true,
+    });
+    seed({ id: "3051110002", name: "Shop", tier: "B", score: 8, address: "2 A St" });
+
+    const filters: LeadFilters = { mobile: true };
+    const vans = await listLeads(db, filters);
+    expect(vans.leads.map((l) => l.shop_name)).toEqual(["Van"]);
+    expect(await countLeads(db, filters)).toBe(1);
+  });
+
+  it("keeps a van with no address, which the route would drop twice over", async () => {
+    seed({ id: "3051110001", name: "Van", tier: "A", score: 12, address: null, isMobile: true });
+
+    const vans = await listLeads(db, { mobile: true });
+    expect(vans.leads.map((l) => l.shop_name)).toEqual(["Van"]);
+  });
+
+  it("offers no block whose only lead cannot be walked into", async () => {
+    seed({ id: "3051110001", name: "Van", address: "1 A St", zip: 6461, isMobile: true });
+    seed({ id: "3051110002", name: "Nowhere", address: null, zip: 6497 });
+    seed({ id: "3051110003", name: "Shop", address: "2 B St", zip: 6614 });
+
+    expect(await zipsIn(db, "Hialeah")).toEqual([6614]);
   });
 });
 
@@ -584,12 +731,26 @@ function independentOracle(filters: LeadFilters, now: Date, openIds: Set<string>
       return true;
     })
     .filter((r) => (openIds ? openIds.has(String(r.id)) : true))
+    .filter((r) =>
+      filters.channel === "walk"
+        ? Number(r.is_mobile) === 0 && String(r.address ?? "").trim() !== ""
+        : true,
+    )
+    .filter((r) => (filters.zip === undefined ? true : Number(r.zip) === filters.zip))
     .sort((a, b) => {
+      if (filters.channel === "walk") {
+        // NULL ZIPs last, then block by block.
+        const zipA = a.zip === null ? Number.POSITIVE_INFINITY : Number(a.zip);
+        const zipB = b.zip === null ? Number.POSITIVE_INFINITY : Number(b.zip);
+        if (zipA !== zipB) return zipA - zipB;
+      }
       const rankA = TIER_RANK[String(a.tier)] ?? 3;
       const rankB = TIER_RANK[String(b.tier)] ?? 3;
       if (rankA !== rankB) return rankA - rankB;
       if (a.score !== b.score) return Number(b.score) - Number(a.score);
-      if (a.review_count !== b.review_count) return Number(b.review_count) - Number(a.review_count);
+      if (filters.channel !== "walk" && a.review_count !== b.review_count) {
+        return Number(b.review_count) - Number(a.review_count);
+      }
       return String(a.id) < String(b.id) ? -1 : 1;
     })
     .map((r) => String(r.id));
@@ -640,7 +801,7 @@ describe("pagination cross-checked against an independent oracle", () => {
     expect(ids).toEqual([...ids].sort());
   });
 
-  it("every one of 72 filter combinations matches the oracle, with countLeads agreeing on each", async () => {
+  it("every one of 144 filter combinations matches the oracle, with countLeads agreeing on each", async () => {
     const openIds = new Set<string>();
     for (let i = 0; i < 120; i++) {
       const isOpen = i % 5 !== 0 && i % 5 !== 1;
@@ -658,6 +819,11 @@ describe("pagination cross-checked against an independent oracle", () => {
         // Path B has to treat a lead with unparsable/absent hours as not-open, same as Path A's
         // per-row `decorate()` would — folded in here rather than a separate test.
         hours: i % 5 === 0 ? CLOSED_HOURS : i % 5 === 1 ? null : OPEN_HOURS,
+        // Every shape the route has to survive: no address, a blank one, a van, and rows sharing a
+        // ZIP so the block ordering has ties to break.
+        address: i % 11 === 0 ? null : i % 11 === 1 ? "  " : `${i} Main St`,
+        zip: i % 7 === 0 ? null : 6600 + (i % 4),
+        isMobile: i % 13 === 0,
       });
       if (isOpen) openIds.add(id);
     }
@@ -667,6 +833,7 @@ describe("pagination cross-checked against an independent oracle", () => {
     const esValues = [undefined, "strong"] as const;
     const outcomes = [undefined, "queue", "interested"] as const;
     const openOnlyValues = [false, true] as const;
+    const channels = [undefined, "walk"] as const;
 
     const combos: LeadFilters[] = [];
     for (const neighborhood of neighborhoods) {
@@ -674,13 +841,15 @@ describe("pagination cross-checked against an independent oracle", () => {
         for (const es of esValues) {
           for (const outcome of outcomes) {
             for (const openOnly of openOnlyValues) {
-              combos.push({ neighborhood, tiers, es, outcome, openOnly });
+              for (const channel of channels) {
+                combos.push({ neighborhood, tiers, es, outcome, openOnly, channel });
+              }
             }
           }
         }
       }
     }
-    expect(combos.length).toBe(72);
+    expect(combos.length).toBe(144);
 
     for (const filters of combos) {
       const { ids, total } = await pageThroughAll(filters, NOW);
@@ -858,6 +1027,17 @@ describe("counters", () => {
       (await counters(db, new Date(), { neighborhood: "Hialeah", tiers: ["A", "B"] })).queue,
     ).toBe(1);
     expect((await counters(db, new Date())).queue).toBe(4);
+  });
+
+  // "Left to visit" counting doors that are not there is the same bug as a header saying 119 above
+  // a list of 20.
+  it("leaves vans and address-less leads out of the count on a route", async () => {
+    seed({ id: "3051110001", name: "Shop", address: "1 Main St" });
+    seed({ id: "3051110002", name: "Van", address: "2 Main St", isMobile: true });
+    seed({ id: "3051110003", name: "Nowhere", address: null });
+
+    expect((await counters(db, new Date())).queue).toBe(3);
+    expect((await counters(db, new Date(), { channel: "walk" })).queue).toBe(1);
   });
 });
 

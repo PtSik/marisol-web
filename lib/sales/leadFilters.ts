@@ -29,7 +29,15 @@ export interface Area {
   city?: string[];
   /** Inclusive ZIP ranges, used when the city does not resolve. Must not overlap between areas. */
   zips: [number, number][];
+  /**
+   * How the team works this area. `walk` opens /sales on the route instead of the call queue, which
+   * drops the leads a rep cannot walk into — a mobile groomer has no door, and it is the highest
+   * scoring kind of lead we have.
+   */
+  channel?: Channel;
 }
+
+export type Channel = "call" | "walk";
 
 // A lead's area comes from its own address, never from the query that found it: ~10 rows in the
 // first Miami run were mislabelled because the query decided — EDUGROOMER was tagged "West Kendall"
@@ -206,6 +214,124 @@ export const AREAS: Record<string, Area> = {
       [33351, 33351],
     ],
   },
+
+  // North-east Miami-Dade. ZIP-only, like Westchester and Kendall and for the same reason: USPS
+  // writes "Miami" here too, and `city` is matched first, so a city list would swallow half of
+  // Dade county.
+  "north-miami": {
+    name: "North Miami",
+    searchIn: "North Miami, FL",
+    alsoSearch: ["North Miami Beach, FL", "Miami Shores, FL"],
+    zips: [
+      [33147, 33147],
+      [33150, 33150],
+      [33161, 33162],
+      [33167, 33168],
+      [33179, 33179],
+      [33181, 33181],
+    ],
+  },
+
+  // Fairfield County, Connecticut — the first market outside Florida and the first one sold on
+  // foot. Greater Bridgeport rather than the town line: Stratford alone is 52k people and would
+  // run dry in a week, while Bridgeport to Milford is one drive.
+  //
+  // ZIPs are written without their leading zero: `zips` are numbers, `zipOf` parses "06614" to
+  // 6614, and `06614` is an illegal octal literal in TypeScript.
+  stratford: {
+    name: "Stratford",
+    searchIn: "Stratford, CT",
+    alsoSearch: [
+      "Bridgeport, CT",
+      "Milford, CT",
+      "Trumbull, CT",
+      "Shelton, CT",
+      "Fairfield, CT",
+      "Monroe, CT",
+      "Derby, CT",
+      "Westport, CT",
+    ],
+    city: [
+      "stratford",
+      "bridgeport",
+      "milford",
+      // Devon is Milford's own postal name for 06460 and appears on Places addresses as such.
+      "devon",
+      "trumbull",
+      "shelton",
+      "fairfield",
+      "southport",
+      // The ring the first run left in `other (…)`: every one of these is a shorter drive from
+      // Stratford than Fairfield's own 06824, which has been in the area since day one. A rep
+      // drives between doors here — the route is walked block by block, not town to town.
+      "monroe",
+      "ansonia",
+      "derby",
+      "westport",
+      "newtown",
+      "sandy hook",
+    ],
+    zips: [
+      // Fairfield and Southport.
+      [6430, 6432],
+      [6890, 6890],
+      [6824, 6825],
+      // Milford and Devon.
+      [6460, 6461],
+      [6484, 6484],
+      // Stratford's PO boxes, which some listings use instead of a street ZIP.
+      [6497, 6497],
+      // Bridgeport (06604-06610) and Trumbull (06611). 06612 is Easton — rural, off the route,
+      // deliberately outside the range.
+      [6604, 6611],
+      [6614, 6615],
+      // Ansonia and Derby, up the Naugatuck valley from Shelton.
+      [6401, 6401],
+      [6418, 6418],
+      // Monroe, and Newtown with Sandy Hook behind it.
+      [6468, 6468],
+      [6470, 6470],
+      [6482, 6482],
+      // Westport. 06883 is Weston — rural and off the route, left out like Easton.
+      [6880, 6881],
+      [6888, 6888],
+    ],
+    channel: "walk",
+  },
+
+  // Greater New Haven — reached by the Stratford run's `alsoSearch` spilling east, not scraped on
+  // its own yet, so the five leads here are leftovers rather than coverage. Dialled rather than
+  // walked: three fixed shops scattered across a 135k city is not a day on foot.
+  "new-haven": {
+    name: "New Haven",
+    searchIn: "New Haven, CT",
+    alsoSearch: ["West Haven, CT", "Hamden, CT", "Cheshire, CT"],
+    city: [
+      "new haven",
+      "west haven",
+      "east haven",
+      "woodbridge",
+      "hamden",
+      "cheshire",
+      "orange",
+      "bethany",
+    ],
+    zips: [
+      [6410, 6410],
+      [6477, 6477],
+      // New Haven proper, plus East Haven (06512), West Haven (06516) and Hamden (06514/06517-18).
+      [6510, 6521],
+      [6524, 6525],
+    ],
+  },
+};
+
+/** How the team works the area a lead sits in. Unconfigured areas — `Other` — dial. */
+export const channelForArea = (neighborhood: string): Channel => {
+  for (const area of Object.values(AREAS)) {
+    if (area.name === neighborhood) return area.channel ?? "call";
+  }
+  return "call";
 };
 
 // Spanish queries stay in the rotation because they surface shops an English query misses, but which
@@ -382,32 +508,31 @@ export function areaForZip(zip: number | null): string | null {
   return null;
 }
 
+/** Everything more than about forty minutes from a configured area, under one filter chip. */
+export const OTHER_AREA = "Other";
+
 /**
  * What lands in `neighborhood`. City first, then ZIP.
  *
  * Anything outside every configured area stays in the list — Places reaches well past the metro it
- * was asked about, and those shops are still worth a cold call — but it is labelled by town rather
- * than by bare ZIP. "other (Ocala)" tells a rep planning a drive what "other (34470)" did not, and
- * three such leads sit at tier A because a mobile groomer scores well wherever it is parked.
+ * was asked about, and those shops are still worth a cold call — but it goes under one label rather
+ * than one per town. Naming the town read better on a single lead and turned the area filter into
+ * 23 chips holding one lead each; the address on the card says where the shop is anyway.
+ *
+ * The areas are drawn so that anything within a ~40 minute drive belongs to one of them, a rep
+ * having a car and not only feet. What is left is genuinely scattered — five separate Florida
+ * markets, one lead on Long Island — and no chip per town would make that workable.
  *
  * `fallback` is the area being scraped, used only when Places returned no address at all — three
  * leads in D1 are in that state.
  */
 export const neighborhoodFor = (address: string | null, fallback?: string): string => {
-  if (!address?.trim()) return fallback ?? "other (?)";
+  if (!address?.trim()) return fallback ?? OTHER_AREA;
   const byCity = areaForCity(cityOf(address));
   if (byCity) return byCity;
 
-  const zip = zipOf(address);
-  const byZip = areaForZip(zip);
-  if (byZip) return byZip;
-
-  const city = cityOf(address);
-  return `other (${city ? titleCase(city) : (zip ?? "?")})`;
+  return areaForZip(zipOf(address)) ?? OTHER_AREA;
 };
-
-const titleCase = (value: string): string =>
-  value.replace(/\b[a-z]/g, (c) => c.toUpperCase()).replace(/\bSt\b/g, "St.");
 
 /** Street address, lowercased and punctuation-free, for spotting two names at one address. */
 export const normalizeAddress = (address: string): string =>

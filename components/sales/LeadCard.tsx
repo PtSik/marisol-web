@@ -1,6 +1,7 @@
 import type { DemoKnowledge } from "@/lib/sales/demoKnowledge";
-import { formatUsPhone } from "@/lib/sales/derive";
-import { OUTCOME_LABELS, type Outcome, type SalesLead } from "@/lib/sales/leads";
+import { formatUsPhone, mapsHref } from "@/lib/sales/derive";
+import type { Channel } from "@/lib/sales/leadFilters";
+import { type Outcome, type SalesLead, outcomeLabel } from "@/lib/sales/leads";
 import { contactLabel, promoCodeFor } from "@/lib/sales/offer";
 import type { ReactNode } from "react";
 
@@ -76,14 +77,16 @@ export interface LeadCardProps {
   lead: SalesLead;
   back: string;
   focus?: boolean;
+  channel?: Channel;
   history?: { actor: string; outcome: string | null; note: string | null; created_at: string }[];
 }
 
-export function LeadCard({ lead, back, focus = false, history }: LeadCardProps) {
+export function LeadCard({ lead, back, focus = false, channel = "call", history }: LeadCardProps) {
   const open = OPEN_STYLE[lead.openState];
   const action = `/api/sales/leads/${lead.id}`;
   const phone = formatUsPhone(lead.phone_e164);
   const promo = promoCodeFor(lead.neighborhood);
+  const walking = channel === "walk";
 
   return (
     <article className="min-w-0 rounded-[18px] border border-ink/10 bg-cream/80 p-5">
@@ -122,11 +125,11 @@ export function LeadCard({ lead, back, focus = false, history }: LeadCardProps) 
               lead.attempts === 0 ? "bg-teal/15 text-teal" : "bg-[#B97E24]/12 text-[#8A5D17]"
             }
           >
-            {contactLabel(lead.attempts)}
+            {contactLabel(lead.attempts, channel)}
           </Chip>
           {lead.outcome !== "new" && (
             <Chip className={OUTCOME_STYLE[lead.outcome] ?? "bg-ink/5 text-muted"}>
-              {OUTCOME_LABELS[lead.outcome]}
+              {outcomeLabel(lead.outcome, channel)}
             </Chip>
           )}
           {lead.is_chain === 1 && <Chip className="bg-[#B3261E]/10 text-[#B3261E]">chain</Chip>}
@@ -136,16 +139,38 @@ export function LeadCard({ lead, back, focus = false, history }: LeadCardProps) 
         </div>
       </div>
 
-      <a
-        href={`tel:${lead.phone_e164}`}
-        className={`mt-3 block font-semibold tracking-tight text-ink no-underline ${
-          focus ? "text-[42px] leading-tight" : "text-[26px]"
-        }`}
-      >
-        {phone}
-      </a>
-      {/* Tap-to-call does nothing on a desktop, so the number stays selectable as plain text. */}
-      <p className="mt-0.5 select-all text-xs text-muted-2">{lead.phone_e164}</p>
+      {/* On a route the address is the headline and the phone is the fallback: the rep is standing
+          on the street, not holding a dialler. Walk mode never lists a lead without an address. */}
+      {walking && lead.address ? (
+        <>
+          <a
+            href={mapsHref(lead.address)}
+            target="_blank"
+            rel="noreferrer"
+            className={`mt-3 block font-semibold tracking-tight text-ink no-underline ${
+              focus ? "text-[30px] leading-tight" : "text-[21px] leading-snug"
+            }`}
+          >
+            {lead.address}
+          </a>
+          <a href={`tel:${lead.phone_e164}`} className="mt-1 inline-block text-sm text-muted">
+            {phone}
+          </a>
+        </>
+      ) : (
+        <>
+          <a
+            href={`tel:${lead.phone_e164}`}
+            className={`mt-3 block font-semibold tracking-tight text-ink no-underline ${
+              focus ? "text-[42px] leading-tight" : "text-[26px]"
+            }`}
+          >
+            {phone}
+          </a>
+          {/* Tap-to-call does nothing on a desktop, so the number stays selectable as plain text. */}
+          <p className="mt-0.5 select-all text-xs text-muted-2">{lead.phone_e164}</p>
+        </>
+      )}
 
       {lead.hookLine && <p className="mt-2 text-sm">{lead.hookLine}</p>}
 
@@ -160,7 +185,7 @@ export function LeadCard({ lead, back, focus = false, history }: LeadCardProps) 
         <input type="hidden" name="back" value={back} />
         <fieldset className="border-0 p-0">
           <legend className="text-xs font-medium uppercase tracking-wide text-muted-2">
-            Call result
+            {walking ? "Visit result" : "Call result"}
           </legend>
           <div className="mt-2 flex flex-wrap gap-1.5">
             {QUICK_OUTCOMES.map((outcome) => (
@@ -171,7 +196,7 @@ export function LeadCard({ lead, back, focus = false, history }: LeadCardProps) 
                 value={outcome}
                 className="rounded-[10px] border border-ink/15 bg-white px-3 py-2 text-sm font-medium hover:border-teal/40 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-teal"
               >
-                {OUTCOME_LABELS[outcome]}
+                {outcomeLabel(outcome, channel)}
               </button>
             ))}
           </div>
@@ -184,7 +209,7 @@ export function LeadCard({ lead, back, focus = false, history }: LeadCardProps) 
                 value={outcome}
                 className="rounded-[10px] border border-ink/10 px-3 py-1.5 text-xs text-muted hover:border-ink/25 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-teal"
               >
-                {OUTCOME_LABELS[outcome]}
+                {outcomeLabel(outcome, channel)}
               </button>
             ))}
           </div>
@@ -325,7 +350,7 @@ export function LeadCard({ lead, back, focus = false, history }: LeadCardProps) 
             {history.map((event) => (
               <li key={`${event.created_at}-${event.actor}`}>
                 {event.created_at.slice(0, 16).replace("T", " ")} · {event.actor} ·{" "}
-                {event.outcome ? OUTCOME_LABELS[event.outcome as Outcome] : event.note}
+                {event.outcome ? outcomeLabel(event.outcome as Outcome, channel) : event.note}
                 {event.outcome && event.note ? ` — ${event.note}` : ""}
               </li>
             ))}
