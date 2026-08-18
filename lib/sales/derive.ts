@@ -182,6 +182,34 @@ export function formatUsPhone(phone: string): string {
 export const mapsHref = (address: string): string =>
   `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(address)}`;
 
+/** Google's directions URL caps the waypoints between origin and destination at this many. */
+const MAX_WAYPOINTS = 8;
+
+/**
+ * Turns a list of stops into one walking route, ordered as given — the route is already sorted the
+ * way a rep works it, so letting Google reorder would undo that.
+ *
+ * `null` for fewer than two stops, a single pin being what `mapsHref` is for. Past the waypoint cap
+ * the tail is dropped rather than the middle: those stops are the far end of the block, and the rep
+ * gets a fresh link once the near ones are logged.
+ */
+export function routeHref(addresses: string[]): string | null {
+  const stops = addresses.map((a) => a.trim()).filter(Boolean);
+  if (stops.length < 2) return null;
+
+  const capped = stops.slice(0, MAX_WAYPOINTS + 2);
+  const params = new URLSearchParams({
+    api: "1",
+    travelmode: "walking",
+    origin: capped[0],
+    destination: capped[capped.length - 1],
+  });
+  const waypoints = capped.slice(1, -1);
+  if (waypoints.length > 0) params.set("waypoints", waypoints.join("|"));
+
+  return `https://www.google.com/maps/dir/?${params}`;
+}
+
 export function toE164(phone: string): string {
   const digits = phone.replace(/\D/g, "");
   if (digits.length === 10) return `+1${digits}`;

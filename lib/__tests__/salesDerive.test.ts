@@ -6,6 +6,7 @@ import {
   openNow,
   parseNotes,
   parseWeekHours,
+  routeHref,
   scoreLead,
   slugify,
   tier,
@@ -150,6 +151,37 @@ describe("phone formatting", () => {
 
   it("leaves anything that is not a 10-digit US number alone", () => {
     expect(formatUsPhone("+44 20 7946 0958")).toBe("+44 20 7946 0958");
+  });
+});
+
+describe("routeHref", () => {
+  const stops = (n: number) => Array.from({ length: n }, (_, i) => `${i + 1} Main St`);
+
+  it("walks the stops in the order the route already put them", () => {
+    const url = new URL(routeHref(["1 A St", "2 B St", "3 C St"]) as string);
+    expect(url.searchParams.get("travelmode")).toBe("walking");
+    expect(url.searchParams.get("origin")).toBe("1 A St");
+    expect(url.searchParams.get("destination")).toBe("3 C St");
+    expect(url.searchParams.get("waypoints")).toBe("2 B St");
+  });
+
+  it("leaves out the waypoints parameter for a straight two-stop hop", () => {
+    const url = new URL(routeHref(["1 A St", "2 B St"]) as string);
+    expect(url.searchParams.has("waypoints")).toBe(false);
+  });
+
+  it("has nothing to route with fewer than two stops", () => {
+    expect(routeHref([])).toBeNull();
+    expect(routeHref(["1 A St"])).toBeNull();
+    // Blank addresses are dropped before the count, so these are one stop, not two.
+    expect(routeHref(["1 A St", "   "])).toBeNull();
+  });
+
+  it("caps at Google's eight waypoints by dropping the far end, not the middle", () => {
+    const url = new URL(routeHref(stops(20)) as string);
+    expect(url.searchParams.get("origin")).toBe("1 Main St");
+    expect(url.searchParams.get("destination")).toBe("10 Main St");
+    expect(url.searchParams.get("waypoints")?.split("|")).toHaveLength(8);
   });
 });
 

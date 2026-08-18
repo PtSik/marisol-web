@@ -5,7 +5,7 @@ import { LeadCard } from "@/components/sales/LeadCard";
 import { LeadTable } from "@/components/sales/LeadTable";
 import { Pager } from "@/components/sales/Pager";
 import { type DemoPoolEnv, poolStatus, sweepDemoPool } from "@/lib/sales/demoPool";
-import type { EsStrength, Tier } from "@/lib/sales/derive";
+import { type EsStrength, type Tier, routeHref } from "@/lib/sales/derive";
 import { type Channel, channelForArea } from "@/lib/sales/leadFilters";
 import {
   LEADS_PAGE_SIZE,
@@ -274,6 +274,11 @@ export default async function SalesPage({
   // while the queue is not (a concurrent write, or a read replica behind the count). Hiding the
   // pager there leaves the rep on an empty page with no control to get back.
   const walking = channel === "walk";
+  // Built from the page the rep is looking at, in its order, so the walk Google hands back is the
+  // one the route already planned. A rep on foot navigates by phone anyway.
+  const walkRoute = walking
+    ? routeHref(leads.map((lead) => lead.address ?? "").filter(Boolean))
+    : null;
   const showQueuePager = queue.totalPages > 1 || leads.length > 0;
   const showLowPager = Boolean(lowQueue && (lowQueue.totalPages > 1 || lowPriority.length > 0));
   const showMobilePager = Boolean(mobileQueue && mobileQueue.totalPages > 1);
@@ -357,14 +362,26 @@ export default async function SalesPage({
                     </span>
                   )}
                 </h1>
-                {leads.length > 0 && (
-                  <a
-                    href={`/sales${buildQuery(query, { mode: "focus" })}`}
-                    className="rounded-[10px] bg-teal px-4 py-2 text-sm font-medium text-white no-underline"
-                  >
-                    {walking ? "Start walking" : "Start calling"}
-                  </a>
-                )}
+                <div className="flex flex-wrap items-center gap-2">
+                  {walkRoute && (
+                    <a
+                      href={walkRoute}
+                      target="_blank"
+                      rel="noreferrer"
+                      className="rounded-[10px] border border-ink/15 bg-white px-4 py-2 text-sm font-medium text-ink no-underline hover:border-teal/40"
+                    >
+                      Navigate this page
+                    </a>
+                  )}
+                  {leads.length > 0 && (
+                    <a
+                      href={`/sales${buildQuery(query, { mode: "focus" })}`}
+                      className="rounded-[10px] bg-teal px-4 py-2 text-sm font-medium text-white no-underline"
+                    >
+                      {walking ? "Start walking" : "Start calling"}
+                    </a>
+                  )}
+                </div>
               </div>
               {showQueuePager && (
                 <Pager
