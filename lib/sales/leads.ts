@@ -1,14 +1,16 @@
-import { type DemoKnowledge, demoKnowledge } from "@/lib/sales/demoKnowledge";
 import {
   type EsStrength,
   type OpenState,
   SHOP_TIMEZONE,
   type ShopClock,
   type Tier,
+  type WeekRow,
   hook,
   openAt,
   parseWeekHours,
   shopClock,
+  todayNote,
+  weekRows,
 } from "@/lib/sales/derive";
 import { type Channel, OTHER_AREA } from "@/lib/sales/leadFilters";
 
@@ -99,22 +101,17 @@ export interface LeadRow {
   demo_called_at: string | null;
   demo_number: string | null;
   demo_expires_at: string | null;
+  /** The rep's write-up of this location — pasted in from wherever they research it. */
+  research: string | null;
 }
 
 export interface SalesLead extends LeadRow {
   openState: OpenState;
   hookLine: string;
-  // What the demo will and will not be able to answer for this lead. Computed here rather than in
-  // the card so the rep sees the same verdict `assignNumber` will act on.
-  demoKnows: DemoKnowledge;
-}
-
-// The enrichment columns ride along on the query but are not part of a lead. `decorate` folds them
-// into `demoKnows` and drops them, so nothing downstream has to know the table exists.
-interface LeadQueryRow extends LeadRow {
-  services: string | null;
-  service_confidence: string | null;
-  enrichment_note: string | null;
+  /** How long they have today — "till 5 PM", "opens 9 AM", "closed today". */
+  todayHours: string | null;
+  /** The week with repeated days collapsed, for the card's details. */
+  weekHours: WeekRow[];
 }
 
 export interface LeadFilters {
@@ -142,13 +139,11 @@ export interface LeadPage {
 
 const SELECT = `
   SELECT l.*, s.outcome, s.attempts, s.owner, s.last_contact_at, s.next_followup, s.note,
-         s.demo_lang, s.demo_requested_at, s.demo_called_at,
-         d.phone_e164 AS demo_number, COALESCE(d.grace_until, d.expires_at) AS demo_expires_at,
-         e.services, e.service_confidence, e.note AS enrichment_note
+         s.research, s.demo_lang, s.demo_requested_at, s.demo_called_at,
+         d.phone_e164 AS demo_number, COALESCE(d.grace_until, d.expires_at) AS demo_expires_at
   FROM leads l
   JOIN lead_state s ON s.lead_id = l.id
   LEFT JOIN demo_numbers d ON d.lead_id = l.id AND d.state IN ('assigned', 'grace')
-  LEFT JOIN lead_enrichment e ON e.lead_id = l.id
 `;
 
 const FROM = "FROM leads l JOIN lead_state s ON s.lead_id = l.id";
@@ -166,12 +161,13 @@ const orderBy = (channel: Channel = "call"): string =>
     ? `l.zip IS NULL, l.zip ASC, ${BY_TIER}, l.score DESC, l.id ASC`
     : `${BY_TIER}, l.score DESC, l.review_count DESC, l.id ASC`;
 
-function decorate(row: LeadQueryRow, clock: ShopClock): SalesLead {
-  const { services, service_confidence, enrichment_note, ...lead } = row;
+function decorate(lead: LeadRow, clock: ShopClock): SalesLead {
   const week = parseWeekHours(lead.hours);
   return {
     ...lead,
     openState: openAt(week, clock),
+    todayHours: todayNote(week, clock),
+    weekHours: weekRows(week),
     hookLine: hook({
       booking_app: lead.booking_app,
       is_mobile: lead.is_mobile === 1,
@@ -180,16 +176,6 @@ function decorate(row: LeadQueryRow, clock: ShopClock): SalesLead {
       hours: week,
       website: lead.website,
     }),
-    demoKnows: demoKnowledge(
-      lead,
-      {
-        services,
-        // A lead with no enrichment row at all reads the same as one we tried and could not use.
-        service_confidence: service_confidence ?? "none",
-        note: enrichment_note,
-      },
-      week,
-    ),
   };
 }
 
@@ -209,13 +195,14 @@ function buildWhere(filters: LeadFilters, now: Date): { clause: string; binds: u
     where.push("l.es_strength = ?");
     binds.push(filters.es);
   }
-  // A van has no door and an address-less lead has nothing to navigate to, so neither belongs on a
-  // route — and `is_mobile` is worth +4, which parks exactly those leads at the top of the queue.
-  // Both stay reachable on the phone, which is the only way they were ever workable.
-  if (filters.mobile) {
+  // Salons and vans are two lists, never one: a van has no door to walk into, and `is_mobile` is
+  // worth +4, so left in together the vans sit on top of every route. An address-less lead has
+  // nothing to navigate to either, so it is a phone lead wherever it lives.
+  if (filters.mobile === true) {
     where.push("l.is_mobile = 1");
-  } else if (filters.channel === "walk") {
-    where.push("l.is_mobile = 0", "l.address IS NOT NULL", "trim(l.address) <> ''");
+  } else if (filters.mobile === false || filters.channel === "walk") {
+    where.push("l.is_mobile = 0");
+    if (filters.channel === "walk") where.push("l.address IS NOT NULL", "trim(l.address) <> ''");
   }
   if (filters.zip !== undefined) {
     where.push("l.zip = ?");
@@ -269,7 +256,7 @@ async function listSqlPagedLeads(
   const { results } = await db
     .prepare(`${SELECT}${clause} ORDER BY ${orderBy(filters.channel)} LIMIT ? OFFSET ?`)
     .bind(...binds, LEADS_PAGE_SIZE, bounds.offset)
-    .all<LeadQueryRow>();
+    .all<LeadRow>();
 
   const clock = shopClock(now);
   return {
@@ -282,23 +269,34 @@ async function listSqlPagedLeads(
 }
 
 // `openNow` cannot become a WHERE clause — `hours` is free text and D1 has no user functions — so
-// the total and the page order have to come out of one JS pass over every SQL-matching row. Two
-// columns and no `decorate` keep that pass cheap enough to run on each load.
+// the whole matching set has to come back and be filtered in JS. `columns` keeps that pass to the
+// few the caller actually reads, and `decorate` never sees it, which is what makes it cheap enough
+// to run on each load.
+async function orderedRows<T extends { hours: string | null }>(
+  db: D1Database,
+  filters: LeadFilters,
+  now: Date,
+  columns: string,
+): Promise<T[]> {
+  const { clause, binds } = buildWhere(filters, now);
+  const { results } = await db
+    .prepare(`SELECT ${columns}, l.hours ${FROM}${clause} ORDER BY ${orderBy(filters.channel)}`)
+    .bind(...binds)
+    .all<T>();
+
+  const rows = results ?? [];
+  if (!filters.openOnly) return rows;
+  const clock = shopClock(now);
+  return rows.filter((row) => openAt(parseWeekHours(row.hours), clock) === "open");
+}
+
 async function fetchOpenOrderedIds(
   db: D1Database,
   filters: LeadFilters,
   now: Date,
 ): Promise<string[]> {
-  const { clause, binds } = buildWhere(filters, now);
-  const { results } = await db
-    .prepare(`SELECT l.id, l.hours ${FROM}${clause} ORDER BY ${orderBy(filters.channel)}`)
-    .bind(...binds)
-    .all<{ id: string; hours: string | null }>();
-
-  const clock = shopClock(now);
-  return (results ?? [])
-    .filter((row) => openAt(parseWeekHours(row.hours), clock) === "open")
-    .map((row) => row.id);
+  const rows = await orderedRows<{ id: string; hours: string | null }>(db, filters, now, "l.id");
+  return rows.map((row) => row.id);
 }
 
 async function listOpenOnlyPagedLeads(
@@ -323,7 +321,7 @@ async function listOpenOnlyPagedLeads(
   const { results } = await db
     .prepare(`${SELECT} WHERE l.id IN (${pageIds.map(() => "?").join(", ")})`)
     .bind(...pageIds)
-    .all<LeadQueryRow>();
+    .all<LeadRow>();
   const byId = new Map((results ?? []).map((row) => [row.id, row]));
 
   // `IN` does not promise to return rows in the order of the list, so the page is rebuilt from the
@@ -332,7 +330,7 @@ async function listOpenOnlyPagedLeads(
   return {
     leads: pageIds
       .map((id) => byId.get(id))
-      .filter((row): row is LeadQueryRow => row !== undefined)
+      .filter((row): row is LeadRow => row !== undefined)
       .map((row) => decorate(row, clock)),
     ...meta,
   };
@@ -362,8 +360,71 @@ export async function countLeads(
 }
 
 export async function getLead(db: D1Database, id: string, now = new Date()) {
-  const row = await db.prepare(`${SELECT} WHERE l.id = ?`).bind(id).first<LeadQueryRow>();
+  const row = await db.prepare(`${SELECT} WHERE l.id = ?`).bind(id).first<LeadRow>();
   return row ? decorate(row, shopClock(now)) : null;
+}
+
+// The slug, not the id, is what a lead's own page is addressed by: `id` is the phone number's
+// digits, which tells a rep sharing the link nothing about which shop is on the other end.
+export async function getLeadBySlug(db: D1Database, slug: string, now = new Date()) {
+  const row = await db.prepare(`${SELECT} WHERE l.slug = ?`).bind(slug).first<LeadRow>();
+  return row ? decorate(row, shopClock(now)) : null;
+}
+
+// Just the name, for the browser tab: a rep writing up several locations has several of these open,
+// and `decorate` costs more than the title is worth.
+export async function leadName(db: D1Database, slug: string): Promise<string | null> {
+  const row = await db
+    .prepare("SELECT shop_name FROM leads WHERE slug = ?")
+    .bind(slug)
+    .first<{ shop_name: string }>();
+  return row?.shop_name ?? null;
+}
+
+export interface LeadStub {
+  slug: string;
+  shop_name: string;
+}
+
+export interface LeadNeighbours {
+  prev: LeadStub | null;
+  next: LeadStub | null;
+  /** Zero-based place in the queue, or -1 when the lead is not in it at all. */
+  index: number;
+  total: number;
+}
+
+// Prev/Next on a lead's page, so a rep walking a block moves shop to shop without going back to the
+// list. It costs one ordered pass over the filtered set — the same shape `openOnly` paging already
+// runs — because the queue's order is a CASE over tier and, on foot, a NULL-first ZIP, which no
+// keyset predicate can express, and because `open now` is decided in JS whatever the SQL does.
+export async function neighbours(
+  db: D1Database,
+  filters: LeadFilters,
+  leadId: string,
+  now = new Date(),
+): Promise<LeadNeighbours> {
+  const rows = await orderedRows<{
+    id: string;
+    slug: string;
+    shop_name: string;
+    hours: string | null;
+  }>(db, filters, now, "l.id, l.slug, l.shop_name");
+  const at = rows.findIndex((row) => row.id === leadId);
+  const stub = (row: { slug: string; shop_name: string }): LeadStub => ({
+    slug: row.slug,
+    shop_name: row.shop_name,
+  });
+  // A lead reached by link can sit outside the filters it is being viewed under — the rep just
+  // marked it `interested`, which drops it out of the default queue. Arrows would then walk a list
+  // this lead is not on, so there are none.
+  if (at === -1) return { prev: null, next: null, index: -1, total: rows.length };
+  return {
+    prev: at > 0 ? stub(rows[at - 1]) : null,
+    next: at < rows.length - 1 ? stub(rows[at + 1]) : null,
+    index: at,
+    total: rows.length,
+  };
 }
 
 export interface Counters {
@@ -379,14 +440,19 @@ export interface Counters {
 export async function counters(
   db: D1Database,
   now = new Date(),
-  scope: { neighborhood?: string; tiers?: Tier[]; channel?: Channel } = {},
+  scope: { neighborhood?: string; tiers?: Tier[]; channel?: Channel; mobile?: boolean } = {},
 ): Promise<Counters> {
   const day = today(now);
   const tiers = scope.tiers ?? [];
   const tierClause = tiers.length > 0 ? ` AND l.tier IN (${tiers.map(() => "?").join(", ")})` : "";
-  // Same exclusions as the route itself, or "left to visit" counts doors that are not there.
-  const walkClause =
-    scope.channel === "walk" ? " AND l.is_mobile = 0 AND trim(COALESCE(l.address, '')) <> ''" : "";
+  // The same split and the same exclusions the list itself makes, or "left to visit" counts vans
+  // and doors that are not there.
+  const doorClause =
+    scope.mobile === true
+      ? " AND l.is_mobile = 1"
+      : scope.mobile === false || scope.channel === "walk"
+        ? ` AND l.is_mobile = 0${scope.channel === "walk" ? " AND trim(COALESCE(l.address, '')) <> ''" : ""}`
+        : "";
 
   const row = await db
     .prepare(
@@ -398,7 +464,7 @@ export async function counters(
          SUM(CASE WHEN s.demo_called_at IS NOT NULL THEN 1 ELSE 0 END) AS demosHeard
        FROM lead_state s
        JOIN leads l ON l.id = s.lead_id
-       WHERE (?2 IS NULL OR l.neighborhood = ?2)${tierClause}${walkClause}`,
+       WHERE (?2 IS NULL OR l.neighborhood = ?2)${tierClause}${doorClause}`,
     )
     .bind(day, scope.neighborhood ?? null, ...tiers)
     .first<{
@@ -542,6 +608,34 @@ export async function cancelDemo(
   ]);
 }
 
+// Long enough for a full write-up of a shop, short enough that a paste accident cannot bloat a D1
+// row past anything the panel has to render.
+export const RESEARCH_MAX = 20000;
+
+// Kept apart from `note`, which rides along with a call result: this is the doc the rep writes
+// before dialling, and a paste from it would flatten the one-line note the queue shows.
+export async function saveResearch(
+  db: D1Database,
+  leadId: string,
+  research: string,
+  actor: string,
+  now = new Date(),
+): Promise<void> {
+  const iso = now.toISOString();
+  const text = research.trim();
+  await db.batch([
+    db
+      .prepare("UPDATE lead_state SET research = ?, updated_at = ? WHERE lead_id = ?")
+      .bind(text || null, iso, leadId),
+    db
+      .prepare(
+        `INSERT INTO lead_events (lead_id, actor, outcome, note, created_at)
+         VALUES (?, ?, NULL, ?, ?)`,
+      )
+      .bind(leadId, actor, text ? "doc updated" : "doc cleared", iso),
+  ]);
+}
+
 export interface LeadEvent {
   actor: string;
   outcome: string | null;
@@ -552,7 +646,8 @@ export interface LeadEvent {
 export async function leadHistory(db: D1Database, leadId: string): Promise<LeadEvent[]> {
   const { results } = await db
     .prepare(
-      "SELECT actor, outcome, note, created_at FROM lead_events WHERE lead_id = ? ORDER BY created_at DESC LIMIT 20",
+      `SELECT actor, outcome, note, created_at FROM lead_events WHERE lead_id = ?
+        ORDER BY created_at DESC, id DESC LIMIT 20`,
     )
     .bind(leadId)
     .all<LeadEvent>();

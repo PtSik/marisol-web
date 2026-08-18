@@ -1,12 +1,11 @@
 import { type SalesQuery, buildQuery } from "@/components/sales/FilterBar";
 
-export type PagerList = "queue" | "low" | "mobile";
+export type PagerList = "queue" | "low";
 type Placement = "top" | "bottom";
 
 const NAV_LABEL: Record<PagerList, string> = {
   queue: "Pagination — call queue",
   low: "Pagination — low priority",
-  mobile: "Pagination — mobile groomers",
 };
 
 // Paging is a full navigation, so without a fragment every Next lands the rep back above the nav
@@ -14,13 +13,11 @@ const NAV_LABEL: Record<PagerList, string> = {
 const ANCHOR: Record<PagerList, string> = {
   queue: "#call-queue",
   low: "#low-priority",
-  mobile: "#mobile-groomers",
 };
 
 const PAGE_PARAM: Record<PagerList, keyof SalesQuery> = {
   queue: "page",
   low: "lowPage",
-  mobile: "mobilePage",
 };
 
 const FOCUS_RING =
@@ -82,8 +79,6 @@ const VARIANTS: Record<`${PagerList}-${Placement}`, Variant> = {
   },
   "low-top": SECONDARY_TOP,
   "low-bottom": SECONDARY_BOTTOM,
-  "mobile-top": SECONDARY_TOP,
-  "mobile-bottom": SECONDARY_BOTTOM,
 };
 
 function Chevron({ dir }: { dir: "prev" | "next" }) {

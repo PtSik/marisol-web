@@ -345,6 +345,72 @@ export function openAt(week: ParsedWeek | null | undefined, clock: ShopClock): O
   return "closed";
 }
 
+function clockLabel(minutes: number): string {
+  const total = minutes % (24 * 60);
+  const hour24 = Math.floor(total / 60);
+  const rest = total % 60;
+  const hour = hour24 % 12 === 0 ? 12 : hour24 % 12;
+  const suffix = hour24 < 12 ? "AM" : "PM";
+  return rest === 0 ? `${hour} ${suffix}` : `${hour}:${String(rest).padStart(2, "0")} ${suffix}`;
+}
+
+function dayLabel(intervals: Interval[] | null): string {
+  if (intervals === null) return "unknown";
+  if (intervals.length === 0) return "closed";
+  if (intervals.length === 1 && intervals[0].open === 0 && intervals[0].close >= 24 * 60) {
+    return "24 hours";
+  }
+  return intervals.map((i) => `${clockLabel(i.open)}–${clockLabel(i.close)}`).join(", ");
+}
+
+// What a rep standing at the door needs on top of the open/closed dot: how long they have, or how
+// long until it is worth coming back. Places gives the whole week as one string, and printed in
+// full it ran six lines off the side of the card on a phone.
+export function todayNote(week: ParsedWeek | null | undefined, clock: ShopClock): string | null {
+  const today = week?.[clock.weekday];
+  // Undefined week or a day Places never listed: the card already says the hours are unknown.
+  if (!today) return null;
+  if (today.length === 0) return "closed today";
+
+  const current = today.find((i) => clock.minutes >= i.open && clock.minutes < i.close);
+  if (current) {
+    if (current.open === 0 && current.close >= 24 * 60) return "open 24 hours";
+    // Past midnight, so "till 1 AM" would read as thirteen hours ago.
+    return current.close > 24 * 60 ? "open late" : `till ${clockLabel(current.close)}`;
+  }
+
+  const later = today.find((i) => i.open > clock.minutes);
+  return later ? `opens ${clockLabel(later.open)}` : "closed for today";
+}
+
+export interface WeekRow {
+  days: string;
+  hours: string;
+}
+
+// Consecutive days that read the same collapse into one row — a shop open 9–5 six days a week is
+// two rows, not seven. Monday first, the way opening hours are written everywhere but our parser.
+export function weekRows(week: ParsedWeek | null | undefined): WeekRow[] {
+  if (!week) return [];
+  const ordered = [...DAY_NAMES.slice(1), DAY_NAMES[0]];
+  const rows: { from: DayName; to: DayName; hours: string }[] = [];
+
+  for (const day of ordered) {
+    const hours = dayLabel(week[day]);
+    const last = rows[rows.length - 1];
+    if (last && last.hours === hours) last.to = day;
+    else rows.push({ from: day, to: day, hours });
+  }
+
+  const short = (day: DayName) => day.slice(0, 3);
+  return rows
+    .filter((row) => row.hours !== "unknown")
+    .map((row) => ({
+      days: row.from === row.to ? short(row.from) : `${short(row.from)}–${short(row.to)}`,
+      hours: row.hours,
+    }));
+}
+
 export function openNow(week: ParsedWeek | null | undefined, now = new Date()): OpenState {
   if (!week) return "unknown";
   return openAt(week, shopClock(now));

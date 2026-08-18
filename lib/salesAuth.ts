@@ -25,3 +25,20 @@ export async function isSalesCookieValid(
 ): Promise<boolean> {
   return isDashCookieValid(cookie, dashKey);
 }
+
+// Only the queue and a lead's own page, on this origin. Every redirect the panel performs is named
+// by a form field, and a rep can be sent a link to any of them, so the shape is what is trusted —
+// never the field. "//evil.com" parses as a path and is caught by the origin check, not the regex.
+const SALES_PATH = /^\/sales(\/[a-z0-9-]{1,80})?$/;
+
+export function salesReturnTo(raw: unknown, base: string): URL | null {
+  if (typeof raw !== "string" || !raw.startsWith("/")) return null;
+  let url: URL;
+  try {
+    url = new URL(raw, base);
+  } catch {
+    return null;
+  }
+  if (url.origin !== new URL(base).origin) return null;
+  return SALES_PATH.test(url.pathname) ? url : null;
+}

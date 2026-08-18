@@ -1,27 +1,20 @@
 import type { Channel } from "@/lib/sales/leadFilters";
-import { type Outcome, outcomeLabel } from "@/lib/sales/leads";
 
 export interface SalesQuery {
   neighborhood?: string;
-  tier?: string;
+  /** "all" drops the queue's own filter and shows every lead in the area, worked or not. */
   outcome?: string;
-  open?: string;
-  es?: string;
-  mode?: string;
-  view?: string;
-  lead?: string;
   low?: string;
   page?: string;
   lowPage?: string;
-  mobilePage?: string;
-  /** "1" walks, "0" dials, empty follows the area's own channel. */
-  route?: string;
+  /** "1" lists the vans instead of the shops with a door. */
+  mobile?: string;
   zip?: string;
 }
 
 // A narrower result set makes the page the rep is on meaningless, so every filter link goes back to
-// the first page of every list. The view toggle does not — it shows the same leads differently.
-const FIRST_PAGE: SalesQuery = { page: "", lowPage: "", mobilePage: "" };
+// the first page of every list.
+const FIRST_PAGE: SalesQuery = { page: "", lowPage: "" };
 
 export function buildQuery(current: SalesQuery, patch: SalesQuery): string {
   const params = new URLSearchParams();
@@ -47,6 +40,47 @@ function Chip({
     >
       {children}
     </a>
+  );
+}
+
+// A long chip list folded away behind what it currently selects. Open on the bar, the areas and
+// the blocks of a walked town cost most of a phone screen before the first lead.
+function Collapsible({
+  label,
+  value,
+  children,
+}: { label: string; value: string; children: React.ReactNode }) {
+  return (
+    <details className="group rounded-[12px] border border-ink/15 bg-white">
+      <summary className="flex min-h-11 cursor-pointer list-none items-center justify-between gap-3 px-3.5 py-2.5 [&::-webkit-details-marker]:hidden focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-teal">
+        <span className="flex flex-wrap items-baseline gap-x-1.5">
+          <span className="text-xs font-medium uppercase tracking-wide text-muted-2">{label}:</span>
+          <span className="text-sm font-medium text-ink">{value}</span>
+        </span>
+        <svg
+          width="16"
+          height="16"
+          viewBox="0 0 24 24"
+          fill="none"
+          stroke="currentColor"
+          strokeWidth="2.4"
+          strokeLinecap="round"
+          strokeLinejoin="round"
+          aria-hidden="true"
+          className="shrink-0 text-muted-2 transition-transform duration-200 group-open:rotate-180"
+        >
+          <polyline points="6 9 12 15 18 9" />
+        </svg>
+      </summary>
+      <div
+        // biome-ignore lint/a11y/useSemanticElements: these are navigation links, not form controls — <fieldset>/<legend> would claim otherwise
+        role="group"
+        aria-label={label}
+        className="flex flex-wrap items-center gap-1.5 border-t border-ink/10 px-3.5 py-3"
+      >
+        {children}
+      </div>
+    </details>
   );
 }
 
@@ -79,67 +113,41 @@ export function FilterBar({ query, neighborhoods, channel, zips }: FilterBarProp
   });
 
   const walking = channel === "walk";
-  const openOn = query.open === "1";
-  const openHref = buildQuery(query, toggle("open", "1"));
+  const onMobile = query.mobile === "1";
+  const showAll = query.outcome === "all";
 
   const hasActiveFilters = Boolean(
-    query.neighborhood || query.tier || query.outcome || query.open || query.es || query.zip,
+    query.neighborhood || query.outcome || query.mobile || query.zip,
   );
 
   return (
-    <div className="mt-4 rounded-[18px] border border-ink/10 bg-cream/80 p-4">
+    <div className="mt-4 rounded-[18px] border border-ink/10 bg-cream/80 p-3 sm:p-4">
       {/* Seventeen areas open on the bar pushed the queue off a phone screen; closed on every load
-          the group costs one row and still names what is selected. */}
-      <details className="group rounded-[12px] border border-ink/15 bg-white">
-        <summary className="flex min-h-11 cursor-pointer list-none items-center justify-between gap-3 px-3.5 py-2.5 [&::-webkit-details-marker]:hidden focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-teal">
-          <span className="flex flex-wrap items-baseline gap-x-1.5">
-            <span className="text-xs font-medium uppercase tracking-wide text-muted-2">Area:</span>
-            <span className="text-sm font-medium text-ink">{query.neighborhood || "All"}</span>
-          </span>
-          <svg
-            width="16"
-            height="16"
-            viewBox="0 0 24 24"
-            fill="none"
-            stroke="currentColor"
-            strokeWidth="2.4"
-            strokeLinecap="round"
-            strokeLinejoin="round"
-            aria-hidden="true"
-            className="shrink-0 text-muted-2 transition-transform duration-200 group-open:rotate-180"
-          >
-            <polyline points="6 9 12 15 18 9" />
-          </svg>
-        </summary>
-        <div
-          // biome-ignore lint/a11y/useSemanticElements: these are navigation links, not form controls — <fieldset>/<legend> would claim otherwise
-          role="group"
-          aria-label="Area"
-          className="flex flex-wrap items-center gap-1.5 border-t border-ink/10 px-3.5 py-3"
+          the group costs one row and still names what is selected. The blocks of a big area run to
+          eleven and cost as much again, so they fold the same way. */}
+      <Collapsible label="Area" value={query.neighborhood || "All"}>
+        <Chip
+          href={buildQuery(query, { neighborhood: "", zip: "", ...FIRST_PAGE })}
+          active={!query.neighborhood}
         >
+          all
+        </Chip>
+        {neighborhoods.map((n) => (
           <Chip
-            href={buildQuery(query, { neighborhood: "", zip: "", ...FIRST_PAGE })}
-            active={!query.neighborhood}
+            key={n}
+            // A block belongs to one area, so leaving it set across a change of area empties the
+            // queue with no visible cause.
+            href={buildQuery(query, { ...toggle("neighborhood", n), zip: "" })}
+            active={query.neighborhood === n}
           >
-            all
+            {n}
           </Chip>
-          {neighborhoods.map((n) => (
-            <Chip
-              key={n}
-              // A block belongs to one area, so leaving it set across a change of area empties the
-              // queue with no visible cause.
-              href={buildQuery(query, { ...toggle("neighborhood", n), zip: "" })}
-              active={query.neighborhood === n}
-            >
-              {n}
-            </Chip>
-          ))}
-        </div>
-      </details>
+        ))}
+      </Collapsible>
 
-      {walking && zips.length > 0 && (
-        <div className="mt-3 border-t border-ink/10 pt-3">
-          <Group label="Block">
+      {walking && !onMobile && zips.length > 0 && (
+        <div className="mt-2">
+          <Collapsible label="Block" value={query.zip ? query.zip.padStart(5, "0") : "Whole area"}>
             <Chip href={buildQuery(query, { zip: "", ...FIRST_PAGE })} active={!query.zip}>
               whole area
             </Chip>
@@ -152,74 +160,32 @@ export function FilterBar({ query, neighborhoods, channel, zips }: FilterBarProp
                 {String(zip).padStart(5, "0")}
               </Chip>
             ))}
-          </Group>
+          </Collapsible>
         </div>
       )}
 
-      <div className="mt-3 space-y-2 border-t border-ink/10 pt-3">
-        <Group label="Tier">
-          {/* Default. Tier X keeps its own collapsed group, so nothing is listed twice. */}
-          <Chip href={buildQuery(query, { tier: "", ...FIRST_PAGE })} active={!query.tier}>
-            show all
+      <div className="mt-3 flex flex-wrap items-center gap-x-4 gap-y-2 border-t border-ink/10 pt-3">
+        {/* Both sides are stated outright rather than toggled to empty: a van has no door, so the
+            two sets never overlap and "neither" is not a view of anything. */}
+        <Group label="Doors">
+          <Chip href={buildQuery(query, { mobile: "", ...FIRST_PAGE })} active={!onMobile}>
+            salons
           </Chip>
-          <Chip href={buildQuery(query, toggle("tier", "AB"))} active={query.tier === "AB"}>
-            A + B
+          <Chip
+            // A block is a walking unit, and the vans are dialled from anywhere.
+            href={buildQuery(query, { mobile: "1", zip: "", ...FIRST_PAGE })}
+            active={onMobile}
+          >
+            mobile
           </Chip>
-          {["A", "B", "C"].map((t) => (
-            <Chip key={t} href={buildQuery(query, toggle("tier", t))} active={query.tier === t}>
-              {t}
-            </Chip>
-          ))}
         </Group>
 
-        <Group label="State">
-          <Chip href={buildQuery(query, { outcome: "", ...FIRST_PAGE })} active={!query.outcome}>
+        <Group label="Show">
+          <Chip href={buildQuery(query, { outcome: "", ...FIRST_PAGE })} active={!showAll}>
             {walking ? "to visit" : "to call"}
           </Chip>
-          {(["no_answer", "interested", "demo_sent", "callback"] as Outcome[]).map((o) => (
-            <Chip
-              key={o}
-              href={buildQuery(query, toggle("outcome", o))}
-              active={query.outcome === o}
-            >
-              {outcomeLabel(o, channel)}
-            </Chip>
-          ))}
-          <Chip
-            href={buildQuery(query, { outcome: "all", ...FIRST_PAGE })}
-            active={query.outcome === "all"}
-          >
+          <Chip href={buildQuery(query, { outcome: "all", ...FIRST_PAGE })} active={showAll}>
             everything
-          </Chip>
-        </Group>
-
-        <Group label="Filters">
-          <Chip href={openHref} active={openOn}>
-            open now
-          </Chip>
-          <Chip href={buildQuery(query, toggle("es", "strong"))} active={query.es === "strong"}>
-            Spanish signal
-          </Chip>
-        </Group>
-
-        <Group label="Working">
-          {/* Both sides are stated outright rather than toggled to empty: empty means "whatever
-              this area does", so toggling off would bounce a rep who chose calls in Stratford
-              straight back onto the route. */}
-          <Chip href={buildQuery(query, { route: "0", zip: "", ...FIRST_PAGE })} active={!walking}>
-            calls
-          </Chip>
-          <Chip href={buildQuery(query, { route: "1", ...FIRST_PAGE })} active={walking}>
-            route
-          </Chip>
-        </Group>
-
-        <Group label="View">
-          <Chip href={buildQuery(query, { view: "" })} active={query.view !== "list"}>
-            cards
-          </Chip>
-          <Chip href={buildQuery(query, { view: "list" })} active={query.view === "list"}>
-            list
           </Chip>
         </Group>
       </div>
@@ -229,10 +195,8 @@ export function FilterBar({ query, neighborhoods, channel, zips }: FilterBarProp
           <a
             href={`/sales${buildQuery(query, {
               neighborhood: "",
-              tier: "",
               outcome: "",
-              open: "",
-              es: "",
+              mobile: "",
               zip: "",
               ...FIRST_PAGE,
             })}`}

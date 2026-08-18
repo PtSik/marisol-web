@@ -1,7 +1,21 @@
 import { env } from "cloudflare:workers";
 import { type DemoPoolEnv, assignNumber, releaseForLead } from "@/lib/sales/demoPool";
-import { cancelDemo, getLead, isOutcome, recordOutcome, requestDemo } from "@/lib/sales/leads";
-import { SALES_COOKIE, SALES_REP_COOKIE, isSalesCookieValid, normaliseRep } from "@/lib/salesAuth";
+import {
+  RESEARCH_MAX,
+  cancelDemo,
+  getLead,
+  isOutcome,
+  recordOutcome,
+  requestDemo,
+  saveResearch,
+} from "@/lib/sales/leads";
+import {
+  SALES_COOKIE,
+  SALES_REP_COOKIE,
+  isSalesCookieValid,
+  normaliseRep,
+  salesReturnTo,
+} from "@/lib/salesAuth";
 import { cookies } from "next/headers";
 
 export const dynamic = "force-dynamic";
@@ -11,11 +25,15 @@ interface SalesEnv extends DemoPoolEnv {
 }
 
 // Every write is a plain form POST, so the rep keeps working on a flaky connection with no
-// JavaScript. `back` carries the filters the rep had open so they land on the same view.
+// JavaScript. `back` carries the filters the rep had open so they land on the same view, and `path`
+// keeps a write made on a lead's own page on that page rather than throwing them back to the queue.
 function redirect(request: Request, form: FormData | null, notice: string): Response {
-  const raw = form?.get("back");
-  const query = typeof raw === "string" && raw.startsWith("?") ? raw : "";
-  const url = new URL(`/sales${query}`, request.url);
+  const rawBack = form?.get("back");
+  const query = typeof rawBack === "string" && rawBack.startsWith("?") ? rawBack : "";
+  const rawPath = form?.get("path");
+  const path = typeof rawPath === "string" ? rawPath : "/sales";
+  const url =
+    salesReturnTo(`${path}${query}`, request.url) ?? new URL(`/sales${query}`, request.url);
   url.searchParams.set("saved", notice);
   return Response.redirect(url.toString(), 303);
 }
@@ -52,6 +70,12 @@ export async function POST(
       return redirect(request, form, assigned.reason === "pool_full" ? "pool-full" : "demo-failed");
     }
     return redirect(request, form, `demo-${lang}`);
+  }
+  if (intent === "research") {
+    const research = form.get("research");
+    if (typeof research !== "string") return redirect(request, form, "failed");
+    await saveResearch(cfEnv.OUTREACH_DB, id, research.slice(0, RESEARCH_MAX), actor);
+    return redirect(request, form, "research-saved");
   }
   if (intent === "demo_cancel") {
     await releaseForLead(cfEnv, id);

@@ -8,11 +8,14 @@ import {
   countLeads,
   counters,
   getLead,
+  getLeadBySlug,
   leadHistory,
   listLeads,
+  neighbours,
   parsePageParam,
   recordOutcome,
   requestDemo,
+  saveResearch,
   zipsIn,
 } from "@/lib/sales/leads";
 
@@ -43,7 +46,8 @@ function d1(db: Database): D1Database {
 const SCHEMA = `${await Bun.file("d1/0001_outreach.sql").text()}
 ${await Bun.file("d1/0002_demo_pool.sql").text()}
 ${await Bun.file("d1/0003_lead_enrichment.sql").text()}
-${await Bun.file("d1/0004_walk_route.sql").text()}`;
+${await Bun.file("d1/0004_walk_route.sql").text()}
+${await Bun.file("d1/0005_lead_research.sql").text()}`;
 
 interface SeedOptions {
   id: string;
@@ -96,67 +100,6 @@ beforeEach(() => {
   sqlite = new Database(":memory:");
   sqlite.run(SCHEMA);
   db = d1(sqlite);
-});
-
-describe("demoKnows", () => {
-  const FULL_WEEK =
-    "Monday: 9:00 AM – 5:00 PM | Tuesday: 9:00 AM – 5:00 PM | Wednesday: 9:00 AM – 5:00 PM | " +
-    "Thursday: 9:00 AM – 5:00 PM | Friday: 9:00 AM – 5:00 PM | Saturday: 10:00 AM – 4:00 PM | " +
-    "Sunday: Closed";
-
-  function enrich(id: string, confidence: string, services: string | null, note: string | null) {
-    sqlite.run(
-      `INSERT INTO lead_enrichment (lead_id, services, service_confidence, fetched_at, note)
-       VALUES (?, ?, ?, '2026-08-01T00:00:00Z', ?)`,
-      [id, services, confidence, note],
-    );
-  }
-
-  it("reports the demo menu when nothing has been enriched", async () => {
-    seed({ id: "3051110001", name: "Bare", hours: FULL_WEEK, address: "1 Main St" });
-
-    const lead = await getLead(db, "3051110001");
-    expect(lead?.demoKnows).toMatchObject({ hours: true, address: true, servicesFromSite: false });
-    expect(lead?.demoKnows.serviceCount).toBeGreaterThan(0);
-  });
-
-  it("reports the site's own menu once the lead is enriched", async () => {
-    seed({ id: "3051110001", name: "Enriched", hours: FULL_WEEK, address: "1 Main St" });
-    enrich(
-      "3051110001",
-      "high",
-      JSON.stringify([{ name: "Full Groom", price: "70" }, { name: "Nail Trim" }]),
-      null,
-    );
-
-    const lead = await getLead(db, "3051110001");
-    expect(lead?.demoKnows).toMatchObject({ servicesFromSite: true, serviceCount: 2 });
-  });
-
-  it("carries the note explaining why a scrape was not good enough", async () => {
-    seed({ id: "3051110001", name: "Weak", hours: null, address: null });
-    enrich("3051110001", "low", JSON.stringify([{ name: "Full Groom" }]), "no published prices");
-
-    const lead = await getLead(db, "3051110001");
-    expect(lead?.demoKnows).toMatchObject({
-      hours: false,
-      address: false,
-      servicesFromSite: false,
-      note: "no published prices",
-    });
-  });
-
-  it("keeps the enrichment columns off the lead itself", async () => {
-    // They ride along on the join only so `decorate` can fold them in; leaking them would give
-    // callers a second, unformatted source of truth for what the demo knows.
-    seed({ id: "3051110001", name: "Clean" });
-    enrich("3051110001", "high", JSON.stringify([{ name: "Full Groom" }]), null);
-
-    const lead = (await getLead(db, "3051110001")) as unknown as Row;
-    for (const key of ["services", "service_confidence", "enrichment_note"]) {
-      expect(key in lead).toBe(false);
-    }
-  });
 });
 
 describe("listLeads", () => {
@@ -1056,5 +999,163 @@ describe("cancelDemo", () => {
 
     const history = await leadHistory(db, "3051110001");
     expect(history.some((e) => e.note === "demo cancelled")).toBe(true);
+  });
+});
+
+describe("getLeadBySlug", () => {
+  it("finds a lead by the slug its own page is addressed by", async () => {
+    seed({ id: "3051110001", name: "Happy Paws" });
+
+    const lead = await getLeadBySlug(db, "happy-paws");
+    expect(lead?.id).toBe("3051110001");
+    expect(lead?.shop_name).toBe("Happy Paws");
+  });
+
+  it("returns null for a slug the last import dropped", async () => {
+    seed({ id: "3051110001", name: "Happy Paws" });
+
+    expect(await getLeadBySlug(db, "gone-grooming")).toBeNull();
+  });
+});
+
+describe("neighbours", () => {
+  it("steps through the call queue in the order the queue itself uses", async () => {
+    seed({ id: "3051110001", name: "First", tier: "A", score: 12 });
+    seed({ id: "3051110002", name: "Second", tier: "B", score: 8 });
+    seed({ id: "3051110003", name: "Third", tier: "C", score: 2 });
+
+    const middle = await neighbours(db, {}, "3051110002");
+    expect(middle).toMatchObject({ index: 1, total: 3 });
+    expect(middle.prev?.slug).toBe("first");
+    expect(middle.next?.slug).toBe("third");
+
+    expect((await neighbours(db, {}, "3051110001")).prev).toBeNull();
+    expect((await neighbours(db, {}, "3051110003")).next).toBeNull();
+  });
+
+  it("walks a route block by block, not by score", async () => {
+    seed({
+      id: "3051110001",
+      name: "Far best",
+      tier: "A",
+      score: 14,
+      address: "1 A St",
+      zip: 6615,
+    });
+    seed({
+      id: "3051110002",
+      name: "Near weak",
+      tier: "C",
+      score: 3,
+      address: "2 B St",
+      zip: 6604,
+    });
+    seed({
+      id: "3051110003",
+      name: "Near best",
+      tier: "A",
+      score: 11,
+      address: "3 B St",
+      zip: 6604,
+    });
+
+    const steps = await neighbours(db, { channel: "walk" }, "3051110002");
+    expect(steps.prev?.shop_name).toBe("Near best");
+    expect(steps.next?.shop_name).toBe("Far best");
+    expect(steps).toMatchObject({ index: 1, total: 3 });
+  });
+
+  // Marking a lead `interested` drops it out of the default queue while the rep is still on its
+  // page. Arrows built from a list this lead is no longer on would step somewhere arbitrary.
+  it("gives no arrows for a lead outside the filters it is viewed under", async () => {
+    seed({ id: "3051110001", name: "Queued" });
+    seed({ id: "3051110002", name: "Interested", outcome: "interested" });
+
+    const steps = await neighbours(db, { outcome: "queue" }, "3051110002");
+    expect(steps).toEqual({ prev: null, next: null, index: -1, total: 1 });
+  });
+
+  it("skips the shops the open-now filter hides", async () => {
+    seed({ id: "3051110001", name: "Open one", tier: "A", score: 12, hours: OPEN_HOURS });
+    seed({ id: "3051110002", name: "Shut", tier: "B", score: 8, hours: CLOSED_HOURS });
+    seed({ id: "3051110003", name: "Open two", tier: "C", score: 2, hours: OPEN_HOURS });
+
+    const steps = await neighbours(db, { openOnly: true }, "3051110001", NOW);
+    expect(steps.next?.shop_name).toBe("Open two");
+    expect(steps.total).toBe(2);
+  });
+});
+
+describe("saveResearch", () => {
+  it("stores the write-up and logs who wrote it", async () => {
+    seed({ id: "3051110001", name: "Shop" });
+
+    await saveResearch(db, "3051110001", "  No booking page. IG dead since May.  ", "Marco");
+
+    const lead = await getLead(db, "3051110001");
+    expect(lead?.research).toBe("No booking page. IG dead since May.");
+
+    const history = await leadHistory(db, "3051110001");
+    expect(history[0]).toMatchObject({ actor: "Marco", note: "doc updated" });
+  });
+
+  it("clears the doc on an empty submission", async () => {
+    seed({ id: "3051110001", name: "Shop" });
+
+    await saveResearch(db, "3051110001", "something", "Marco");
+    await saveResearch(db, "3051110001", "   ", "Marco");
+
+    expect((await getLead(db, "3051110001"))?.research).toBeNull();
+    expect((await leadHistory(db, "3051110001"))[0]?.note).toBe("doc cleared");
+  });
+
+  // Two different fields on purpose: `note` is the line that goes out with a call result, and a
+  // pasted doc would bury it in the queue.
+  it("leaves the call result and its note alone", async () => {
+    seed({ id: "3051110001", name: "Shop" });
+
+    await recordOutcome(db, "3051110001", {
+      outcome: "callback",
+      actor: "Marco",
+      note: "asked for Tuesday",
+    });
+    await saveResearch(db, "3051110001", "needs a website", "Marco");
+
+    const lead = await getLead(db, "3051110001");
+    expect(lead?.outcome).toBe("callback");
+    expect(lead?.note).toBe("asked for Tuesday");
+    expect(lead?.attempts).toBe(1);
+  });
+});
+
+describe("salons and vans are two lists", () => {
+  // The split the filter bar makes: a van has no door to walk into, and `is_mobile` is worth +4, so
+  // left in the salon list it would sit on top of every route.
+  it("keeps vans out of the salon list in a dialled area too", async () => {
+    seed({ id: "3051110001", name: "Van", tier: "A", score: 12, isMobile: true });
+    seed({ id: "3051110002", name: "Shop", tier: "B", score: 8 });
+
+    const salons = await listLeads(db, { mobile: false });
+    expect(salons.leads.map((l) => l.shop_name)).toEqual(["Shop"]);
+
+    const vans = await listLeads(db, { mobile: true });
+    expect(vans.leads.map((l) => l.shop_name)).toEqual(["Van"]);
+  });
+
+  it("counts the same split the list shows", async () => {
+    seed({ id: "3051110001", name: "Van", isMobile: true });
+    seed({ id: "3051110002", name: "Shop A", address: "1 Main St" });
+    seed({ id: "3051110003", name: "Shop B", address: "2 Main St" });
+
+    expect((await counters(db, new Date(), { mobile: false })).queue).toBe(2);
+    expect((await counters(db, new Date(), { mobile: true })).queue).toBe(1);
+  });
+
+  // A van with no address still has to be reachable — it was only ever workable by phone.
+  it("lists an address-less van, which the route would have dropped", async () => {
+    seed({ id: "3051110001", name: "Roaming", address: null, isMobile: true });
+
+    expect((await listLeads(db, { mobile: true, channel: "call" })).total).toBe(1);
+    expect((await listLeads(db, { mobile: false, channel: "walk" })).total).toBe(0);
   });
 });

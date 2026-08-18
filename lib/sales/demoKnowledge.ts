@@ -159,31 +159,3 @@ export const NEUTRAL_DEMO_PATCH: Readonly<Record<string, unknown>> = {
   address: IDLE_ADDRESS,
   hours_json: JSON.stringify(IDLE_HOURS),
 };
-
-// What the rep sees in /sales before dialling, so "the agent will quote a price" is never a surprise
-// mid-call.
-export interface DemoKnowledge {
-  hours: boolean;
-  address: boolean;
-  servicesFromSite: boolean;
-  serviceCount: number;
-  note: string | null;
-}
-
-// `week` is passed in rather than parsed from `lead.hours` so a caller decorating a whole queue
-// parses each lead's hours once and shares it with `openNow` and `hook`.
-export function demoKnowledge(
-  lead: DemoLead,
-  enrichment: EnrichmentRow | null | undefined,
-  week: ParsedWeek | null,
-): DemoKnowledge {
-  const services = demoServices(enrichment);
-  const fromSite = enrichment?.service_confidence === "high" && services !== DEMO_SERVICES.grooming;
-  return {
-    hours: toShopHoursFromPlaces(week) !== null,
-    address: !!lead.address?.trim(),
-    servicesFromSite: fromSite,
-    serviceCount: services.length,
-    note: enrichment?.note ?? null,
-  };
-}

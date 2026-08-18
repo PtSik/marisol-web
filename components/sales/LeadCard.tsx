@@ -1,4 +1,3 @@
-import type { DemoKnowledge } from "@/lib/sales/demoKnowledge";
 import { formatUsPhone, mapsHref } from "@/lib/sales/derive";
 import type { Channel } from "@/lib/sales/leadFilters";
 import { type Outcome, type SalesLead, outcomeLabel } from "@/lib/sales/leads";
@@ -40,35 +39,11 @@ function Chip({ className, children }: { className: string; children: ReactNode 
   );
 }
 
-// Sits next to the demo buttons, not in the collapsed Details block: the whole point is that the rep
-// reads it before dialling. Since voice-agent#34 the agent no longer deflects on price — it reads the
-// listed range aloud — so an owner hearing our demo menu quoted as his own is the default outcome,
-// not an edge case. Better the rep gets ahead of it ("prices are a placeholder — what do you charge
-// for a full groom?") than gets corrected mid-call.
-function DemoKnows({ knows }: { knows: DemoKnowledge }) {
-  const dim = "text-muted-2";
-  return (
-    <p className="mt-2 text-xs text-muted">
-      <span className="font-medium uppercase tracking-wide text-muted-2">Demo will know</span>{" "}
-      <span className={knows.hours ? "text-ink" : dim}>hours {knows.hours ? "✓" : "✗"}</span>
-      {" · "}
-      <span className={knows.address ? "text-ink" : dim}>address {knows.address ? "✓" : "✗"}</span>
-      {" · "}
-      {knows.servicesFromSite ? (
-        <span className="text-ink">prices from their site ({knows.serviceCount})</span>
-      ) : (
-        <span className="text-[#8A5D17]">prices from our demo menu — it will quote them</span>
-      )}
-      {!knows.servicesFromSite && knows.note ? <span className={dim}> · {knows.note}</span> : null}
-    </p>
-  );
-}
-
 function Row({ label, children }: { label: string; children: ReactNode }) {
   return (
     <>
       <dt className="text-muted">{label}</dt>
-      <dd className="break-words">{children}</dd>
+      <dd className="min-w-0 break-words">{children}</dd>
     </>
   );
 }
@@ -77,19 +52,30 @@ export interface LeadCardProps {
   lead: SalesLead;
   back: string;
   focus?: boolean;
+  detailsOpen?: boolean;
   channel?: Channel;
   history?: { actor: string; outcome: string | null; note: string | null; created_at: string }[];
 }
 
-export function LeadCard({ lead, back, focus = false, channel = "call", history }: LeadCardProps) {
+export function LeadCard({
+  lead,
+  back,
+  focus = false,
+  detailsOpen = false,
+  channel = "call",
+  history,
+}: LeadCardProps) {
   const open = OPEN_STYLE[lead.openState];
   const action = `/api/sales/leads/${lead.id}`;
   const phone = formatUsPhone(lead.phone_e164);
   const promo = promoCodeFor(lead.neighborhood);
   const walking = channel === "walk";
+  // On the lead's own page every write comes back to it — the rep is mid-write-up and the next shop
+  // is one Next away. From the queue they land back in the queue, as they always have.
+  const stay = focus ? <input type="hidden" name="path" value={`/sales/${lead.slug}`} /> : null;
 
   return (
-    <article className="min-w-0 rounded-[18px] border border-ink/10 bg-cream/80 p-5">
+    <article className="min-w-0 rounded-[18px] border border-ink/10 bg-cream/80 p-4 sm:p-5">
       <div className="flex flex-wrap items-start justify-between gap-2">
         <div className="min-w-0">
           <div className="flex items-center gap-2">
@@ -99,9 +85,18 @@ export function LeadCard({ lead, back, focus = false, channel = "call", history 
                 had no clipping ancestor above it (see globals.css's overflow-x: clip on the body),
                 so it cut half the card off on narrow screens instead of ellipsizing. */}
             <h3
-              className={`min-w-0 truncate font-display tracking-tight ${focus ? "text-[28px]" : "text-[19px]"}`}
+              className={`min-w-0 font-display tracking-tight ${
+                focus ? "text-[24px] leading-tight sm:text-[28px]" : "truncate text-[19px]"
+              }`}
             >
-              {lead.shop_name}
+              {/* In focus the card *is* the lead's page, so the name stops being a link to it. */}
+              {focus ? (
+                lead.shop_name
+              ) : (
+                <a href={`/sales/${lead.slug}${back}`} className="text-ink no-underline">
+                  {lead.shop_name}
+                </a>
+              )}
             </h3>
           </div>
           <p className="mt-1 flex flex-wrap items-center gap-x-2 gap-y-1 text-sm text-muted">
@@ -109,6 +104,14 @@ export function LeadCard({ lead, back, focus = false, channel = "call", history 
               <span aria-hidden="true" className={`h-2 w-2 rounded-full ${open.dot}`} />
               {open.label}
             </span>
+            {lead.todayHours && lead.openState !== "unknown" && (
+              <>
+                <span aria-hidden="true">·</span>
+                <span className={lead.openState === "open" ? open.tone : undefined}>
+                  {lead.todayHours}
+                </span>
+              </>
+            )}
             <span aria-hidden="true">·</span>
             <span>{lead.neighborhood}</span>
             {lead.es_strength !== "none" && (
@@ -136,6 +139,7 @@ export function LeadCard({ lead, back, focus = false, channel = "call", history 
           {lead.demo_lang && (
             <Chip className="bg-teal/15 text-teal">demo {lead.demo_lang.toUpperCase()}</Chip>
           )}
+          {lead.research?.trim() && <Chip className="bg-ink/5 text-muted">doc</Chip>}
         </div>
       </div>
 
@@ -183,6 +187,7 @@ export function LeadCard({ lead, back, focus = false, channel = "call", history 
 
       <form method="post" action={action} className="mt-4">
         <input type="hidden" name="back" value={back} />
+        {stay}
         <fieldset className="border-0 p-0">
           <legend className="text-xs font-medium uppercase tracking-wide text-muted-2">
             {walking ? "Visit result" : "Call result"}
@@ -242,10 +247,9 @@ export function LeadCard({ lead, back, focus = false, channel = "call", history 
 
       <form method="post" action={action} className="mt-3 border-t border-ink/10 pt-3">
         <input type="hidden" name="back" value={back} />
+        {stay}
         <input type="hidden" name="intent" value="demo" />
-        <p className="text-xs font-medium uppercase tracking-wide text-muted-2">
-          Generate demo — pick the language you heard on the call
-        </p>
+        <p className="text-xs font-medium uppercase tracking-wide text-muted-2">Generate demo</p>
         <div className="mt-2 flex flex-wrap items-center gap-1.5">
           <button
             type="submit"
@@ -263,13 +267,7 @@ export function LeadCard({ lead, back, focus = false, channel = "call", history 
           >
             Español
           </button>
-          <span className="text-xs text-muted-2">
-            {lead.demo_number
-              ? "already live — text them the number below"
-              : "ask first: “can I text you the number?”"}
-          </span>
         </div>
-        <DemoKnows knows={lead.demoKnows} />
       </form>
 
       {lead.demo_number && (
@@ -299,6 +297,7 @@ export function LeadCard({ lead, back, focus = false, channel = "call", history 
       {lead.demo_requested_at && (
         <form method="post" action={action} className="mt-2">
           <input type="hidden" name="back" value={back} />
+          {stay}
           <input type="hidden" name="intent" value="demo_cancel" />
           <button
             type="submit"
@@ -309,7 +308,7 @@ export function LeadCard({ lead, back, focus = false, channel = "call", history 
         </form>
       )}
 
-      <details className="mt-3">
+      <details open={detailsOpen} className="mt-3">
         <summary className="cursor-pointer text-sm text-muted focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-teal">
           Details
         </summary>
@@ -328,12 +327,11 @@ export function LeadCard({ lead, back, focus = false, channel = "call", history 
           {lead.prices && lead.price_confidence === "high" && (
             <Row label="Prices seen">{lead.prices}</Row>
           )}
-          {lead.price_confidence !== "high" && (
-            <Row label="Prices">
-              <span className="text-muted-2">not scraped — ask for two on the call</span>
+          {lead.weekHours.map((row) => (
+            <Row key={row.days} label={row.days}>
+              {row.hours}
             </Row>
-          )}
-          {lead.hours && <Row label="Hours">{lead.hours.replace(/\s*\|\s*/g, " · ")}</Row>}
+          ))}
           {lead.website && (
             <Row label="Website">
               <a href={lead.website} target="_blank" rel="noreferrer" className="text-teal">

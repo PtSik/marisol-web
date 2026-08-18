@@ -2,7 +2,6 @@ import { describe, expect, it } from "bun:test";
 import { DEMO_SERVICES } from "@/lib/demoServices";
 import {
   NEUTRAL_DEMO_PATCH,
-  demoKnowledge,
   demoServices,
   demoShopPatch,
   toShopHoursFromPlaces,
@@ -173,21 +172,5 @@ describe("NEUTRAL_DEMO_PATCH", () => {
     }
     expect(NEUTRAL_DEMO_PATCH.name).toBe("Marisol Demo");
     expect(NEUTRAL_DEMO_PATCH.primary_language).toBe("en");
-  });
-});
-
-describe("demoKnowledge", () => {
-  it("tells the rep what the agent will and will not know", () => {
-    expect(
-      demoKnowledge({ shop_name: "A", address: "1 Main St" }, null, parseWeekHours(FULL_WEEK)),
-    ).toMatchObject({ hours: true, address: true, servicesFromSite: false });
-
-    expect(
-      demoKnowledge(
-        { shop_name: "A", address: null },
-        null,
-        parseWeekHours("Monday: by appointment"),
-      ),
-    ).toMatchObject({ hours: false, address: false, servicesFromSite: false });
   });
 });

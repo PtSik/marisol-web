@@ -8,10 +8,13 @@ import {
   parseWeekHours,
   routeHref,
   scoreLead,
+  shopClock,
   slugify,
   tier,
   toE164,
+  todayNote,
   uniqueSlug,
+  weekRows,
   weeklyOpenMinutes,
 } from "@/lib/sales/derive";
 import { looksLikeKey, normaliseRep } from "@/lib/salesAuth";
@@ -412,5 +415,63 @@ describe("looksLikeKey", () => {
 
   it("does nothing when no key is configured", () => {
     expect(looksLikeKey("whatever", undefined)).toBe(false);
+  });
+});
+
+describe("todayNote", () => {
+  const week = parseWeekHours(
+    "Monday: 9:00 AM – 5:00 PM | Tuesday: Closed | Wednesday: Open 24 hours",
+  );
+  // 2026-08-03 is a Monday; times are the shop's, so these are ET.
+  const at = (iso: string) => shopClock(new Date(iso));
+
+  it("says how long is left while they are open", () => {
+    expect(todayNote(week, at("2026-08-03T18:00:00Z"))).toBe("till 5 PM");
+  });
+
+  it("says when they open if the rep is early", () => {
+    expect(todayNote(week, at("2026-08-03T11:00:00Z"))).toBe("opens 9 AM");
+  });
+
+  it("distinguishes closed-for-the-day from closed-all-day", () => {
+    expect(todayNote(week, at("2026-08-03T23:30:00Z"))).toBe("closed for today");
+    expect(todayNote(week, at("2026-08-04T18:00:00Z"))).toBe("closed today");
+  });
+
+  it("calls out a shop that never shuts", () => {
+    expect(todayNote(week, at("2026-08-05T18:00:00Z"))).toBe("open 24 hours");
+  });
+
+  // The card already prints "hours unknown"; a second line saying the same is noise.
+  it("says nothing at all when the hours are unknown", () => {
+    expect(todayNote(null, at("2026-08-03T18:00:00Z"))).toBeNull();
+    expect(todayNote(parseWeekHours("Tuesday: Closed"), at("2026-08-03T18:00:00Z"))).toBeNull();
+  });
+});
+
+describe("weekRows", () => {
+  it("collapses days that read the same and starts the week on Monday", () => {
+    const week = parseWeekHours(
+      "Monday: 9:00 AM – 5:00 PM | Tuesday: 9:00 AM – 5:00 PM | Wednesday: 9:00 AM – 5:00 PM | " +
+        "Thursday: 9:00 AM – 5:00 PM | Friday: 9:00 AM – 5:00 PM | Saturday: 10:00 AM – 4:00 PM | " +
+        "Sunday: Closed",
+    );
+    expect(weekRows(week)).toEqual([
+      { days: "Mon–Fri", hours: "9 AM–5 PM" },
+      { days: "Sat", hours: "10 AM–4 PM" },
+      { days: "Sun", hours: "closed" },
+    ]);
+  });
+
+  it("keeps half-hours and drops the days Places never listed", () => {
+    const week = parseWeekHours("Monday: 8:30 AM – 6:00 PM | Sunday: Closed");
+    expect(weekRows(week)).toEqual([
+      { days: "Mon", hours: "8:30 AM–6 PM" },
+      { days: "Sun", hours: "closed" },
+    ]);
+  });
+
+  it("has nothing to show for a lead with no hours", () => {
+    expect(weekRows(null)).toEqual([]);
   });
 });
