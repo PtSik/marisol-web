@@ -10,6 +10,7 @@ import {
   channelForArea,
   cityOf,
   excludedReason,
+  hasStorefront,
   instagramIn,
   isChainBrand,
   isEsName,
@@ -74,12 +75,78 @@ describe("business type exclusions", () => {
   });
 });
 
+describe("a groomer's own site cannot exclude it", () => {
+  // Five real Fairfield County salons, each binned in one run by a phrase describing the owner's
+  // credentials or a service detail. More leads than the sweep that found them produced.
+  test("credentials, a landlord and a sideline are not disqualifications", () => {
+    expect(
+      excludedReason(
+        "Happy Paws Professional Pet Grooming",
+        "certification from the American Academy of Pet Grooming",
+      ),
+    ).toBe("");
+    expect(
+      excludedReason("Dogfather Grooming Stratford", "Investing in groomer training and support"),
+    ).toBe("");
+    expect(
+      excludedReason("Baybrook Grooming, LLC", "a grooming shop inside Baybrook Animal Hospital"),
+    ).toBe("");
+    expect(
+      excludedReason("The Salty Dog Grooming Shoppe", "Melissa is a breeder, groomer and handler"),
+    ).toBe("");
+    expect(excludedReason("Pampered Pet Spa", "we also board puppies for the weekend")).toBe("");
+  });
+
+  // The name is still read on its own, so the businesses the rule exists for stay out.
+  test("the name still decides against the business", () => {
+    expect(excludedReason("EDUGROOMER Academy", "")).toBe("school");
+    expect(excludedReason("Doggy Academy Grooming School", "")).toBe("school");
+    expect(excludedReason("Trumbull Animal Hospital", "we groom dogs too")).toBe("veterinary");
+  });
+
+  // And a business that never claims to groom is still judged on its site.
+  test("without a grooming name the site is still read", () => {
+    expect(excludedReason("Wag Central", "Pupster Academy & Daycare")).toBe("school");
+    expect(excludedReason("Top Dog Food & Supply", "puppies for sale")).toBe("breeder/puppy store");
+  });
+
+  // Three Fairfield County daycares were binned as schools for naming a class once on a page that
+  // sells grooming all the way down. The word count decides, not the first match.
+  test("a page that sells grooming outweighs one mention of a class", () => {
+    expect(
+      excludedReason("Wag Central", "Grooming · grooming prices · Grooming FAQ · Puppy Academy"),
+    ).toBe("");
+    expect(excludedReason("The Bark Club", "our groomers · grooming packages · book a groom")).toBe(
+      "",
+    );
+    expect(excludedReason("Town House For Dogs & Cats", "boarding, training academy")).toBe(
+      "school",
+    );
+  });
+
+  // Puppies on the sign do not stop a shop from grooming — two Miami salons say both.
+  test("a groomer that also sells puppies is still a groomer", () => {
+    expect(excludedReason("Biyu Puppies & Grooming Corporation")).toBe("");
+    expect(excludedReason("Puppies and Grooming")).toBe("");
+    expect(excludedReason("Nessy's Puppies of Kendall")).toBe("breeder/puppy store");
+  });
+});
+
 describe("chain detection by brand", () => {
   test("catches the brands that slipped through as is_chain: no", () => {
     expect(isChainBrand("VCA South Dade Animal Hospital")).toBe(true);
     expect(isChainBrand("Petfolk Pinecrest")).toBe(true);
-    expect(isChainBrand("Woof Gang Bakery & Grooming Kendall")).toBe(true);
+    expect(isChainBrand("Petco Grooming")).toBe(true);
     expect(isChainBrand("Pet Supermarket")).toBe(true);
+  });
+
+  // A franchisee is the decision-maker a rep wants on the phone, so the sign over the door is not
+  // a reason to skip them. Corporate stores stay out.
+  test("franchises queue like independents", () => {
+    expect(isChainBrand("Dogtopia of Fairfield")).toBe(false);
+    expect(isChainBrand("Camp Bow Wow Fairfield-Trumbull")).toBe(false);
+    expect(isChainBrand("Scenthound Fairfield")).toBe(false);
+    expect(isChainBrand("Woof Gang Bakery & Grooming Kendall")).toBe(false);
   });
 
   test("leaves single-location shops alone", () => {
@@ -106,6 +173,50 @@ describe("mobile detection", () => {
     expect(isMobileSite("We come to you anywhere in Broward")).toBe(true);
     expect(isMobileSite("Vamos a tu casa el mismo dia")).toBe(true);
     expect(isMobileSite("Visit our salon on Main Street")).toBe(false);
+  });
+
+  // Only 9 of 61 stored mobile groomers were ever caught by their own copy, because the five
+  // phrases the check started with are not how most of them write it.
+  test("reads the ways a groomer without 'mobile' in the name says it", () => {
+    expect(isMobileSite("We come to your home, fully equipped")).toBe(true);
+    expect(isMobileSite("In-home grooming for anxious dogs")).toBe(true);
+    expect(isMobileSite("Our grooming van is booked two weeks out")).toBe(true);
+    expect(isMobileSite("We bring the salon to your driveway")).toBe(true);
+    expect(isMobileSite("Full groom at your doorstep")).toBe(true);
+    expect(isMobileSite("We travel to Fairfield and Milford")).toBe(true);
+    expect(isMobileSite("House calls available on weekends")).toBe(true);
+    expect(isMobileSite("Mobile pet spa serving Broward")).toBe(true);
+  });
+
+  // Half of what the widened phrases find is a salon that also runs a van, and `is_mobile` is what
+  // takes a lead off the walking route. Real rows from the August rescan.
+  test("a shop that advertises both a van and a door keeps its door", () => {
+    expect(
+      hasStorefront("Dogfather Grooming Stratford", "Mobile Grooming: 203-907-3626 our Salon"),
+    ).toBe(true);
+    expect(hasStorefront("Kool and Kute Pet Boutique", "Mobile Grooming in Doral. Visit us")).toBe(
+      true,
+    );
+    expect(hasStorefront("Poochie On Your Block", "PET GROOMING SALON MOBILE GROOMING")).toBe(true);
+    expect(
+      hasStorefront("Lilo's Dog Hotels & Daycare", "Pawsitive MOBILE GROOMING click here"),
+    ).toBe(true);
+  });
+
+  test("a van with no door is left alone", () => {
+    expect(hasStorefront("Kall pet grooming", "Kall Pet Grooming brings the salon to you")).toBe(
+      false,
+    );
+    expect(
+      hasStorefront("Groomingtails Pet Spa", "Our mobile grooming service comes directly to you"),
+    ).toBe(false);
+  });
+
+  // A salon with a door offers curbside drop-off, which is the opposite of a van.
+  test("does not read a salon's own conveniences as a van", () => {
+    expect(isMobileSite("Curbside drop-off available at our shop")).toBe(false);
+    expect(isMobileSite("Free parking at the door")).toBe(false);
+    expect(isMobileSite("We deliver dog food on Tuesdays")).toBe(false);
   });
 
   test("the query is not an input — that is what flagged a photographer and two hotels", () => {
@@ -226,10 +337,29 @@ describe("area from ZIP, never from the query", () => {
   test("re-homes the rows the query mislabelled", () => {
     // Princess Pet Grooming was tagged Miami Lakes with a Hialeah address.
     expect(areaForZip(33012)).toBe("Hialeah");
-    // EDUGROOMER was tagged West Kendall from Coconut Grove — outside every area.
-    expect(areaForZip(33133)).toBeNull();
+    // EDUGROOMER was tagged West Kendall from Coconut Grove, which is Miami and always was.
+    expect(areaForZip(33133)).toBe("Miami");
     // Petfolk was tagged Kendall from Pinecrest.
     expect(areaForZip(33156)).toBe("Kendall");
+  });
+
+  test("the city core resolves by ZIP, because USPS calls half the county Miami", () => {
+    expect(neighborhoodFor("1234 SW 8th St, Miami, FL 33135")).toBe("Miami");
+    expect(neighborhoodFor("800 Brickell Ave, Miami, FL 33131")).toBe("Miami");
+    expect(neighborhoodFor("2000 Ponce de Leon Blvd, Coral Gables, FL 33134")).toBe("Miami");
+    // The ones USPS also writes as "Miami" keep their own areas — a city list on Miami would have
+    // taken all three.
+    expect(neighborhoodFor("8888 SW 40th St, Miami, FL 33165")).toBe("Westchester");
+    expect(neighborhoodFor("9000 SW 107th Ave, Miami, FL 33176")).toBe("Kendall");
+    expect(neighborhoodFor("12000 NE 16th Ave, Miami, FL 33161")).toBe("North Miami");
+  });
+
+  test("the newly sourced areas resolve", () => {
+    expect(neighborhoodFor("1601 Washington Ave, Miami Beach, FL 33139")).toBe("Miami Beach");
+    expect(neighborhoodFor("18001 NW 27th Ave, Miami Gardens, FL 33056")).toBe("Miami Gardens");
+    expect(neighborhoodFor("100 N Krome Ave, Homestead, FL 33030")).toBe("Homestead");
+    expect(neighborhoodFor("2500 Hollywood Blvd, Hollywood, FL 33020")).toBe("Hollywood");
+    expect(neighborhoodFor("11000 Pines Blvd, Pembroke Pines, FL 33026")).toBe("Hollywood");
   });
 
   test("adopted suburbs land in the metro a rep would drive them with", () => {
@@ -398,6 +528,18 @@ describe("area from ZIP, never from the query", () => {
     expect(channelForArea("North Miami")).toBe("call");
     // `Other` has no entry at all and must not crash into a route.
     expect(channelForArea(OTHER_AREA)).toBe("call");
+  });
+});
+
+describe("instagram handles", () => {
+  test("skips the booking widget's own account and takes the shop's", () => {
+    const html =
+      '<a href="https://instagram.com/booksybiz">book</a><a href="https://instagram.com/pawsspa">us</a>';
+    expect(instagramIn(html)).toBe("@pawsspa");
+  });
+
+  test("a page with nothing but platform links has no handle", () => {
+    expect(instagramIn('<a href="https://instagram.com/moego_app">x</a>')).toBeNull();
   });
 });
 

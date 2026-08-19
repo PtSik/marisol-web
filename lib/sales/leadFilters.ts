@@ -8,6 +8,14 @@
 // Scoring itself is NOT here: `scoreLead` and `tier` stay in derive.ts, and both this module's
 // callers and the /sales panel read them from there, so old and new leads can never diverge.
 
+/** A search rectangle in degrees. Only ever approximate — it has to cover the area, not trace it. */
+export interface Bbox {
+  south: number;
+  west: number;
+  north: number;
+  east: number;
+}
+
 export interface Area {
   /** Stored as `neighborhood` in D1 and shown as the filter in /sales. */
   name: string;
@@ -35,6 +43,13 @@ export interface Area {
    * scoring kind of lead we have.
    */
   channel?: Channel;
+  /**
+   * Bounds for `get-leads.ts --grid`, which sweeps the area cell by cell instead of asking Places
+   * for the town by name. One named query returns three pages and stops, so a town hands back its
+   * top sixty shops however big it is; a rectangle small enough gets its own sixty. Overlap between
+   * neighbouring areas is harmless — the run dedups on place id.
+   */
+  box?: Bbox;
 }
 
 export type Channel = "call" | "walk";
@@ -51,6 +66,7 @@ export const AREAS: Record<string, Area> = {
     // 33014/33016 also cover Miami Lakes; an address in either that names neither city is far more
     // likely to be Hialeah, which has 41 leads to Miami Lakes' 3.
     zips: [[33010, 33018]],
+    box: { south: 25.81, west: -80.355, north: 25.905, east: -80.257 },
   },
   doral: {
     name: "Doral",
@@ -62,6 +78,7 @@ export const AREAS: Record<string, Area> = {
       [33172, 33172],
       [33178, 33178],
     ],
+    box: { south: 25.7757, west: -80.3947, north: 25.8353, east: -80.3103 },
   },
   westchester: {
     name: "Westchester",
@@ -71,6 +88,7 @@ export const AREAS: Record<string, Area> = {
       [33155, 33155],
       [33165, 33165],
     ],
+    box: { south: 25.725, west: -80.35, north: 25.775, east: -80.29 },
   },
   "west-kendall": {
     name: "West Kendall",
@@ -82,6 +100,7 @@ export const AREAS: Record<string, Area> = {
       [33193, 33193],
       [33196, 33196],
     ],
+    box: { south: 25.64, west: -80.47, north: 25.72, east: -80.36 },
   },
   kendall: {
     name: "Kendall",
@@ -95,6 +114,7 @@ export const AREAS: Record<string, Area> = {
       [33173, 33173],
       [33176, 33176],
     ],
+    box: { south: 25.645, west: -80.36, north: 25.715, east: -80.28 },
   },
   // City-only: every ZIP Miami Lakes uses is shared with Hialeah, so a range here would take rows
   // whose address says "Hialeah" outright.
@@ -103,6 +123,7 @@ export const AREAS: Record<string, Area> = {
     searchIn: "Miami Lakes, FL",
     city: ["miami lakes"],
     zips: [],
+    box: { south: 25.885, west: -80.34, north: 25.935, east: -80.285 },
   },
 
   // Duval / St. Johns / Broward — separate metros, not Miami neighbourhoods. The Spanish signal that
@@ -232,6 +253,105 @@ export const AREAS: Record<string, Area> = {
     ],
   },
 
+  // The city itself — Little Havana, Brickell, downtown, Coral Way, Wynwood, plus Coral Gables and
+  // Coconut Grove, which sit inside the same sweep. ZIP-only, and it has to be: `city` is matched
+  // before `zips`, so a list containing "miami" would take Westchester, Kendall and North Miami
+  // with it. The densest square miles in the county and the one area never sourced.
+  miami: {
+    name: "Miami",
+    searchIn: "Miami, FL",
+    alsoSearch: [
+      "Little Havana, Miami, FL",
+      "Coral Gables, FL",
+      "Coconut Grove, Miami, FL",
+      "Brickell, Miami, FL",
+    ],
+    zips: [
+      [33125, 33137],
+      [33142, 33142],
+      [33145, 33146],
+    ],
+    box: { south: 25.72, west: -80.3, north: 25.82, east: -80.17 },
+  },
+
+  "miami-beach": {
+    name: "Miami Beach",
+    searchIn: "Miami Beach, FL",
+    alsoSearch: ["Surfside, FL", "Sunny Isles Beach, FL"],
+    city: [
+      "miami beach",
+      "south beach",
+      "bal harbour",
+      "surfside",
+      "sunny isles beach",
+      "north bay village",
+    ],
+    zips: [
+      [33139, 33141],
+      [33154, 33154],
+      [33160, 33160],
+    ],
+    box: { south: 25.76, west: -80.15, north: 25.94, east: -80.11 },
+  },
+
+  "miami-gardens": {
+    name: "Miami Gardens",
+    searchIn: "Miami Gardens, FL",
+    alsoSearch: ["Opa-locka, FL"],
+    city: ["miami gardens", "opa-locka", "opa locka", "carol city"],
+    zips: [
+      [33054, 33056],
+      [33169, 33169],
+    ],
+    box: { south: 25.91, west: -80.3, north: 25.98, east: -80.19 },
+  },
+
+  // South Dade. Further from the team than anything else in the county, so it is a phone market
+  // whatever happens to the rest.
+  homestead: {
+    name: "Homestead",
+    searchIn: "Homestead, FL",
+    alsoSearch: ["Cutler Bay, FL", "Florida City, FL"],
+    // No "palmetto bay": it sits on Kendall's 33176 and a rep working Homestead would never drive
+    // it. A genuine 33157 address still lands here by ZIP, which is the South Dade phone market.
+    city: ["homestead", "florida city", "cutler bay", "princeton", "leisure city"],
+    zips: [
+      [33030, 33035],
+      [33157, 33157],
+      [33170, 33170],
+      [33177, 33177],
+      [33187, 33187],
+      [33189, 33190],
+    ],
+    box: { south: 25.42, west: -80.5, north: 25.62, east: -80.3 },
+  },
+
+  // South Broward, deliberately left out of Fort Lauderdale (see the note there) and never sourced
+  // since. It is also where our 754 demo numbers ring, so a shop here hears a local number.
+  hollywood: {
+    name: "Hollywood",
+    searchIn: "Hollywood, FL",
+    alsoSearch: ["Pembroke Pines, FL", "Miramar, FL", "Hallandale Beach, FL", "Dania Beach, FL"],
+    city: [
+      "hollywood",
+      "pembroke pines",
+      "miramar",
+      "hallandale beach",
+      "hallandale",
+      "dania beach",
+      "dania",
+      "west park",
+      "cooper city",
+    ],
+    zips: [
+      [33004, 33004],
+      [33009, 33009],
+      [33019, 33021],
+      [33023, 33029],
+    ],
+    box: { south: 25.97, west: -80.3, north: 26.06, east: -80.11 },
+  },
+
   // Fairfield County, Connecticut — the first market outside Florida and the first one sold on
   // foot. Greater Bridgeport rather than the town line: Stratford alone is 52k people and would
   // run dry in a week, while Bridgeport to Milford is one drive.
@@ -297,6 +417,7 @@ export const AREAS: Record<string, Area> = {
       [6888, 6888],
     ],
     channel: "walk",
+    box: { south: 41.14, west: -73.32, north: 41.28, east: -72.98 },
   },
 
   // Greater New Haven — reached by the Stratford run's `alsoSearch` spilling east, not scraped on
@@ -323,6 +444,9 @@ export const AREAS: Record<string, Area> = {
       [6510, 6521],
       [6524, 6525],
     ],
+    // New Haven, Hamden, West and East Haven, Woodbridge and Orange. Cheshire is outside it on
+    // purpose: 29k people at the far north, reachable by name if the sweep pays off here.
+    box: { south: 41.22, west: -73.05, north: 41.42, east: -72.82 },
   },
 };
 
@@ -357,7 +481,7 @@ export const ES_QUERY = /peluquer|m[oó]vil|movil|est[eé]tica|estetica|u[nñ]as
 
 // Applied before scoring: about 30% of the first Miami run was not a groomer at all — 13 vets, 5
 // breeders, 3 pet stores, 3 schools, 1 photographer in the first 99 rows alone.
-const EXCLUDE: { reason: string; re: RegExp }[] = [
+const EXCLUDE: { reason: string; re: RegExp; beatsGroomer?: boolean }[] = [
   {
     reason: "veterinary",
     re: /\b(veterinary|veterinarian|animal clinic|animal hospital|animal center|vet clinic|vet hospital|urgent care|veterinaria|clinica veterinaria)\b|\bvca\b/i,
@@ -366,7 +490,13 @@ const EXCLUDE: { reason: string; re: RegExp }[] = [
     reason: "breeder/puppy store",
     re: /\b(puppies|puppy store|puppy city|puppy mansion|for sale|kittens|breeder|cachorros)\b/i,
   },
-  { reason: "school", re: /\b(academy|grooming school|groomer training|institute|edugroomer)\b/i },
+  // The one disqualifier a groomer's own name can carry honestly: "Pet Grooming School Of America"
+  // teaches grooming, it does not sell it.
+  {
+    reason: "school",
+    re: /\b(academy|grooming school|groomer training|institute|edugroomer)\b/i,
+    beatsGroomer: true,
+  },
   { reason: "photography", re: /\b(photography|photographer|fotografia)\b/i },
   { reason: "botanica", re: /\bbotanica\b/i },
 ];
@@ -376,31 +506,44 @@ const PET_STORE = /\b(pet supply|pet supplies|pet store|pet shop|feed store)\b/i
 const GROOMS = /\b(groom|grooming|peluquer|est[eé]tica|estetica|spa|bath|ba[nñ]o)\b/i;
 
 /** `""` when the business belongs in the queue, otherwise the reason it does not. */
+// A shop that calls itself a groomer is one, whatever else its page happens to mention. Without
+// this the site text buries the best-written sites: "certification from the American Academy of Pet
+// Grooming" read as a school, "grooming shop inside Baybrook Animal Hospital" as a vet, "Melissa is
+// a breeder, groomer and handler" as a puppy store — five real Fairfield County salons in one run,
+// more than the whole sweep found new. The name is still checked on its own, so EDUGROOMER and
+// "Doggy Academy Grooming" stay out.
+const GROOMER_NAME = /\b(groom\w*|peluquer[ií]a|est[eé]tica canina|pet spa|dog spa)\b/i;
+
+const mentions = (text: string, re: RegExp): number =>
+  text.match(new RegExp(re.source, "gi"))?.length ?? 0;
+
 export function excludedReason(name: string, siteText = ""): string {
-  const haystack = `${name} ${siteText}`;
-  for (const { reason, re } of EXCLUDE) if (re.test(haystack)) return reason;
-  if (PET_STORE.test(name) && !GROOMS.test(haystack)) return "pet store, no grooming";
+  const groomerName = GROOMER_NAME.test(name);
+  for (const { reason, re, beatsGroomer } of EXCLUDE) {
+    if (re.test(name) && (beatsGroomer || !groomerName)) return reason;
+  }
+  if (PET_STORE.test(name) && !GROOMS.test(`${name} ${siteText}`)) return "pet store, no grooming";
+  if (groomerName) return "";
+
+  // A page that sells grooming far more than it mentions the disqualifier is a groomer's page. Wag
+  // Central names an Academy once and grooming four times; The Bark Club says grooming twenty times
+  // and never says school at all, yet both were thrown away as schools.
+  for (const { reason, re } of EXCLUDE) {
+    if (re.test(siteText) && mentions(siteText, GROOMER_NAME) <= mentions(siteText, re)) {
+      return reason;
+    }
+  }
   return "";
 }
 
-// Chains are caught by brand, never by a name repeating in the results — VCA appeared twice and
-// Petfolk twice, both flagged is_chain: no, and a franchise location decides nothing on its own.
+// Corporate stores only: the phone reaches a script, not an owner. Woof Gang, Scenthound, Camp Bow
+// Wow and Dogtopia used to sit here and no longer do — a franchisee answers their own phone, books
+// their own days and signs their own contracts, so they queue like any independent. `Petland` is
+// absent for the same reason, and was never on the list the original Miami run used.
 //
-// `Petland` is deliberately absent: it is a franchise, but it was not on the list the original run
-// used (Petland Miami sits in D1 with is_chain = 0), and adding it would judge new cities by a rule
-// the existing 120 leads were never subject to.
-export const CHAIN_BRANDS = [
-  "vca",
-  "petfolk",
-  "petsmart",
-  "petco",
-  "banfield",
-  "woof gang",
-  "scenthound",
-  "camp bow wow",
-  "dogtopia",
-  "pet supermarket",
-];
+// Caught by brand, never by a name repeating in the results — VCA appeared twice and Petfolk twice,
+// and two locations of anything prove nothing on their own.
+export const CHAIN_BRANDS = ["vca", "petfolk", "petsmart", "petco", "banfield", "pet supermarket"];
 
 export const isChainBrand = (name: string): boolean =>
   CHAIN_BRANDS.some((brand) => name.toLowerCase().includes(brand));
@@ -408,10 +551,26 @@ export const isChainBrand = (name: string): boolean =>
 // Read from the name or the site's own copy — never from the query. "grooming movil" as a query
 // flagged a pet photographer, two puppy stores and two boarding hotels as mobile, +4 each.
 const MOBILE_NAME = /\b(mobile|m[oó]vil|movil|van|on wheels|a domicilio)\b/i;
-const MOBILE_SITE = /\b(we come to you|mobile grooming|vamos a tu casa|a domicilio|our van)\b/i;
+// Widened after a count on the stored 452: only 9 leads were ever flagged from their own copy, and
+// 52 of 61 came from the name alone. A groomer who never puts "mobile" in the name says it in the
+// first paragraph instead — but rarely in these exact five words. "Curbside" stays out on purpose:
+// it is what a salon with a door calls its drop-off.
+const MOBILE_SITE =
+  /\b(we come to (you|your (home|door))|mobile (grooming|pet (spa|salon|groom\w*))|in[- ]home grooming|grooming (van|truck)|we bring the (salon|spa|groomer)|at your door(step)?|we travel to|house calls?|vamos a tu casa|a domicilio|our van)\b/i;
 
 export const isMobileName = (name: string): boolean => MOBILE_NAME.test(name);
 export const isMobileSite = (siteText: string): boolean => MOBILE_SITE.test(siteText);
+
+// Half of what the widened phrases find is a salon that also runs a van. `is_mobile` is what takes
+// a lead off the walking route, so a shop with a door has to stay a shop however loudly it
+// advertises the van — Dogfather lists "Mobile Grooming" and "Stratford Salon" on two numbers, in
+// the one market the team works on foot. Every pattern here is a case from the August rescan.
+const STOREFRONT_SITE =
+  /\b(our salon|our shop|our store|walk[- ]ins?|salon hours|store hours|our location|visit us|come see us|in[- ]salon|grooming salon)\b/i;
+const STOREFRONT_NAME = /\b(hotel|daycare|day care|boarding|resort|kennel|boutique)\b/i;
+
+export const hasStorefront = (name: string, siteText: string): boolean =>
+  STOREFRONT_NAME.test(name) || STOREFRONT_SITE.test(siteText);
 
 // Booking systems recognised on a shop website. The names match the set derive.ts scores against, so
 // a system added here has to be added there too or it stops costing the lead its -2.
@@ -541,10 +700,16 @@ export const normalizeAddress = (address: string): string =>
     .replace(/[^a-z0-9]+/g, " ")
     .trim();
 
+// The first Instagram link on a page is not always the shop's: a booking widget links its own
+// vendor, and the August rescan pulled @booksybiz onto a Miami salon that way.
+const PLATFORM_HANDLE =
+  /^(p|reel|reels|explore|accounts|stories|booksy\w*|moego\w*|vagaro\w*|fresha\w*|squareup|gingr\w*|schedulicity|setmore|acuityscheduling|wix\w*|squarespace|godaddy)$/i;
+
 export function instagramIn(html: string): string | null {
-  const handle = html.match(/instagram\.com\/([A-Za-z0-9._]{2,30})/i)?.[1];
-  if (!handle || /^(p|reel|reels|explore|accounts|stories)$/i.test(handle)) return null;
-  return `@${handle}`;
+  for (const m of html.matchAll(/instagram\.com\/([A-Za-z0-9._]{2,30})/gi)) {
+    if (!PLATFORM_HANDLE.test(m[1])) return `@${m[1]}`;
+  }
+  return null;
 }
 
 /** Visible copy, with scripts and markup stripped — what the language and price checks read. */
