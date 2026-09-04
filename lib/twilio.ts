@@ -5,6 +5,12 @@ export interface TwilioEnv {
   TWILIO_AUTH_TOKEN?: string;
 }
 
+// NANP area codes are three digits and cannot start with 0 or 1. Keeping this check beside the
+// Twilio search prevents an admin typo from becoming a paid number in an unintended region.
+export function isUsAreaCode(value: string): boolean {
+  return /^[2-9]\d{2}$/.test(value);
+}
+
 // US E.164 → 3-digit area code (+1AAANNNNNNN or 10 raw digits).
 export function usAreaCode(phone: string): string | null {
   const digits = phone.replace(/\D/g, "");

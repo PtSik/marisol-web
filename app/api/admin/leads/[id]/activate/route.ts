@@ -17,6 +17,7 @@ import { extraLocationCount, normalizePlan } from "@/lib/plans";
 import { listAccountShopsStrict } from "@/lib/portalApi";
 import { type ProvisioningEnv, provisionLead, sendProvisionedWelcome } from "@/lib/provisioning";
 import { UPGRADABLE_STATUSES, getSubscription, setSubscriptionExtraLocations } from "@/lib/stripe";
+import { isUsAreaCode } from "@/lib/twilio";
 import { cookies } from "next/headers";
 
 export const dynamic = "force-dynamic";
@@ -97,6 +98,16 @@ export async function POST(
   if (!lead.setup || !ACTIVATABLE_LEAD_STATUSES.has(lead.status)) {
     return back(request, "not-ready");
   }
+  const form = await request.formData().catch(() => null);
+  if (!form) return back(request, "invalid-area-code");
+  const rawAreaCode = form.get("areaCodeOverride");
+  if (rawAreaCode !== null && typeof rawAreaCode !== "string") {
+    return back(request, "invalid-area-code");
+  }
+  const areaCodeOverride = rawAreaCode?.trim() || undefined;
+  if (areaCodeOverride && !isUsAreaCode(areaCodeOverride)) {
+    return back(request, "invalid-area-code");
+  }
   // Re-check billing immediately before the first external side effect. A customer can cancel in
   // the gap between setup and manual review; webhook delivery must not be the only thing stopping
   // us from buying them a number afterward.
@@ -126,6 +137,7 @@ export async function POST(
   lead.activationLockToken = lockToken;
   lead.activationFailedAt = undefined;
   lead.provisionError = undefined;
+  lead.activationAreaCodeOverride = areaCodeOverride;
   try {
     await putLead(cfEnv.LEADS_KV, lead);
   } catch {
@@ -137,6 +149,7 @@ export async function POST(
   try {
     const result = await provisionLead(cfEnv, lead, {
       sendWelcome: false,
+      areaCodeOverride,
       checkpoint: async (resources) => {
         lead.assignedNumber = resources.number;
         lead.twilioNumberSid = resources.numberSid;

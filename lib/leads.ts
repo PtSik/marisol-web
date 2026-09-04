@@ -82,6 +82,8 @@ export interface CheckoutLead {
   activationStartedAt?: string;
   activationLockToken?: string;
   activationFailedAt?: string;
+  /* optional neighbouring area code explicitly approved during assisted activation */
+  activationAreaCodeOverride?: string;
   /* set once the client's address is a Google Cloud test user and the connect link was mailed */
   calendarEmailSentAt?: string;
   deprovisionedAt?: string;

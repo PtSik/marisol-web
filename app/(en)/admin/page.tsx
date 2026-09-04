@@ -13,6 +13,7 @@ import { PAYOUT_LABEL, isPayoutMethod } from "@/lib/payout";
 import { normalizePlan } from "@/lib/plans";
 import { type Referral, listReferrals } from "@/lib/referrals";
 import { siteHref } from "@/lib/site";
+import { usAreaCode } from "@/lib/twilio";
 import { voiceAgentFetch } from "@/lib/voiceAgent";
 import { cookies } from "next/headers";
 import type { ReactNode } from "react";
@@ -256,8 +257,25 @@ function ActivationAction({ lead }: { lead: CheckoutLead }) {
     );
   }
   if (!lead.setup || !ACTIVATABLE_LEAD_STATUSES.has(lead.status)) return null;
+  const clientAreaCode = usAreaCode(lead.setup.forwardNumber || lead.basics.businessPhone);
   return (
     <form method="post" action={`/api/admin/leads/${lead.id}/activate`} className="mt-3">
+      <label className="mb-2 block text-xs text-muted">
+        <span className="mb-1 block font-medium text-ink">Twilio area code</span>
+        <input
+          name="areaCodeOverride"
+          inputMode="numeric"
+          pattern="[2-9][0-9]{2}"
+          maxLength={3}
+          defaultValue={lead.activationAreaCodeOverride ?? ""}
+          placeholder={clientAreaCode ?? "305"}
+          className="w-full rounded-[10px] border border-black/10 bg-white px-3 py-2 text-sm text-ink outline-none focus:border-teal/50"
+        />
+        <span className="mt-1 block">
+          Leave blank to use {clientAreaCode ?? "the client number"}. Override only after the owner
+          approves a neighbouring area code.
+        </span>
+      </label>
       <label className="mb-2 flex items-start gap-2 text-xs text-muted">
         <input type="checkbox" required className="mt-0.5" />
         <span>I reviewed the phone, area code, hours, services, staff and forwarding setup.</span>
@@ -432,6 +450,7 @@ const ACTIVATION_NOTICE: Record<string, string> = {
   "lock-unavailable":
     "Activation stopped before provisioning: apply the D1 activation-lock migration and retry.",
   "not-ready": "That lead has not submitted a reviewable setup.",
+  "invalid-area-code": "Activation stopped: enter a valid three-digit US area code.",
 };
 
 export default async function AdminPage({

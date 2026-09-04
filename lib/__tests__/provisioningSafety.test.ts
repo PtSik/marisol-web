@@ -59,6 +59,41 @@ describe("provisionLead launch validation", () => {
     expect(fetches).toBe(0);
   });
 
+  it("rejects an invalid admin area-code override before any external side effect", async () => {
+    let fetches = 0;
+    globalThis.fetch = (async () => {
+      fetches += 1;
+      return new Response(null, { status: 500 });
+    }) as unknown as typeof fetch;
+
+    await expect(provisionLead(env, lead(), { areaCodeOverride: "012" })).resolves.toEqual({
+      ok: false,
+      reason: "invalid area code override",
+      cleanupComplete: true,
+    });
+    expect(fetches).toBe(0);
+  });
+
+  it("searches an approved neighbouring area code without changing the forwarding number", async () => {
+    const urls: string[] = [];
+    const candidate = lead();
+    globalThis.fetch = (async (input) => {
+      urls.push(String(input));
+      return Response.json({ available_phone_numbers: [] });
+    }) as typeof fetch;
+
+    await expect(provisionLead(env, candidate, { areaCodeOverride: "786" })).resolves.toMatchObject(
+      {
+        ok: false,
+        reason: "number purchase failed",
+        cleanupComplete: true,
+      },
+    );
+    expect(urls).toHaveLength(1);
+    expect(urls[0]).toContain("AreaCode=786");
+    expect(candidate.setup?.forwardNumber).toBe("+13055550100");
+  });
+
   it("returns the Twilio identity when automatic cleanup fails", async () => {
     globalThis.fetch = (async (input, init) => {
       const url = String(input);

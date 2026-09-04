@@ -12,6 +12,7 @@ import { type Account, createAccount, patchAccount } from "@/lib/portalApi";
 import { createReferralPromoCode } from "@/lib/stripe";
 import {
   buyLocalNumber,
+  isUsAreaCode,
   lookupNumberSid,
   releaseTwilioNumber,
   toUsE164,
@@ -280,12 +281,19 @@ export async function provisionLead(
   lead: CheckoutLead,
   options: {
     sendWelcome?: boolean;
+    areaCodeOverride?: string;
     checkpoint?: (resources: ProvisioningCheckpoint) => Promise<void>;
   } = {},
 ): Promise<ProvisionResult> {
   const clientNumber = toUsE164(lead.setup?.forwardNumber ?? lead.basics.businessPhone);
   const ownerMobile = toUsE164(lead.basics.ownerMobile);
-  const areaCode = clientNumber ? usAreaCode(clientNumber) : null;
+  const clientAreaCode = clientNumber ? usAreaCode(clientNumber) : null;
+  const requestedAreaCode = options.areaCodeOverride?.trim();
+  if (requestedAreaCode && !isUsAreaCode(requestedAreaCode)) {
+    await sendProvisionAlert(env, lead, "invalid area code override");
+    return { ok: false, reason: "invalid area code override", cleanupComplete: true };
+  }
+  const areaCode = requestedAreaCode || clientAreaCode;
   if (!clientNumber || !areaCode || !ownerMobile) {
     const reason = !ownerMobile ? "invalid owner mobile" : "invalid forwarding number";
     await sendProvisionAlert(env, lead, reason);
