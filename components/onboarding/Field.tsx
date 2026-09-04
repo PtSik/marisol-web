@@ -7,12 +7,15 @@ export function Field({
   error,
   hint,
   htmlFor,
+  liveHint,
   children,
 }: {
   label: string;
   error?: string;
   hint?: string;
   htmlFor: string;
+  /* set when the hint changes on its own, so a screen reader is told what changed under the field */
+  liveHint?: boolean;
   children: ReactNode;
 }) {
   return (
@@ -21,7 +24,11 @@ export function Field({
         {label}
       </label>
       {children}
-      {hint && !error && <span className="text-[12.5px] text-muted-2">{hint}</span>}
+      {hint && !error && (
+        <span className="text-[12.5px] text-muted-2" aria-live={liveHint ? "polite" : undefined}>
+          {hint}
+        </span>
+      )}
       {error && (
         <span role="alert" className="text-[12.5px] font-medium text-[#B4452C]">
           {error}

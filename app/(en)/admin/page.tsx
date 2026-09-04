@@ -146,7 +146,7 @@ function LeadTile({ lead, shop }: { lead: CheckoutLead; shop?: Shop }) {
               {lead.assignedNumber && (
                 <span className="block text-muted">
                   {carrierCodes(lead.setup.carrier, lead.assignedNumber)
-                    .map((c) => `on ${c.dial} · off ${c.off}`)
+                    .map((c) => `on ${c.dial.join(" + ")} · off ${c.off.join(" + ")}`)
                     .join(" | ")}
                 </span>
               )}

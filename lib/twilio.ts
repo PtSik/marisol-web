@@ -1,3 +1,5 @@
+import type { LineTypeLookup } from "@/lib/forwarding";
+
 export interface TwilioEnv {
   TWILIO_ACCOUNT_SID?: string;
   TWILIO_AUTH_TOKEN?: string;
@@ -28,7 +30,12 @@ async function searchLocal(env: TwilioEnv, filter: URLSearchParams): Promise<str
   const url =
     `https://api.twilio.com/2010-04-01/Accounts/${env.TWILIO_ACCOUNT_SID}` +
     `/AvailablePhoneNumbers/US/Local.json?${filter}`;
-  const res = await fetch(url, { headers: { Authorization: auth(env) } }).catch(() => null);
+  // A keystroke opens this request, so a hung Lookups response would hold the worker open with the
+  // owner parked on "checking". carrierFromLookup already reads null as "don't guess".
+  const res = await fetch(url, {
+    headers: { Authorization: auth(env) },
+    signal: AbortSignal.timeout(LOOKUP_TIMEOUT_MS),
+  }).catch(() => null);
   if (!res?.ok) return null;
   const data = (await res.json().catch(() => null)) as {
     available_phone_numbers?: { phone_number?: string }[];
@@ -108,6 +115,40 @@ export async function lookupNumberSid(env: TwilioEnv, phoneNumber: string): Prom
     incoming_phone_numbers?: { sid?: string }[];
   } | null;
   return data?.incoming_phone_numbers?.[0]?.sid ?? null;
+}
+
+// Which network a number is really on, portability included — the brand on the bill is what the
+// owner would tell us, and it's often not the network whose dial codes work.
+const LOOKUP_TIMEOUT_MS = 5000;
+
+export async function lookupLineType(
+  env: TwilioEnv,
+  phoneNumber: string,
+): Promise<LineTypeLookup | null> {
+  if (!env.TWILIO_ACCOUNT_SID || !env.TWILIO_AUTH_TOKEN) return null;
+  const url = `https://lookups.twilio.com/v2/PhoneNumbers/${encodeURIComponent(phoneNumber)}?Fields=line_type_intelligence`;
+  // A keystroke opens this request, so a hung Lookups response would hold the worker open with the
+  // owner parked on "checking". carrierFromLookup already reads null as "don't guess".
+  const res = await fetch(url, {
+    headers: { Authorization: auth(env) },
+    signal: AbortSignal.timeout(LOOKUP_TIMEOUT_MS),
+  }).catch(() => null);
+  if (!res?.ok) return null;
+  const data = (await res.json().catch(() => null)) as {
+    line_type_intelligence?: {
+      carrier_name?: string;
+      type?: string;
+      mobile_network_code?: string;
+      error_code?: number | null;
+    };
+  } | null;
+  const line = data?.line_type_intelligence;
+  if (!line || line.error_code) return null;
+  return {
+    carrierName: line.carrier_name,
+    type: line.type,
+    mobileNetworkCode: line.mobile_network_code,
+  };
 }
 
 export interface InboundCall {

@@ -1,8 +1,8 @@
 "use client";
 
+import { CarrierField } from "@/components/onboarding/CarrierField";
 import { Field, type FieldErrors } from "@/components/onboarding/Field";
 import { inputCls } from "@/components/onboarding/fieldStyles";
-import { CARRIERS, type Carrier } from "@/lib/forwarding";
 import { type Dict, type Locale, fill } from "@/lib/i18n/dict";
 import {
   DAYS,
@@ -399,20 +399,12 @@ export function SetupFields({
         />
       </Field>
 
-      <Field label={t.carrier} htmlFor="ob-carrier" hint={t.carrierHint}>
-        <select
-          id="ob-carrier"
-          className={`${inputCls} max-w-[420px]`}
-          value={setup.carrier ?? "unknown"}
-          onChange={(e) => patch({ carrier: e.target.value as Carrier })}
-        >
-          {CARRIERS.map((id) => (
-            <option key={id} value={id}>
-              {t.carrierOptions[id]}
-            </option>
-          ))}
-        </select>
-      </Field>
+      <CarrierField
+        forwardNumber={setup.forwardNumber}
+        carrier={setup.carrier}
+        t={t}
+        onChange={(carrier) => patch({ carrier })}
+      />
 
       <Field label={t.primaryLanguage} htmlFor="ob-primary-language" hint={t.primaryLanguageHint}>
         <select

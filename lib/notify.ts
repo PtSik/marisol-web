@@ -219,9 +219,9 @@ function forwardInstructions(carrier: Carrier | undefined, twilioNumber: string)
   const guide = forwardingGuide(carrier, twilioNumber, t);
   const help = `<p style="margin:12px 0 0;color:#6F6457;font-size:13px"><a href="${SITE_URL}/portal/forwarding" style="color:#4F8C80">Full instructions and help</a> — or just reply to this email and we'll set it up with you.</p>`;
 
-  if (guide.voip) {
-    return `<p style="margin:0"><strong>${esc(t.voipTitle)}</strong></p>
-<p style="margin:6px 0 0;color:#6F6457">${esc(t.voipBody)}</p>${help}`;
+  if (guide.manual) {
+    return `<p style="margin:0"><strong>${esc(guide.manual.title)}</strong></p>
+<p style="margin:6px 0 0;color:#6F6457">${esc(guide.manual.body)}</p>${help}`;
   }
 
   const items = guide.steps

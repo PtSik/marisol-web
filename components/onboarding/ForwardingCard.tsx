@@ -40,10 +40,10 @@ export function ForwardingCard({
         {guide.warning}
       </p>
 
-      {guide.voip ? (
+      {guide.manual ? (
         <div className="mt-5">
-          <p className="text-[15px] font-medium">{t.voipTitle}</p>
-          <p className="mt-1.5 text-[14.5px] leading-[1.55] text-muted">{t.voipBody}</p>
+          <p className="text-[15px] font-medium">{guide.manual.title}</p>
+          <p className="mt-1.5 text-[14.5px] leading-[1.55] text-muted">{guide.manual.body}</p>
           <ForwardingHelpButton topic="forwarding_voip" variant="button" t={t} />
         </div>
       ) : (
