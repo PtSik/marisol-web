@@ -81,7 +81,7 @@ export function AddSalonForm({
         body: JSON.stringify({ businessName, businessPhone, timezone, vertical, setup }),
       });
       if (res.ok) {
-        window.location.assign("/portal/salons?added=done");
+        window.location.assign("/portal/salons?added=pending");
         return;
       }
     } catch {
@@ -188,10 +188,10 @@ export function AddSalonForm({
           </p>
           <p className="mt-2 max-w-[54ch] text-[15px] leading-[1.55] text-muted">
             {willBillExtra
-              ? `Added to your current subscription and prorated to the days left in this ${
+              ? `After our setup review, it will be added to your current subscription and prorated to the days left in this ${
                   billing === "annual" ? "year" : "month"
                 }. One invoice, one card, one place to cancel.`
-              : "Your plan already covers this location — nothing new is charged."}
+              : "Your plan already covers this location — nothing new is charged. We'll review the setup before activation."}
           </p>
 
           {failed && (

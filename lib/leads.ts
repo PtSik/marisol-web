@@ -2,7 +2,50 @@ import type { Locale } from "@/lib/i18n/dict";
 import type { BusinessBasics, SetupDetails } from "@/lib/onboarding";
 import { type Billing, type Plan, normalizePlan } from "@/lib/plans";
 
-export type LeadStatus = "created" | "paid" | "setup_complete" | "provisioned" | "cancelled";
+export type LeadStatus =
+  | "created"
+  | "paid"
+  | "setup_complete"
+  | "pending_review"
+  | "activating"
+  | "activation_failed"
+  | "provisioned"
+  | "cancellation_pending"
+  | "cancelled";
+
+export const ACTIVATABLE_LEAD_STATUSES: ReadonlySet<LeadStatus> = new Set([
+  "setup_complete",
+  "pending_review",
+  "activation_failed",
+]);
+
+export function checkoutCompletionCanAdvance(status: LeadStatus): boolean {
+  return status === "created";
+}
+
+export function isWaitingForActivation(status: LeadStatus): boolean {
+  return (
+    status === "setup_complete" ||
+    status === "pending_review" ||
+    status === "activating" ||
+    status === "activation_failed"
+  );
+}
+
+export function isDashboardLocked(status: LeadStatus): boolean {
+  return (
+    status === "paid" ||
+    status === "setup_complete" ||
+    status === "pending_review" ||
+    status === "activating" ||
+    status === "activation_failed" ||
+    status === "cancellation_pending"
+  );
+}
+
+export function isCancellationState(status: LeadStatus): boolean {
+  return status === "cancellation_pending" || status === "cancelled";
+}
 
 export interface CheckoutLead {
   id: string;
@@ -21,6 +64,11 @@ export interface CheckoutLead {
      the shop to the owner's existing portal login instead of minting a second one */
   accountId?: string;
   stripeSessionId?: string;
+  checkoutAttempt?: number;
+  /* Resolved Stripe promotion inputs used to decide whether an open Checkout is truly reusable. */
+  checkoutReuseVersion?: 1;
+  checkoutPromotionId?: string;
+  checkoutReferralCode?: string;
   stripeCustomerId?: string;
   stripeSubscriptionId?: string;
   paidAt?: string;
@@ -28,15 +76,62 @@ export interface CheckoutLead {
   setupCompletedAt?: string;
   shopId?: string;
   assignedNumber?: string;
+  twilioNumberSid?: string;
   provisionedAt?: string;
   provisionError?: string;
+  activationStartedAt?: string;
+  activationLockToken?: string;
+  activationFailedAt?: string;
   /* set once the client's address is a Google Cloud test user and the connect link was mailed */
   calendarEmailSentAt?: string;
   deprovisionedAt?: string;
+  cancellationPendingAt?: string;
   /* first past_due notice; keeps every Stripe retry from re-alerting the team */
   pastDueAlertedAt?: string;
   /* referral invite went out on the first paid invoice; every later invoice must stay silent */
   referralEmailSentAt?: string;
+}
+
+export function activationNeedsReconciliation(lead: CheckoutLead): boolean {
+  return Boolean(
+    lead.activationStartedAt ||
+      lead.activationLockToken ||
+      lead.shopId ||
+      lead.assignedNumber ||
+      lead.twilioNumberSid,
+  );
+}
+
+export function checkoutRequestMatchesLead(
+  lead: CheckoutLead,
+  requested: {
+    plan: Plan;
+    billing: Billing;
+    locale: Locale;
+    basics: BusinessBasics;
+    promotionId?: string;
+    referralCode?: string;
+  },
+): boolean {
+  const basicFields: ReadonlyArray<keyof BusinessBasics> = [
+    "vertical",
+    "businessName",
+    "ownerName",
+    "email",
+    "businessPhone",
+    "address",
+    "ownerMobile",
+    "timezone",
+  ];
+  return (
+    lead.checkoutReuseVersion === 1 &&
+    normalizePlan(lead.plan) === requested.plan &&
+    lead.billing === requested.billing &&
+    (lead.locale ?? "en") === requested.locale &&
+    (lead.checkoutPromotionId ?? undefined) === requested.promotionId &&
+    (lead.checkoutReferralCode ?? undefined) === requested.referralCode &&
+    basicFields.every((field) => lead.basics[field] === requested.basics[field])
+  );
 }
 
 export interface CallLead {
@@ -72,7 +167,8 @@ export async function putLeadIdForShop(
   shopId: string,
   leadId: string,
 ): Promise<void> {
-  await kv?.put(shopLeadKey(shopId), leadId).catch(() => {});
+  if (!kv) throw new Error("LEADS_KV is not configured");
+  await kv.put(shopLeadKey(shopId), leadId);
 }
 
 // Reverse index: an account → the lead that carries its subscription. Written when checkout opens,
@@ -97,26 +193,39 @@ export async function putLeadIdForAccount(
   accountId: string,
   leadId: string,
 ): Promise<void> {
-  await kv?.put(accountLeadKey(accountId), leadId).catch(() => {});
+  if (!kv) throw new Error("LEADS_KV is not configured");
+  await kv.put(accountLeadKey(accountId), leadId);
 }
 
 export async function getLead(
   kv: KVNamespace | undefined,
   id: string,
 ): Promise<CheckoutLead | null> {
-  if (!kv) return null;
   try {
-    const lead = await kv.get<CheckoutLead>(leadKey(id), "json");
-    // Leads stored before the four tiers carry "base"/"premium"; every reader wants a current plan.
-    if (lead?.plan) lead.plan = normalizePlan(lead.plan);
-    return lead;
+    return await getLeadStrict(kv, id);
   } catch {
     return null;
   }
 }
 
+// Financial webhooks need to distinguish an absent lead (permanent, acknowledge after alerting)
+// from a KV outage (transient, ask Stripe to retry). UI callers keep using the forgiving wrapper.
+export async function getLeadStrict(
+  kv: KVNamespace | undefined,
+  id: string,
+): Promise<CheckoutLead | null> {
+  if (!kv) throw new Error("LEADS_KV is not configured");
+  const lead = await kv.get<CheckoutLead>(leadKey(id), "json");
+  // Leads stored before the four tiers carry "base"/"premium"; every reader wants a current plan.
+  if (lead?.plan) lead.plan = normalizePlan(lead.plan);
+  return lead;
+}
+
 export async function putLead(kv: KVNamespace | undefined, lead: CheckoutLead): Promise<void> {
-  await kv?.put(leadKey(lead.id), JSON.stringify(lead)).catch(() => {});
+  // A failed financial-state write must fail the request so Stripe/the client can retry. Treating it
+  // as success can create a subscription or Twilio number with no durable lead pointing to it.
+  if (!kv) throw new Error("LEADS_KV is not configured");
+  await kv.put(leadKey(lead.id), JSON.stringify(lead));
 }
 
 export async function listLeads(kv: KVNamespace | undefined): Promise<StoredLead[]> {

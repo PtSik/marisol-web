@@ -13,7 +13,7 @@ import {
   onboardingHref,
   parseLocale,
 } from "@/lib/i18n/dict";
-import { getLead } from "@/lib/leads";
+import { getLead, isCancellationState, isWaitingForActivation } from "@/lib/leads";
 import { VERTICAL_IDS, type Vertical } from "@/lib/onboarding";
 import { TRIAL_DAYS } from "@/lib/plans";
 import { getSession, sessionIdFromCookies } from "@/lib/session";
@@ -244,7 +244,38 @@ export default async function ThanksPage({ searchParams }: ThanksProps) {
     t = getDict(locale).thanks;
   }
 
-  if (lead?.status === "setup_complete" || lead?.status === "provisioned") {
+  if (lead?.status && isCancellationState(lead.status)) {
+    const pending = lead.status === "cancellation_pending";
+    return (
+      <Shell locale={locale} email={email}>
+        <ThanksHeading
+          title={pending ? t.cancellationPendingTitle : t.cancelledTitle}
+          lead={pending ? t.cancellationPendingLead : t.cancelledLead}
+        />
+        <form method="post" action="/api/portal/billing-portal" className="mt-7 text-center">
+          <button
+            type="submit"
+            className="inline-flex min-h-[50px] items-center justify-center rounded-[13px] bg-ink px-7 py-[14px] text-[15px] font-medium text-cream"
+          >
+            {t.cancellationBillingCta}
+          </button>
+        </form>
+        <ContactLine t={t} locale={locale} />
+      </Shell>
+    );
+  }
+
+  if (lead?.status && isWaitingForActivation(lead.status)) {
+    return (
+      <Shell locale={locale} email={email}>
+        <SetupCompleteHeading t={t} />
+        <NextSteps t={t} locale={locale} />
+        <ContactLine t={t} locale={locale} portal />
+      </Shell>
+    );
+  }
+
+  if (lead?.status === "provisioned") {
     return (
       <Shell locale={locale} email={email}>
         <SetupCompleteHeading hasNumber={Boolean(lead.assignedNumber)} t={t} />
@@ -255,6 +286,12 @@ export default async function ThanksPage({ searchParams }: ThanksProps) {
             t={getDict(locale).forwarding}
           />
         )}
+        <a
+          href="/portal"
+          className="mx-auto mt-6 flex min-h-[50px] w-fit items-center justify-center rounded-[13px] bg-ink px-7 py-[14px] text-[15px] font-medium text-cream no-underline"
+        >
+          {t.dashboardCta}
+        </a>
         <NextSteps t={t} locale={locale} />
         <ContactLine t={t} locale={locale} portal />
       </Shell>
@@ -276,9 +313,17 @@ export default async function ThanksPage({ searchParams }: ThanksProps) {
   return (
     <Shell locale={locale} email={email}>
       {conflictName && <ConflictNote name={conflictName} t={t} />}
-      <SetupForm sessionId={session_id} vertical={vertical} locale={locale} />
-      <NextSteps t={t} locale={locale} />
-      <ContactLine t={t} locale={locale} portal />
+      <SetupForm
+        sessionId={session_id}
+        vertical={vertical}
+        locale={locale}
+        completionContent={
+          <>
+            <NextSteps t={t} locale={locale} />
+            <ContactLine t={t} locale={locale} portal />
+          </>
+        }
+      />
     </Shell>
   );
 }

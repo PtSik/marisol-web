@@ -66,6 +66,28 @@ describe("buildShopPayload — notes", () => {
   });
 });
 
+describe("buildShopPayload — launch safety", () => {
+  it("canonicalizes the owner's transfer and alert phone", () => {
+    const l = lead();
+    l.basics.ownerMobile = "+1 (305) 555-0111";
+    const payload = buildShopPayload(l, "+13055550123", AGENTS);
+    expect(payload.escalation_phone).toBe("+13055550111");
+    expect(payload.owner_escalation_phone).toBe("+13055550111");
+  });
+
+  it("creates the shop suspended until provisioning finishes its critical links", () => {
+    expect(buildShopPayload(lead(), "+13055550123", AGENTS).status).toBe("suspended");
+  });
+
+  it("rejects an invalid owner phone before it reaches the voice agent", () => {
+    const l = lead();
+    l.basics.ownerMobile = "555-0111";
+    expect(() => buildShopPayload(l, "+13055550123", AGENTS)).toThrow(
+      "owner mobile is not a valid US phone number",
+    );
+  });
+});
+
 describe("isBusinessBasics — address", () => {
   const basics = (address?: unknown) => ({
     vertical: "barbershop",

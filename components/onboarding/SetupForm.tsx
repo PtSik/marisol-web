@@ -7,13 +7,20 @@ import { SetupCompleteHeading, ThanksHeading } from "@/components/onboarding/Tha
 import { type Locale, getDict, setupErrorMessage } from "@/lib/i18n/dict";
 import { type SetupDetails, type Vertical, defaultSetup, normalizeSetup } from "@/lib/onboarding";
 import { track } from "@/lib/track";
+import type { ReactNode } from "react";
 import { useEffect, useState } from "react";
 
 export function SetupForm({
   sessionId,
   vertical,
   locale,
-}: { sessionId: string; vertical: Vertical; locale: Locale }) {
+  completionContent,
+}: {
+  sessionId: string;
+  vertical: Vertical;
+  locale: Locale;
+  completionContent?: ReactNode;
+}) {
   const dict = getDict(locale);
   const t = dict.setup;
   const [setup, setSetup] = useState<SetupDetails>(() =>
@@ -68,16 +75,19 @@ export function SetupForm({
 
   if (done) {
     return (
-      <output className="block">
-        <SetupCompleteHeading hasNumber={Boolean(assignedNumber)} t={dict.thanks} />
-        {assignedNumber && (
-          <ForwardingCard
-            twilioNumber={assignedNumber}
-            carrier={setup.carrier}
-            t={dict.forwarding}
-          />
-        )}
-      </output>
+      <>
+        <output className="block">
+          <SetupCompleteHeading hasNumber={Boolean(assignedNumber)} t={dict.thanks} />
+          {assignedNumber && (
+            <ForwardingCard
+              twilioNumber={assignedNumber}
+              carrier={setup.carrier}
+              t={dict.forwarding}
+            />
+          )}
+        </output>
+        {completionContent}
+      </>
     );
   }
 

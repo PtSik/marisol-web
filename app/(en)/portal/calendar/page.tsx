@@ -36,8 +36,8 @@ export default async function PortalCalendarPage() {
         )}
         {!connected && (
           <p className="mt-2 text-[15px] leading-[1.55] text-muted">
-            Marisol still takes bookings and confirms them by SMS — connecting your calendar just
-            means you stop copying them across by hand.
+            Marisol still takes bookings — connecting your calendar means your team does not have to
+            copy them across by hand.
           </p>
         )}
 

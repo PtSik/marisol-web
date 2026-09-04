@@ -78,7 +78,7 @@ export const es: Dict = {
     badge: "Español + English · cambia a mitad de llamada",
     title: { before: "Nunca más pierdas ", accent: "una llamada", after: "." },
     subtitle:
-      "Una recepcionista con IA que contesta cada llamada en español o inglés, agenda la cita y manda la confirmación por mensaje — de día o de noche.",
+      "Una recepcionista con IA que contesta cada llamada en español o inglés y agenda la cita — de día o de noche.",
     ctaDemo: "Habla con la recepcionista",
     ctaCall: "Llama a la línea de demo",
     captionKicker: "Una recepción en vivo",
@@ -164,8 +164,8 @@ export const es: Dict = {
         desc: "Encuentra horarios libres, agenda con la persona correcta y mueve las citas — sin dobles reservas, nunca.",
       },
       {
-        title: "Manda confirmaciones por SMS",
-        desc: "Cada cita recibe un mensaje con los detalles y un código para cancelar o reprogramar. Bajan las ausencias.",
+        title: "SMS después de la aprobación",
+        desc: "Activamos los mensajes de citas cuando el salón y el número terminan el registro con los operadores de EE. UU.",
       },
       {
         title: "Conoce tus horarios y servicios",
@@ -223,7 +223,7 @@ export const es: Dict = {
         features: [
           "Contesta llamadas 24/7",
           "Agenda las citas directo en tu calendario",
-          "Confirmaciones por SMS",
+          "Confirmaciones por SMS después de la aprobación del operador",
           "Bilingüe español e inglés — acento de Miami, no de Madrid",
           "Cubre fines de semana y fuera de horario",
           "Resúmenes y transcripciones de cada llamada",
@@ -237,9 +237,9 @@ export const es: Dict = {
         cta: "Prueba de {days} días",
         features: [
           "Todo lo de Basic",
-          "Recordatorios de cita — menos ausencias",
-          "Mensajes para reagendar",
-          "Llamada perdida → mensaje automático en 10 segundos",
+          "Recordatorios de cita después de la aprobación del operador",
+          "Mensajes para reagendar después de la aprobación",
+          "Seguimiento de llamadas perdidas después de la aprobación",
           "Reporte mensual de resultados",
           "Integración con tu calendario",
           "Local adicional: +${price}/mes",
@@ -323,7 +323,7 @@ export const es: Dict = {
       },
       {
         q: "¿Qué recibe el cliente después?",
-        a: "Un mensaje de confirmación con la fecha, la hora, la persona y el servicio — más un código corto para reprogramar o cancelar respondiendo el mensaje o llamando.",
+        a: "La cita se guarda con la fecha, la hora, la persona y el servicio. Las confirmaciones por SMS se activan por separado después de la aprobación del operador en EE. UU.",
         termsLink: null,
       },
       {
@@ -502,7 +502,8 @@ export const es: Dict = {
     calendarGoogle: "Google Calendar",
     calendarGoogleDesc: "Lo conectamos durante la configuración — las citas entran directo ahí.",
     calendarNone: "Sin calendario",
-    calendarNoneDesc: "Nosotros llevamos las citas; tú recibes confirmaciones por mensaje.",
+    calendarNoneDesc:
+      "Nosotros llevamos las citas para que tu equipo pueda darles seguimiento desde el registro.",
     forwardNumber: "Número a desviar",
     forwardNumberHint:
       "El número al que tus clientes llaman hoy — te mandamos el código exacto que hay que marcar.",
@@ -579,6 +580,12 @@ export const es: Dict = {
       "session not paid": "Tu pago aún no se confirma. Espera un minuto e inténtalo de nuevo.",
       "checkout not configured":
         "La configuración no está disponible ahora. Escríbenos y la terminamos.",
+      "setup temporarily unavailable":
+        "No pudimos guardar tu configuración de forma segura. Espera un momento e inténtalo de nuevo.",
+      "subscription cancelled":
+        "Esta suscripción fue cancelada y no puede activarse. Escríbenos si crees que es un error.",
+      "activation needs reconciliation":
+        "Guardamos tu configuración anterior. Nuestro equipo debe revisar el número antes de volver a intentarlo.",
     },
   },
   thanks: {
@@ -595,7 +602,18 @@ export const es: Dict = {
     completeLead:
       "Tu recepcionista quedó configurada con todo lo que nos compartiste. Desvía tu número con los códigos de abajo y empieza a contestar.",
     completeLeadPending:
-      "Estamos configurando a tu recepcionista con todo lo que nos compartiste — tu número y las instrucciones para desviarlo llegan a tu correo en un rato.",
+      "Recibimos tu configuración. Nuestro equipo la está revisando; recibirás tu número y el correo de activación cuando terminemos las comprobaciones.",
+    cancellationPendingTitle: {
+      before: "La suscripción terminó. ",
+      accent: "La limpieza está en curso.",
+    },
+    cancellationPendingLead:
+      "Tu recepcionista ya no se activará. Estamos terminando la limpieza de la cuenta y del número; escríbenos si necesitas ayuda.",
+    cancelledTitle: { before: "La suscripción terminó. ", accent: "El servicio está cerrado." },
+    cancelledLead:
+      "Tu recepcionista fue desactivada y liberamos los recursos administrados del servicio.",
+    cancellationBillingCta: "Abrir el portal de facturación",
+    dashboardCta: "Abrir tu panel",
     referralTitle: "¿Conoces a otro dueño?",
     referralBody:
       "Recomiéndalo y recibes $200 en efectivo cuando lleve 30 días pagando — él se lleva un 10% en su primer mes. Tu enlace está en el portal.",
@@ -607,7 +625,7 @@ export const es: Dict = {
       },
       {
         title: "Desvías tu número",
-        desc: "Tu número de Marisol y los códigos exactos aparecen en cuanto termines la configuración — y también te llegan por correo. Toma unos dos minutos.",
+        desc: "Después de la revisión, el correo de activación incluye tu número de Marisol y los códigos exactos para desviarlo. Activarlo toma unos dos minutos.",
       },
       {
         title: "Conectamos tu calendario",

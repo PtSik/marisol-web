@@ -122,11 +122,13 @@ export function buildShopPayload(
 ): Record<string, unknown> {
   const { basics, setup } = lead;
   if (!setup) throw new Error("lead has no setup details");
+  const ownerMobile = toUsE164(basics.ownerMobile);
+  if (!ownerMobile) throw new Error("owner mobile is not a valid US phone number");
   const payload: Record<string, unknown> = {
     name: basics.businessName,
     twilio_number: twilioNumber,
-    escalation_phone: basics.ownerMobile,
-    owner_escalation_phone: basics.ownerMobile,
+    escalation_phone: ownerMobile,
+    owner_escalation_phone: ownerMobile,
     owner_email: basics.email,
     // Last gate before the shop row: whatever the lead carries, the agent gets a zone the portal
     // can also render, so its setup stays editable.
@@ -141,7 +143,9 @@ export function buildShopPayload(
     address: basics.address?.trim() || null,
     notes: setup.notes.trim() || null,
     integration: "none",
-    status: "active",
+    // The shop is not callable until every critical account/linking step succeeds below. The
+    // voice-agent launch guard only serves active shops; a failed provisioning run stays suspended.
+    status: "suspended",
     reminders_enabled: normalizePlan(lead.plan) !== "basic",
     // Which language the agent opens in. The client's explicit pick wins; otherwise we inherit
     // the funnel they arrived through, so an /es lead gets a Spanish-first agent by default.
@@ -213,13 +217,22 @@ export interface ProvisionResult {
   ok: boolean;
   shopId?: string;
   number?: string;
+  numberSid?: string;
+  referralCode?: string;
   reason?: string;
+  cleanupComplete?: boolean;
+}
+
+export interface ProvisioningCheckpoint {
+  number: string;
+  numberSid?: string;
+  shopId?: string;
 }
 
 // The first salon of an account: attach it to the login the client already has (created at
 // registration) and mint its referral promo code. Returns the account id the shop should link to,
-// or undefined if the account couldn't be created — the shop stays live regardless, so failures
-// alert rather than roll back.
+// or undefined if the account couldn't be linked. Provisioning treats that as critical and rolls
+// the suspended shop back before it can receive calls.
 async function resolveFirstSalonAccount(
   env: ProvisioningEnv,
   lead: CheckoutLead,
@@ -265,18 +278,47 @@ async function resolveFirstSalonAccount(
 export async function provisionLead(
   env: ProvisioningEnv,
   lead: CheckoutLead,
+  options: {
+    sendWelcome?: boolean;
+    checkpoint?: (resources: ProvisioningCheckpoint) => Promise<void>;
+  } = {},
 ): Promise<ProvisionResult> {
-  const clientNumber = lead.setup?.forwardNumber ?? lead.basics.businessPhone;
-  const areaCode = usAreaCode(clientNumber);
-  if (!areaCode) {
-    await sendProvisionAlert(env, lead, "cannot determine US area code from forwarding number");
-    return { ok: false, reason: "invalid area code" };
+  const clientNumber = toUsE164(lead.setup?.forwardNumber ?? lead.basics.businessPhone);
+  const ownerMobile = toUsE164(lead.basics.ownerMobile);
+  const areaCode = clientNumber ? usAreaCode(clientNumber) : null;
+  if (!clientNumber || !areaCode || !ownerMobile) {
+    const reason = !ownerMobile ? "invalid owner mobile" : "invalid forwarding number";
+    await sendProvisionAlert(env, lead, reason);
+    return { ok: false, reason, cleanupComplete: true };
   }
+  if (!env.VOICE_AGENT_API_URL || !env.ADMIN_API_KEY) {
+    await sendProvisionAlert(env, lead, "voice-agent API is not configured");
+    return {
+      ok: false,
+      reason: "voice-agent API is not configured",
+      cleanupComplete: true,
+    };
+  }
+  const agentId = lead.basics.vertical === "grooming" ? env.GROOMING_AGENT_ID : env.BARBER_AGENT_ID;
+  if (!agentId) {
+    await sendProvisionAlert(env, lead, `agent id is not configured for ${lead.basics.vertical}`);
+    return {
+      ok: false,
+      reason: `agent id is not configured for ${lead.basics.vertical}`,
+      cleanupComplete: true,
+    };
+  }
+  // Persist only canonical values into the operational payload. Existing leads can still contain
+  // friendly formatting; activation normalises them at the side-effect boundary.
+  lead.basics.ownerMobile = ownerMobile;
+  if (lead.setup) lead.setup.forwardNumber = clientNumber;
 
   const voiceUrl = `${env.VOICE_AGENT_API_URL}/twilio/inbound`;
   const bought = await buyLocalNumber(
     env,
-    { areaCode, nearNumber: toUsE164(clientNumber) ?? undefined },
+    // Assisted launch fails closed when the requested area code has no inventory. A human can agree
+    // a neighbouring code with the owner; the worker must never silently buy a different state.
+    { areaCode },
     voiceUrl,
   );
   if (!bought) {
@@ -285,20 +327,44 @@ export async function provisionLead(
       lead,
       `no US local number available (tried area code ${areaCode})`,
     );
-    return { ok: false, reason: "number purchase failed" };
+    return { ok: false, reason: "number purchase failed", cleanupComplete: true };
   }
 
+  if ("uncertain" in bought) {
+    await sendProvisionAlert(env, lead, `${bought.reason}; Twilio ownership needs reconciliation`);
+    return {
+      ok: false,
+      reason: `${bought.reason}; Twilio ownership needs reconciliation`,
+      cleanupComplete: false,
+      number: bought.number,
+      numberSid: bought.sid,
+    };
+  }
+
+  let shopId: string | undefined;
   try {
+    // Persist the paid resource before creating anything else. If the worker stops between steps,
+    // Stripe cancellation and the admin reconciliation path can still find and release the number.
+    await options.checkpoint?.({ number: bought.number, numberSid: bought.sid });
     const payload = buildShopPayload(lead, bought.number, {
       grooming: env.GROOMING_AGENT_ID,
       barber: env.BARBER_AGENT_ID,
     });
     const shop = await createShop(env, payload);
     if (!shop) {
-      await releaseTwilioNumber(env, bought.sid);
+      const released = await releaseTwilioNumber(env, bought.sid);
       await sendProvisionAlert(env, lead, "admin POST /shops failed");
-      return { ok: false, reason: "admin POST /shops failed" };
+      return {
+        ok: false,
+        reason: "admin POST /shops failed",
+        cleanupComplete: released,
+        ...(released ? {} : { number: bought.number, numberSid: bought.sid }),
+      };
     }
+    shopId = shop.id;
+    // The shop starts suspended. Checkpoint its id before linking or activation so no crash can
+    // leave a callable orphan that the lead/webhook does not know how to suspend.
+    await options.checkpoint?.({ number: bought.number, numberSid: bought.sid, shopId: shop.id });
     // The portal resolves a salon that isn't the account's first one through this index.
     await putLeadIdForShop(env.LEADS_KV, shop.id, lead.id);
     // An additional location joins the account that already owns this owner's other salons: never
@@ -308,58 +374,125 @@ export async function provisionLead(
       ? undefined
       : await resolveFirstSalonAccount(env, lead, shop.id);
     const accountId = lead.additionalLocation ? lead.accountId : account?.id;
+    if (!accountId) throw new Error("portal account link failed");
 
     // shops.account_id is the authority for "these salons are the same person" — the portal reads
     // it to list and switch between them, so every provisioned shop gets linked.
-    if (accountId) await patchShop(env, shop.id, { account_id: accountId });
+    if (!(await patchShop(env, shop.id, { account_id: accountId }))) {
+      throw new Error("shop account link failed");
+    }
+    if (!(await patchShop(env, shop.id, { status: "active" }))) {
+      throw new Error("shop activation failed");
+    }
 
-    const welcomed = await sendClientWelcome(env, {
-      email: lead.basics.email,
-      businessName: lead.basics.businessName,
-      ownerName: lead.basics.ownerName,
-      twilioNumber: bought.number,
-      carrier: lead.setup?.carrier,
-      // An additional location's owner already got their link with the first salon.
-      referralCode: account?.referral_code,
-    });
-    // The shop is live either way, so this is an alert rather than a rollback — the client just
-    // never learned their number.
-    if (!welcomed) {
-      await notifyTeam(env, `📪 Welcome email failed: ${lead.basics.businessName}`, {
-        email: lead.basics.email,
+    if (options.sendWelcome !== false) {
+      await sendProvisionedWelcome(env, lead, {
         number: bought.number,
         shopId: shop.id,
+        referralCode: account?.referral_code,
       });
     }
-    return { ok: true, shopId: shop.id, number: bought.number };
+    return {
+      ok: true,
+      shopId: shop.id,
+      number: bought.number,
+      numberSid: bought.sid,
+      referralCode: account?.referral_code,
+    };
   } catch (err) {
-    await releaseTwilioNumber(env, bought.sid);
-    await sendProvisionAlert(env, lead, err instanceof Error ? err.message : "provisioning error");
-    return { ok: false, reason: "provisioning error" };
+    const reason = err instanceof Error ? err.message : "provisioning error";
+    const [released, cancelledShop] = await Promise.all([
+      releaseTwilioNumber(env, bought.sid),
+      shopId ? patchShop(env, shopId, { status: "cancelled" }) : Promise.resolve(true),
+    ]);
+    await sendProvisionAlert(
+      env,
+      lead,
+      released && cancelledShop ? reason : `${reason}; automatic cleanup needs review`,
+    );
+    return {
+      ok: false,
+      reason: released && cancelledShop ? reason : `${reason}; cleanup needs review`,
+      cleanupComplete: released && cancelledShop,
+      ...(!released || !cancelledShop
+        ? { shopId, number: bought.number, numberSid: bought.sid }
+        : {}),
+    };
   }
+}
+
+export async function sendProvisionedWelcome(
+  env: ProvisioningEnv,
+  lead: CheckoutLead,
+  provisioned: { number?: string; shopId?: string; referralCode?: string },
+): Promise<boolean> {
+  if (!provisioned.number) return false;
+  const welcomed = await sendClientWelcome(env, {
+    email: lead.basics.email,
+    businessName: lead.basics.businessName,
+    ownerName: lead.basics.ownerName,
+    twilioNumber: provisioned.number,
+    carrier: lead.setup?.carrier,
+    referralCode: provisioned.referralCode,
+  });
+  // The shop is live either way, so this is an alert rather than a rollback — the client just
+  // never learned their number.
+  if (!welcomed) {
+    await notifyTeam(env, `📪 Welcome email failed: ${lead.basics.businessName}`, {
+      email: lead.basics.email,
+      number: provisioned.number,
+      shopId: provisioned.shopId,
+    });
+  }
+  return welcomed;
 }
 
 export interface DeprovisionResult {
   releasedNumber: boolean;
   suspendedShop: boolean;
+  cancelledShop: boolean;
+  complete: boolean;
+}
+
+async function releaseLeadNumber(
+  env: ProvisioningEnv,
+  phoneNumber: string | undefined,
+  storedSid?: string,
+): Promise<boolean> {
+  if (!phoneNumber) return true;
+  try {
+    const sid = storedSid ?? (await lookupNumberSid(env, phoneNumber));
+    // A successful lookup with no row means the number has already been released.
+    return sid ? await releaseTwilioNumber(env, sid) : true;
+  } catch {
+    return false;
+  }
 }
 
 export async function deprovisionLead(
   env: ProvisioningEnv,
   lead: CheckoutLead,
 ): Promise<DeprovisionResult> {
-  let releasedNumber = false;
-  if (lead.assignedNumber) {
-    const sid = await lookupNumberSid(env, lead.assignedNumber);
-    if (sid) {
-      await releaseTwilioNumber(env, sid);
-      releasedNumber = true;
-    }
-  }
+  // Suspend service first. If Twilio is temporarily down the number remains attached to us, but an
+  // active-only inbound gate prevents the cancelled client from continuing to use the agent.
   const suspendedShop = lead.shopId
-    ? await patchShop(env, lead.shopId, { status: "cancelled" })
+    ? await patchShop(env, lead.shopId, { status: "suspended" })
+    : true;
+  // Never hand the phone number back while the shop may still be active. The voice worker's status
+  // gate only protects us after this PATCH is confirmed.
+  const releasedNumber = suspendedShop
+    ? await releaseLeadNumber(env, lead.assignedNumber, lead.twilioNumberSid)
     : false;
-  return { releasedNumber, suspendedShop };
+  const cancelledShop =
+    suspendedShop && releasedNumber && lead.shopId
+      ? await patchShop(env, lead.shopId, { status: "cancelled" })
+      : !lead.shopId;
+  return {
+    releasedNumber,
+    suspendedShop,
+    cancelledShop,
+    complete: releasedNumber && cancelledShop,
+  };
 }
 
 // Tear down a salon we know only as a shop row — a location whose lead we can't resolve (its
@@ -370,14 +503,14 @@ export async function deprovisionShop(
   shopId: string,
   twilioNumber?: string,
 ): Promise<DeprovisionResult> {
-  let releasedNumber = false;
-  if (twilioNumber) {
-    const sid = await lookupNumberSid(env, twilioNumber);
-    if (sid) {
-      await releaseTwilioNumber(env, sid);
-      releasedNumber = true;
-    }
-  }
-  const suspendedShop = await patchShop(env, shopId, { status: "cancelled" });
-  return { releasedNumber, suspendedShop };
+  const suspendedShop = await patchShop(env, shopId, { status: "suspended" });
+  const releasedNumber = suspendedShop ? await releaseLeadNumber(env, twilioNumber) : false;
+  const cancelledShop =
+    suspendedShop && releasedNumber ? await patchShop(env, shopId, { status: "cancelled" }) : false;
+  return {
+    releasedNumber,
+    suspendedShop,
+    cancelledShop,
+    complete: releasedNumber && cancelledShop,
+  };
 }

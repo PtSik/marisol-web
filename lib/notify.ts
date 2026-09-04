@@ -285,7 +285,7 @@ export async function sendClientWelcome(env: NotifyEnv, w: ClientWelcome): Promi
   <p style="font-size:16px;font-weight:600;margin:24px 0 4px">1. Forward your calls</p>
   <div style="font-size:15px">${forwardInstructions(w.carrier, w.twilioNumber)}</div>
   <p style="font-size:16px;font-weight:600;margin:24px 0 4px">2. Your calendar comes next</p>
-  <div style="font-size:15px"><p style="margin:0">We'll email you a one-click link to connect your Google Calendar shortly. Until then Marisol still answers every call, takes the details, and texts them to you.</p></div>
+  <div style="font-size:15px"><p style="margin:0">We'll email you a one-click link to connect your Google Calendar shortly. Until then Marisol can answer calls and collect the details for your team to follow up.</p></div>
   ${referralBlock(w.referralCode)}
   ${portalFooter()}
   <p style="font-size:15px;margin:24px 0 0">Questions? Just reply — we're here to help.</p>

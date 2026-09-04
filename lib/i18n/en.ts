@@ -75,7 +75,7 @@ export const en = {
     badge: "English + Español · switches mid-call",
     title: { before: "Never miss ", accent: "a call", after: " again." },
     subtitle:
-      "A warm AI receptionist that answers every call in English or Spanish, books the appointment, and texts the confirmation — day or night.",
+      "A warm AI receptionist that answers every call in English or Spanish and books the appointment — day or night.",
     ctaDemo: "Talk to the receptionist",
     ctaCall: "Call the demo line",
     captionKicker: "A live front desk",
@@ -160,8 +160,8 @@ export const en = {
         desc: "Finds open slots, books the right staff, and moves appointments — no double-bookings, ever.",
       },
       {
-        title: "Sends SMS confirmations",
-        desc: "Every booking gets a text with the details and a code to cancel or reschedule. No-shows drop.",
+        title: "SMS confirmations after approval",
+        desc: "We activate appointment texts after the salon and number complete US carrier registration.",
       },
       {
         title: "Knows your hours & services",
@@ -218,7 +218,7 @@ export const en = {
         features: [
           "24/7 call answering",
           "Appointment booking straight into your calendar",
-          "SMS confirmations",
+          "SMS confirmations after carrier approval",
           "Bilingual English & Spanish — Miami accent, not Madrid",
           "Full after-hours and weekend coverage",
           "Call summaries & transcripts",
@@ -232,9 +232,9 @@ export const en = {
         cta: "Start {days}-day trial",
         features: [
           "Everything in Basic",
-          "Appointment reminders — fewer no-shows",
-          "Rescheduling messages",
-          "Missed call → auto-text in 10 seconds",
+          "Carrier-approved appointment reminders",
+          "Carrier-approved rescheduling messages",
+          "Carrier-approved missed-call follow-up",
           "Monthly results report",
           "Calendar integration",
           "Additional location: +${price}/mo",
@@ -318,7 +318,7 @@ export const en = {
       },
       {
         q: "What does the customer get afterward?",
-        a: "A confirmation text with the date, time, staff, and service — plus a short code they can use to reschedule or cancel by replying or calling back.",
+        a: "The appointment is saved with its date, time, staff, and service. SMS confirmations are activated separately after US carrier approval.",
         termsLink: null,
       },
       {
@@ -497,7 +497,8 @@ export const en = {
     calendarGoogle: "Google Calendar",
     calendarGoogleDesc: "We connect it during setup — bookings land straight in it.",
     calendarNone: "No calendar",
-    calendarNoneDesc: "We track bookings for you; you get SMS confirmations.",
+    calendarNoneDesc:
+      "We track bookings for you so your team can follow up from the appointment record.",
     forwardNumber: "Number to forward",
     forwardNumberHint:
       "The number your customers call today — we'll send you the exact code to dial.",
@@ -573,6 +574,12 @@ export const en = {
       "not your checkout": "This setup belongs to a different account. Sign out and sign back in.",
       "session not paid": "Your payment hasn't confirmed yet. Give it a minute and try again.",
       "checkout not configured": "Setup isn't available right now. Email us and we'll finish it.",
+      "setup temporarily unavailable":
+        "We couldn't safely save your setup just now. Wait a moment and try again.",
+      "subscription cancelled":
+        "This subscription has been cancelled and cannot be activated. Email us if that looks wrong.",
+      "activation needs reconciliation":
+        "We saved your previous setup. Our team needs to check the phone number before anything can be retried.",
     },
   },
   thanks: {
@@ -589,7 +596,15 @@ export const en = {
     completeLead:
       "Your receptionist is configured with everything you shared. Forward your number using the codes below and she starts answering.",
     completeLeadPending:
-      "Your receptionist is being configured with everything you shared — your number and forwarding instructions land in your inbox shortly.",
+      "We received your setup. Our team is reviewing it now; your number and activation email will arrive after the checks are complete.",
+    cancellationPendingTitle: { before: "Subscription ended. ", accent: "Cleanup is in progress." },
+    cancellationPendingLead:
+      "Your receptionist is no longer being activated. We're finishing the account and phone-number cleanup now; contact us if you need help.",
+    cancelledTitle: { before: "Subscription ended. ", accent: "Your service is closed." },
+    cancelledLead:
+      "Your receptionist has been deactivated and its managed resources have been released.",
+    cancellationBillingCta: "Open billing portal",
+    dashboardCta: "Open your dashboard",
     referralTitle: "Know another shop owner?",
     referralBody:
       "Refer them and you get $200 in cash once they've paid for 30 days — they get 10% off their first month. Your link is in the portal.",
@@ -601,7 +616,7 @@ export const en = {
       },
       {
         title: "You forward your number",
-        desc: "Your Marisol number and the exact dial codes appear the moment you finish setup — and land in your inbox too. Takes about two minutes.",
+        desc: "After our review, your activation email includes your Marisol number and the exact forwarding codes. It takes about two minutes to turn on.",
       },
       {
         title: "Your calendar connects",

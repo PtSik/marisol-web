@@ -18,6 +18,10 @@ const NOTICE: Record<string, { tone: "good" | "warn"; text: string }> = {
 };
 const ADDED: Record<string, { tone: "good" | "warn"; text: string }> = {
   done: { tone: "good", text: "Your new salon is live — pick it from the salon switcher up top." },
+  pending: {
+    tone: "good",
+    text: "Setup received. We'll review this location, then email you as soon as it is active.",
+  },
 };
 
 function SalonRow({ shop, primary }: { shop: Shop; primary: boolean }) {

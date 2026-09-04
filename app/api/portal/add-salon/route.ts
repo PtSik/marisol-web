@@ -10,24 +10,15 @@ import {
   type Vertical,
   validateSetupPayload,
 } from "@/lib/onboarding";
-import { type Billing, canAddLocation, extraLocationCount, normalizePlan } from "@/lib/plans";
-import { type PortalEnv, listAccountShops } from "@/lib/portalApi";
-import { provisionLead } from "@/lib/provisioning";
+import { type Billing, canAddLocation, normalizePlan } from "@/lib/plans";
+import type { PortalEnv } from "@/lib/portalApi";
 import { overRateLimit } from "@/lib/rateLimit";
 import { getSession, sessionIdFromCookies } from "@/lib/session";
-import { UPGRADABLE_STATUSES, getSubscription, setSubscriptionExtraLocations } from "@/lib/stripe";
+import { UPGRADABLE_STATUSES, getSubscription } from "@/lib/stripe";
 
 export const dynamic = "force-dynamic";
 
-interface AddSalonEnv extends PortalEnv {
-  STRIPE_PRICE_EXTRA_LOCATION_MONTHLY?: string;
-  STRIPE_PRICE_EXTRA_LOCATION_ANNUAL?: string;
-  GROOMING_AGENT_ID?: string;
-  BARBER_AGENT_ID?: string;
-  TWILIO_ACCOUNT_SID?: string;
-  TWILIO_AUTH_TOKEN?: string;
-  STRIPE_REFERRAL_COUPON?: string;
-}
+type AddSalonEnv = PortalEnv;
 
 interface AddSalonRequest {
   businessName?: string;
@@ -110,7 +101,7 @@ export async function POST(request: Request): Promise<Response> {
     billing,
     locale: primary.locale,
     basics,
-    status: "paid",
+    status: "pending_review",
     additionalLocation: true,
     accountId: session.accountId,
     stripeCustomerId: primary.stripeCustomerId,
@@ -120,49 +111,9 @@ export async function POST(request: Request): Promise<Response> {
     setupCompletedAt: now,
   };
   await putLead(cfEnv.LEADS_KV, lead);
+  await notifyTeam(cfEnv, `ADDITIONAL LOCATION — review setup: ${basics.businessName}`, lead);
 
-  // Provision before charging: a location we couldn't stand up (no US number in the area code)
-  // must not leave the owner paying for a dead line. The charge only lands once the salon is live.
-  const result = await provisionLead(cfEnv, lead);
-  if (!result.ok) {
-    lead.provisionError = result.reason;
-    await putLead(cfEnv.LEADS_KV, lead);
-    return Response.json({ error: "could not provision", reason: result.reason }, { status: 502 });
-  }
-
-  lead.status = "provisioned";
-  lead.shopId = result.shopId;
-  lead.assignedNumber = result.number;
-  lead.provisionedAt = new Date().toISOString();
-  await putLead(cfEnv.LEADS_KV, lead);
-
-  // Bill the extra locations by an absolute count: re-derive how many of the account's live salons
-  // sit past the plan limit and set the line item to that, prorated. Self-correcting on retries.
-  const activeSalons = (await listAccountShops(cfEnv, session.accountId)).filter(
-    (s) => s.status !== "cancelled",
-  ).length;
-  const quantity = extraLocationCount(plan, activeSalons);
-  const { STRIPE_PRICE_EXTRA_LOCATION_MONTHLY, STRIPE_PRICE_EXTRA_LOCATION_ANNUAL } = cfEnv;
-  const billed =
-    STRIPE_PRICE_EXTRA_LOCATION_MONTHLY && STRIPE_PRICE_EXTRA_LOCATION_ANNUAL
-      ? await setSubscriptionExtraLocations(cfEnv.STRIPE_SECRET_KEY, {
-          subscription,
-          monthlyPriceId: STRIPE_PRICE_EXTRA_LOCATION_MONTHLY,
-          annualPriceId: STRIPE_PRICE_EXTRA_LOCATION_ANNUAL,
-          quantity,
-        })
-      : false;
-
-  // The salon is live; a failed charge is a back-office fix, not a reason to tear down a working
-  // receptionist. Tell the team so billing gets reconciled by hand.
-  if (!billed) {
-    await notifyTeam(cfEnv, `💳 Extra-location charge failed — ${basics.businessName}`, {
-      accountId: session.accountId,
-      shopId: result.shopId,
-      subscription: primary.stripeSubscriptionId,
-      quantity,
-    });
-  }
-
-  return Response.json({ ok: true, number: result.number, billed });
+  // Additional locations follow the same assisted-launch gate as a first salon. Provisioning and
+  // any prorated location charge happen only after an admin has reviewed this exact setup.
+  return Response.json({ ok: true, pendingReview: true });
 }

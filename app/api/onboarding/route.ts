@@ -2,6 +2,8 @@ import { env } from "cloudflare:workers";
 import { type Locale, parseLocale } from "@/lib/i18n/dict";
 import {
   type CheckoutLead,
+  activationNeedsReconciliation,
+  checkoutRequestMatchesLead,
   getLead,
   getLeadIdForAccount,
   putLead,
@@ -10,7 +12,6 @@ import {
 import { notifyTeam } from "@/lib/notify";
 import {
   type BusinessBasics,
-  DEFAULT_TIMEZONE,
   EMAIL_RE,
   PHONE_RE,
   type SetupDetails,
@@ -26,19 +27,19 @@ import {
   TRIAL_DAYS,
   normalizePlan,
 } from "@/lib/plans";
-import { listAccountShops } from "@/lib/portalApi";
-import { provisionLead } from "@/lib/provisioning";
+import { listAccountShopsStrict } from "@/lib/portalApi";
 import { overRateLimit } from "@/lib/rateLimit";
 import { REF_CODE_RE, refCodeFromCookie } from "@/lib/referrals";
-import { getSession, refreshSession, sessionIdFromCookies } from "@/lib/session";
+import { getSession, sessionIdFromCookies } from "@/lib/session";
 import { APP_URL } from "@/lib/site";
 import {
   type PlanPriceEnv,
   SESSION_ID_RE,
-  type StripeCheckoutSession,
   checkoutSettled,
+  expireCheckoutSession,
   findPromotionCode,
   getCheckoutSession,
+  lookupCheckoutSession,
   planPriceId,
 } from "@/lib/stripe";
 
@@ -121,34 +122,6 @@ function validateBasics(basics: unknown): string | null {
   return null;
 }
 
-function reconstructLead(leadId: string, session: StripeCheckoutSession): CheckoutLead {
-  const meta = session.metadata ?? {};
-  const vertical = VERTICAL_IDS.includes(meta.vertical as never)
-    ? (meta.vertical as CheckoutLead["basics"]["vertical"])
-    : "barbershop";
-  return {
-    id: leadId,
-    createdAt: new Date().toISOString(),
-    intent: "checkout",
-    plan: normalizePlan(meta.plan),
-    billing: meta.billing === "annual" ? "annual" : "monthly",
-    locale: parseLocale(meta.locale),
-    basics: {
-      vertical,
-      businessName: meta.business_name ?? "",
-      ownerName: meta.owner_name ?? "",
-      email: session.customer_details?.email ?? session.customer_email ?? "",
-      businessPhone: meta.business_phone ?? "",
-      ownerMobile: "",
-      // Stripe metadata never carried the zone; the rebuilt lead takes the default rather than an
-      // empty string the agent would read as "no opening hours anywhere".
-      timezone: DEFAULT_TIMEZONE,
-    },
-    status: "created",
-    accountId: meta.account_id,
-  };
-}
-
 interface ResolvedCode {
   code: string;
   promoId: string;
@@ -213,16 +186,69 @@ async function handleCheckout(
       { status: 409 },
     );
   }
+
+  const { STRIPE_SECRET_KEY } = cfEnv;
+  const priceId = planPriceId(cfEnv, plan, billing);
+  if (!STRIPE_SECRET_KEY || !priceId) {
+    return Response.json({ error: "checkout not configured" }, { status: 501 });
+  }
+
+  const { discount, attribution } = await resolveCodes(cfEnv, request, codes);
+  let checkoutAttempt = existingLead?.checkoutAttempt ?? 1;
+  if (existingLead?.status === "created" && existingLead.stripeSessionId) {
+    const lookup = await lookupCheckoutSession(STRIPE_SECRET_KEY, existingLead.stripeSessionId);
+    if (lookup.kind === "unavailable") {
+      return Response.json({ error: "could not verify previous checkout" }, { status: 503 });
+    }
+    if (lookup.kind === "missing") {
+      // A stale id from another Stripe mode/key can never become payable in this environment.
+      // Move the idempotency key forward and replace it instead of trapping the account forever.
+      checkoutAttempt += 1;
+    } else if (lookup.session.status === "complete") {
+      return Response.json(
+        { error: "this account already has a subscription", sessionId: lookup.session.id },
+        { status: 409 },
+      );
+    } else if (lookup.session.status === "open") {
+      const reusable =
+        Boolean(lookup.session.url) &&
+        checkoutRequestMatchesLead(existingLead, {
+          plan,
+          billing,
+          locale,
+          basics,
+          promotionId: discount?.promoId,
+          referralCode: attribution?.code,
+        });
+      if (reusable) return Response.json({ url: lookup.session.url });
+
+      // The customer changed a price-, discount- or business-defining input. The old Checkout must
+      // stop being payable before a replacement is created, otherwise both links can subscribe.
+      if (!(await expireCheckoutSession(STRIPE_SECRET_KEY, existingLead.stripeSessionId))) {
+        return Response.json({ error: "could not replace previous checkout" }, { status: 503 });
+      }
+      checkoutAttempt += 1;
+    } else if (lookup.session.status === "expired") {
+      checkoutAttempt += 1;
+    } else {
+      return Response.json({ error: "previous checkout is not reusable" }, { status: 409 });
+    }
+  }
   // Backstop for accounts that subscribed before the index above existed: a live salon means the
   // subscription is already running, and a second one belongs on it as an extra location.
-  const owned = await listAccountShops(cfEnv, accountId);
+  const owned = await listAccountShopsStrict(cfEnv, accountId);
+  if (!owned) {
+    return Response.json({ error: "could not verify existing salons" }, { status: 503 });
+  }
   if (owned.some((s) => s.status !== "cancelled")) {
     return Response.json({ error: "this account already has a salon" }, { status: 409 });
   }
 
   const lead: CheckoutLead = {
-    id: crypto.randomUUID(),
-    createdAt: new Date().toISOString(),
+    ...(existingLead?.status === "created" ? existingLead : {}),
+    id: existingLead?.status === "created" ? existingLead.id : crypto.randomUUID(),
+    createdAt:
+      existingLead?.status === "created" ? existingLead.createdAt : new Date().toISOString(),
     intent: "checkout",
     plan,
     billing,
@@ -230,6 +256,14 @@ async function handleCheckout(
     basics,
     status: "created",
     accountId,
+    checkoutAttempt,
+    checkoutReuseVersion: 1,
+    checkoutPromotionId: discount?.promoId,
+    checkoutReferralCode: attribution?.code,
+    // An expired session must not survive into the durable retry record. If Stripe creates the new
+    // session but our response or final KV write is lost, the next request reuses this same attempt
+    // number/idempotency key instead of creating another subscription-capable session.
+    stripeSessionId: undefined,
   };
 
   await Promise.all([
@@ -237,12 +271,6 @@ async function handleCheckout(
     putLeadIdForAccount(cfEnv.LEADS_KV, accountId, lead.id),
     notifyTeam(cfEnv, `New onboarding lead: ${basics.businessName}`, lead),
   ]);
-
-  const { STRIPE_SECRET_KEY } = cfEnv;
-  const priceId = planPriceId(cfEnv, plan, billing);
-  if (!STRIPE_SECRET_KEY || !priceId) {
-    return Response.json({ error: "checkout not configured" }, { status: 501 });
-  }
 
   const origin = new URL(request.url).origin;
   const langQuery = locale === "es" ? "&lang=es" : "";
@@ -268,7 +296,6 @@ async function handleCheckout(
     "subscription_data[trial_period_days]": String(TRIAL_DAYS),
   });
 
-  const { discount, attribution } = await resolveCodes(cfEnv, request, codes);
   if (discount) params.set("discounts[0][promotion_code]", discount.promoId);
   if (attribution) params.set("metadata[referral_code]", attribution.code);
 
@@ -277,6 +304,7 @@ async function handleCheckout(
     headers: {
       Authorization: `Bearer ${STRIPE_SECRET_KEY}`,
       "Content-Type": "application/x-www-form-urlencoded",
+      "Idempotency-Key": `checkout:${lead.id}:${checkoutAttempt}`,
     },
     body: params,
   });
@@ -333,8 +361,13 @@ async function handleSetup(
     return Response.json({ error: "unknown session" }, { status: 400 });
   }
 
-  const existing = await getLead(cfEnv.LEADS_KV, leadId);
-  const lead = existing ?? reconstructLead(leadId, session);
+  const lead = await getLead(cfEnv.LEADS_KV, leadId);
+  // Stripe metadata intentionally does not carry owner mobile, time zone or the complete setup.
+  // Reconstructing a missing KV record used to turn a transient read failure into a live but broken
+  // receptionist. Assisted launch fails closed and lets the client retry instead.
+  if (!lead) {
+    return Response.json({ error: "setup temporarily unavailable" }, { status: 503 });
+  }
 
   if (lead.status === "provisioned") {
     lead.setup = setup;
@@ -342,47 +375,33 @@ async function handleSetup(
     return Response.json({ ok: true, provisioned: true, number: lead.assignedNumber });
   }
 
+  if (lead.status === "activating") {
+    return Response.json({ ok: true, pendingReview: true });
+  }
+  if (lead.status === "cancelled" || lead.status === "cancellation_pending") {
+    return Response.json({ error: "subscription cancelled" }, { status: 409 });
+  }
+  if (lead.status === "activation_failed" && activationNeedsReconciliation(lead)) {
+    return Response.json({ error: "activation needs reconciliation" }, { status: 409 });
+  }
+
+  const shouldNotify = lead.status !== "pending_review";
   lead.setup = setup;
   lead.stripeSessionId = session.id;
   if (typeof session.customer === "string") lead.stripeCustomerId = session.customer;
   if (typeof session.subscription === "string") lead.stripeSubscriptionId = session.subscription;
   if (lead.status === "created") lead.paidAt = lead.paidAt ?? new Date().toISOString();
-  lead.status = "setup_complete";
+  lead.status = "pending_review";
   lead.setupCompletedAt = lead.setupCompletedAt ?? new Date().toISOString();
+  lead.activationFailedAt = undefined;
+  lead.provisionError = undefined;
 
   await putLead(cfEnv.LEADS_KV, lead);
-
-  const result = await provisionLead(cfEnv, lead);
-  if (result.ok) {
-    lead.status = "provisioned";
-    lead.shopId = result.shopId;
-    lead.assignedNumber = result.number;
-    lead.provisionedAt = new Date().toISOString();
-    lead.provisionError = undefined;
-    await Promise.all([
-      putLead(cfEnv.LEADS_KV, lead),
-      notifyTeam(cfEnv, `✅ Provisioned ${lead.basics.businessName} → ${result.number}`, lead),
-    ]);
-    // A client who came through the gate has a session but no shopId yet — back-fill it so the portal
-    // resolves without a re-login. Skip a session tied to a different lead (the conflict case).
-    if (result.shopId) {
-      const portalSessionId = await sessionIdFromCookies();
-      const current = portalSessionId
-        ? await getSession(cfEnv.RATE_LIMIT_KV, portalSessionId)
-        : null;
-      if (portalSessionId && current && (!current.leadId || current.leadId === lead.id)) {
-        await refreshSession(cfEnv.RATE_LIMIT_KV, portalSessionId, {
-          shopId: result.shopId,
-          leadId: lead.id,
-        });
-      }
-    }
-  } else {
-    lead.provisionError = result.reason;
-    await putLead(cfEnv.LEADS_KV, lead);
+  if (shouldNotify) {
+    await notifyTeam(cfEnv, `🔎 Setup ready for review: ${lead.basics.businessName}`, lead);
   }
 
-  return Response.json({ ok: true, provisioned: result.ok, number: result.number });
+  return Response.json({ ok: true, pendingReview: true });
 }
 
 export async function POST(request: Request) {

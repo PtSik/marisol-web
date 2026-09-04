@@ -117,6 +117,16 @@ export async function getShop(env: VoiceAgentEnv, shopId: string): Promise<Shop 
 // The set of salons an account owns — the authority for which shop_id a signed-in client is
 // allowed to act on. Anything not in this list is someone else's, so never honour it.
 export async function listAccountShops(env: VoiceAgentEnv, accountId: string): Promise<Shop[]> {
+  return (await listAccountShopsStrict(env, accountId)) ?? [];
+}
+
+// Financial and teardown flows must distinguish a real empty account from an unavailable API.
+// Collapsing both to [] can acknowledge a Stripe cancellation while additional salons stay live,
+// or incorrectly set the extra-location line item to zero.
+export async function listAccountShopsStrict(
+  env: VoiceAgentEnv,
+  accountId: string,
+): Promise<Shop[] | null> {
   const res = await voiceAgentFetch(env, `/admin/accounts/${accountId}/shops`).catch(() => null);
-  return (await jsonOf<Shop[]>(res, "shops")) ?? [];
+  return await jsonOf<Shop[]>(res, "shops");
 }

@@ -2,8 +2,8 @@ import { env } from "cloudflare:workers";
 import { getLead, getLeadIdForShop, putLead } from "@/lib/leads";
 import { notifyTeam } from "@/lib/notify";
 import { extraLocationCount, normalizePlan } from "@/lib/plans";
-import { type PortalEnv, listAccountShops } from "@/lib/portalApi";
-import { deprovisionLead, patchShop } from "@/lib/provisioning";
+import { type PortalEnv, listAccountShopsStrict } from "@/lib/portalApi";
+import { deprovisionLead, deprovisionShop } from "@/lib/provisioning";
 import { overRateLimit } from "@/lib/rateLimit";
 import { getSession, sessionIdFromCookies } from "@/lib/session";
 import { getSubscription, setSubscriptionExtraLocations } from "@/lib/stripe";
@@ -36,7 +36,8 @@ export async function POST(request: Request): Promise<Response> {
   const form = await request.formData();
   const target = String(form.get("shop_id") ?? "");
 
-  const owned = await listAccountShops(cfEnv, session.accountId);
+  const owned = await listAccountShopsStrict(cfEnv, session.accountId);
+  if (!owned) return back(request, "failed");
   const shop = owned.find((s) => s.id === target);
   // Only a salon the account owns, never its primary one (that's the account's anchor and its
   // whole subscription — cancelling everything is a different, deliberate flow), and never the last
@@ -51,14 +52,18 @@ export async function POST(request: Request): Promise<Response> {
   // number and the cancelled status move together the same way deprovision-on-cancel does.
   const leadId = await getLeadIdForShop(cfEnv.LEADS_KV, target);
   const lead = leadId ? await getLead(cfEnv.LEADS_KV, leadId) : null;
+  let deprovisioned = false;
   if (lead) {
-    await deprovisionLead(cfEnv, lead);
-    lead.status = "cancelled";
-    lead.deprovisionedAt = new Date().toISOString();
+    const result = await deprovisionLead(cfEnv, lead);
+    deprovisioned = result.complete;
+    lead.status = result.complete ? "cancelled" : "cancellation_pending";
+    if (result.complete) lead.deprovisionedAt = new Date().toISOString();
+    else lead.cancellationPendingAt = lead.cancellationPendingAt ?? new Date().toISOString();
     await putLead(cfEnv.LEADS_KV, lead);
   } else {
-    await patchShop(cfEnv, target, { status: "cancelled" });
+    deprovisioned = (await deprovisionShop(cfEnv, target, shop.twilio_number)).complete;
   }
+  if (!deprovisioned) return back(request, "failed");
 
   // Drop the extra-location count by re-deriving it from what's left, prorated back to the client.
   const primary = session.leadId ? await getLead(cfEnv.LEADS_KV, session.leadId) : null;
@@ -75,24 +80,27 @@ export async function POST(request: Request): Promise<Response> {
     );
     // Re-derive from what's actually left rather than assuming activeBefore-1, so a concurrent
     // add or remove can't drift the extra-location quantity off the real salon count.
-    const remaining = (await listAccountShops(cfEnv, session.accountId)).filter(
-      (s) => s.status !== "cancelled",
-    ).length;
-    const quantity = extraLocationCount(normalizePlan(primary.plan), remaining);
-    const billed = subscription
-      ? await setSubscriptionExtraLocations(cfEnv.STRIPE_SECRET_KEY, {
-          subscription,
-          monthlyPriceId: STRIPE_PRICE_EXTRA_LOCATION_MONTHLY,
-          annualPriceId: STRIPE_PRICE_EXTRA_LOCATION_ANNUAL,
-          quantity,
-        })
-      : false;
+    const remainingShops = await listAccountShopsStrict(cfEnv, session.accountId);
+    const remaining = remainingShops?.filter((s) => s.status !== "cancelled").length;
+    const quantity =
+      remaining === undefined
+        ? undefined
+        : extraLocationCount(normalizePlan(primary.plan), remaining);
+    const billed =
+      subscription && quantity !== undefined
+        ? await setSubscriptionExtraLocations(cfEnv.STRIPE_SECRET_KEY, {
+            subscription,
+            monthlyPriceId: STRIPE_PRICE_EXTRA_LOCATION_MONTHLY,
+            annualPriceId: STRIPE_PRICE_EXTRA_LOCATION_ANNUAL,
+            quantity,
+          })
+        : false;
     if (!billed) {
       await notifyTeam(cfEnv, `💳 Extra-location decrement failed — ${shop.name ?? target}`, {
         accountId: session.accountId,
         shopId: target,
         subscription: primary.stripeSubscriptionId,
-        quantity,
+        quantity: quantity ?? "unknown — shop listing failed",
       });
     }
   }

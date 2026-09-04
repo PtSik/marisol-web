@@ -18,6 +18,7 @@ export function planPriceId(env: PlanPriceEnv, plan: Plan, billing: Billing): st
 
 export interface StripeCheckoutSession {
   id: string;
+  url?: string | null;
   status?: string;
   payment_status?: string;
   customer?: string | null;
@@ -26,6 +27,11 @@ export interface StripeCheckoutSession {
   subscription?: string | null;
   metadata?: Record<string, string>;
 }
+
+export type CheckoutSessionLookup =
+  | { kind: "found"; session: StripeCheckoutSession }
+  | { kind: "missing" }
+  | { kind: "unavailable"; status?: number };
 
 // A checkout that starts a free trial completes with `no_payment_required`, so payment_status
 // alone cannot say the client finished. `status: "complete"` is the only value Stripe documents as
@@ -241,10 +247,35 @@ export async function getCheckoutSession(
   secretKey: string,
   sessionId: string,
 ): Promise<StripeCheckoutSession | null> {
+  const result = await lookupCheckoutSession(secretKey, sessionId);
+  return result.kind === "found" ? result.session : null;
+}
+
+export async function lookupCheckoutSession(
+  secretKey: string,
+  sessionId: string,
+): Promise<CheckoutSessionLookup> {
   const res = await fetch(
     `https://api.stripe.com/v1/checkout/sessions/${encodeURIComponent(sessionId)}`,
     { headers: { Authorization: `Bearer ${secretKey}` } },
   ).catch(() => null);
-  if (!res?.ok) return null;
-  return (await res.json()) as StripeCheckoutSession;
+  if (!res) return { kind: "unavailable" };
+  if (res.status === 404) return { kind: "missing" };
+  if (!res.ok) return { kind: "unavailable", status: res.status };
+  const session = (await res.json().catch(() => null)) as StripeCheckoutSession | null;
+  return session?.id ? { kind: "found", session } : { kind: "unavailable", status: res.status };
+}
+
+export async function expireCheckoutSession(
+  secretKey: string,
+  sessionId: string,
+): Promise<boolean> {
+  const res = await fetch(
+    `https://api.stripe.com/v1/checkout/sessions/${encodeURIComponent(sessionId)}/expire`,
+    {
+      method: "POST",
+      headers: { Authorization: `Bearer ${secretKey}` },
+    },
+  ).catch(() => null);
+  return res?.ok ?? false;
 }

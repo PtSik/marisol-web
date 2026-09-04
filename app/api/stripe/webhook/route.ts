@@ -1,7 +1,14 @@
 import { env } from "cloudflare:workers";
-import { type CheckoutLead, getLead, getLeadIdForShop, putLead } from "@/lib/leads";
+import {
+  type CheckoutLead,
+  checkoutCompletionCanAdvance,
+  getLead,
+  getLeadIdForShop,
+  getLeadStrict,
+  putLead,
+} from "@/lib/leads";
 import { notifyTeam } from "@/lib/notify";
-import { type Shop, getShop, listAccountShops } from "@/lib/portalApi";
+import { type Shop, getShop, listAccountShopsStrict } from "@/lib/portalApi";
 import { deprovisionLead, deprovisionShop } from "@/lib/provisioning";
 import {
   type ReferralEnv,
@@ -22,6 +29,8 @@ interface WebhookEnv extends ReferralEnv {
 }
 
 const TOLERANCE_SECONDS = 300;
+
+type CancellationOutcome = "complete" | "retryable" | "unresolvable";
 
 interface StripeEvent {
   type?: string;
@@ -72,6 +81,7 @@ async function signatureValid(
 }
 
 interface StripeSubscription {
+  id?: string;
   status?: string;
   metadata?: { lead_id?: string };
 }
@@ -106,19 +116,32 @@ async function leadForSubscription(
   return lead && lead.status !== "cancelled" ? lead : null;
 }
 
-async function cancelLead(cfEnv: WebhookEnv, lead: CheckoutLead, reason: string): Promise<void> {
+async function cancelLead(cfEnv: WebhookEnv, lead: CheckoutLead, reason: string): Promise<boolean> {
   const result = await deprovisionLead(cfEnv, lead);
-  lead.status = "cancelled";
-  lead.deprovisionedAt = new Date().toISOString();
+  lead.status = result.complete ? "cancelled" : "cancellation_pending";
+  if (result.complete) {
+    lead.deprovisionedAt = new Date().toISOString();
+    lead.cancellationPendingAt = undefined;
+  } else {
+    lead.cancellationPendingAt = lead.cancellationPendingAt ?? new Date().toISOString();
+  }
   await Promise.all([
     putLead(cfEnv.LEADS_KV, lead),
-    notifyTeam(cfEnv, `🚫 ${reason} — deprovisioned ${lead.basics.businessName}`, {
-      shopId: lead.shopId,
-      number: lead.assignedNumber,
-      releasedNumber: result.releasedNumber,
-      suspendedShop: result.suspendedShop,
-    }),
+    notifyTeam(
+      cfEnv,
+      result.complete
+        ? `🚫 ${reason} — deprovisioned ${lead.basics.businessName}`
+        : `🛑 ${reason} — deprovision incomplete for ${lead.basics.businessName}`,
+      {
+        shopId: lead.shopId,
+        number: lead.assignedNumber,
+        releasedNumber: result.releasedNumber,
+        suspendedShop: result.suspendedShop,
+        cancelledShop: result.cancelledShop,
+      },
+    ),
   ]);
+  return result.complete;
 }
 
 async function leadForShop(cfEnv: WebhookEnv, shopId: string): Promise<CheckoutLead | null> {
@@ -126,18 +149,22 @@ async function leadForShop(cfEnv: WebhookEnv, shopId: string): Promise<CheckoutL
   return leadId ? await getLead(cfEnv.LEADS_KV, leadId) : null;
 }
 
-async function cancelOrphanShop(cfEnv: WebhookEnv, shop: Shop, reason: string): Promise<void> {
+async function cancelOrphanShop(cfEnv: WebhookEnv, shop: Shop, reason: string): Promise<boolean> {
   const result = await deprovisionShop(cfEnv, shop.id, shop.twilio_number);
   await notifyTeam(
     cfEnv,
-    `🚫 ${reason} — deprovisioned ${shop.name ?? shop.id} (no lead on file)`,
+    result.complete
+      ? `🚫 ${reason} — deprovisioned ${shop.name ?? shop.id} (no lead on file)`
+      : `🛑 ${reason} — deprovision incomplete for ${shop.name ?? shop.id} (no lead on file)`,
     {
       shopId: shop.id,
       number: shop.twilio_number,
       releasedNumber: result.releasedNumber,
       suspendedShop: result.suspendedShop,
+      cancelledShop: result.cancelledShop,
     },
   );
+  return result.complete;
 }
 
 // One subscription now backs every salon on an account, so cancelling it must tear down all of
@@ -148,10 +175,36 @@ async function cancelSubscriptionSalons(
   cfEnv: WebhookEnv,
   leadId: string | undefined,
   reason: string,
-): Promise<void> {
-  if (!leadId) return;
-  const primary = await getLead(cfEnv.LEADS_KV, leadId);
-  if (!primary) return;
+  subscriptionId?: string,
+): Promise<CancellationOutcome> {
+  if (!leadId) {
+    await notifyTeam(cfEnv, `🛑 ${reason} — Stripe subscription has no lead_id`, {
+      reason,
+      subscriptionId,
+    });
+    // No retry can invent metadata on the delivered Stripe object. Acknowledge after alerting so a
+    // manual/out-of-funnel subscription cannot poison the whole webhook endpoint for days.
+    return "unresolvable";
+  }
+  let primary: CheckoutLead | null;
+  try {
+    primary = await getLeadStrict(cfEnv.LEADS_KV, leadId);
+  } catch (error) {
+    await notifyTeam(cfEnv, `🛑 ${reason} — lead lookup temporarily unavailable`, {
+      leadId,
+      subscriptionId,
+      error: error instanceof Error ? error.message : "KV lookup failed",
+    });
+    return "retryable";
+  }
+  if (!primary) {
+    await notifyTeam(cfEnv, `🛑 ${reason} — Stripe lead no longer exists`, {
+      leadId,
+      subscriptionId,
+    });
+    // A confirmed KV miss is permanent. There is no safe resource mapping to act on automatically.
+    return "unresolvable";
+  }
 
   const accountId =
     primary.accountId ??
@@ -159,23 +212,37 @@ async function cancelSubscriptionSalons(
       ? ((await getShop(cfEnv, primary.shopId))?.account_id ?? undefined)
       : undefined);
   if (!accountId) {
-    if (primary.status !== "cancelled") await cancelLead(cfEnv, primary, reason);
-    return;
+    if (primary.status === "cancelled") return "complete";
+    return (await cancelLead(cfEnv, primary, reason)) ? "complete" : "retryable";
   }
 
-  const shops = (await listAccountShops(cfEnv, accountId)).filter((s) => s.status !== "cancelled");
+  const accountShops = await listAccountShopsStrict(cfEnv, accountId);
+  if (!accountShops) {
+    await notifyTeam(cfEnv, `🛑 ${reason} — could not list all account salons`, {
+      accountId,
+      leadId,
+    });
+    return "retryable";
+  }
+  const shops = accountShops.filter((s) => s.status !== "cancelled");
   let handledPrimary = false;
+  let complete = true;
   for (const shop of shops) {
     if (shop.id === primary.shopId) handledPrimary = true;
     const lead = shop.id === primary.shopId ? primary : await leadForShop(cfEnv, shop.id);
     if (lead) {
-      if (lead.status !== "cancelled") await cancelLead(cfEnv, lead, reason);
+      if (lead.status !== "cancelled") {
+        complete = (await cancelLead(cfEnv, lead, reason)) && complete;
+      }
     } else {
-      await cancelOrphanShop(cfEnv, shop, reason);
+      complete = (await cancelOrphanShop(cfEnv, shop, reason)) && complete;
     }
   }
   // The listing dropped the primary salon (or failed) — never leave the anchor salon live.
-  if (!handledPrimary && primary.status !== "cancelled") await cancelLead(cfEnv, primary, reason);
+  if (!handledPrimary && primary.status !== "cancelled") {
+    complete = (await cancelLead(cfEnv, primary, reason)) && complete;
+  }
+  return complete ? "complete" : "retryable";
 }
 
 export async function POST(request: Request) {
@@ -203,7 +270,9 @@ export async function POST(request: Request) {
     const sub = event.data?.object as StripeSubscription | undefined;
     const leadId = sub?.metadata?.lead_id;
     if (leadId) await voidReferral(cfEnv, leadId);
-    await cancelSubscriptionSalons(cfEnv, leadId, "Cancelled");
+    if ((await cancelSubscriptionSalons(cfEnv, leadId, "Cancelled", sub?.id)) === "retryable") {
+      return Response.json({ error: "deprovision incomplete" }, { status: 500 });
+    }
     return received(cfEnv);
   }
 
@@ -231,7 +300,16 @@ export async function POST(request: Request) {
     }
 
     if (sub.status === "unpaid") {
-      await cancelSubscriptionSalons(cfEnv, sub.metadata?.lead_id, "Unpaid — retries exhausted");
+      if (
+        (await cancelSubscriptionSalons(
+          cfEnv,
+          sub.metadata?.lead_id,
+          "Unpaid — retries exhausted",
+          sub.id,
+        )) === "retryable"
+      ) {
+        return Response.json({ error: "deprovision incomplete" }, { status: 500 });
+      }
       return received(cfEnv);
     }
 
@@ -277,7 +355,7 @@ export async function POST(request: Request) {
   if (!lead) {
     return Response.json({ error: "lead not found" }, { status: 500 });
   }
-  if (lead.status === "paid" || lead.status === "setup_complete") {
+  if (!checkoutCompletionCanAdvance(lead.status)) {
     return received(cfEnv);
   }
 

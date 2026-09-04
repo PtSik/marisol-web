@@ -35,7 +35,7 @@ const STATUS_LABEL: Record<string, string> = {
 };
 
 const UPGRADE_NOTICE: Record<string, string> = {
-  done: "Your new plan is live — SMS reminders are on, and the difference is prorated to this period.",
+  done: "Your new plan is live. We will confirm separately when carrier-approved SMS is enabled.",
   partial:
     "Your new plan is live. One step needs finishing on our side — we're on it and will email you.",
   already: "You're already on that plan.",
@@ -45,7 +45,7 @@ const UPGRADE_NOTICE: Record<string, string> = {
 const UPGRADE_PITCH: Record<Plan, string> = {
   basic: "",
   complete:
-    "SMS appointment reminders, rescheduling messages, missed-call auto-text and a monthly results report.",
+    "Carrier-approved SMS appointment reminders, rescheduling messages, missed-call follow-up and a monthly results report.",
   growth:
     "Everything in Complete, plus win-back outreach, no-show follow-up and client memory that refills your calendar.",
 };
