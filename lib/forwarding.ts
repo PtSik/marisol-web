@@ -211,5 +211,59 @@ export const CARRIER_REFERENCE: Record<Exclude<Carrier, "unknown">, string[]> = 
   ],
 };
 
-export const CARRIER_STATUS_CHECKS =
-  "*#21# unconditional · *#61# no answer · *#67# busy · *#62# unreachable";
+export interface StatusCheck {
+  code: string;
+  condition: string;
+}
+
+// GSM interrogation codes: `*#` reads a forwarding condition back, where `**` registers it. Only
+// the GSM networks answer them — dialling these on a Verizon or UScellular line reports nothing,
+// so those carriers get a test call instead of a code that looks like it confirmed something.
+const GSM_STATUS_CHECKS: readonly StatusCheck[] = [
+  { code: "*#21#", condition: "unconditional" },
+  { code: "*#61#", condition: "no answer" },
+  { code: "*#67#", condition: "busy" },
+  { code: "*#62#", condition: "unreachable" },
+];
+
+export interface ForwardingVerification {
+  checks: readonly StatusCheck[];
+  note: string;
+}
+
+// Support-facing, and only useful once a Twilio number exists to forward to: how the team confirms
+// the owner's forwarding actually registered when they call to say Marisol never picks up.
+export function forwardingVerification(carrier: Carrier | undefined): ForwardingVerification {
+  switch (carrier) {
+    case "att":
+    case "tmobile":
+    case "other_mobile":
+      return {
+        checks: GSM_STATUS_CHECKS,
+        // **004* registers the three conditional cases and deliberately leaves unconditional
+        // alone, so a number under *#21# means the owner forwarded everything by hand.
+        note: "*#21# should come back empty — if it names the Twilio number their phone never rings at all.",
+      };
+    case "verizon":
+      return {
+        checks: [],
+        note: "Verizon answers no interrogation codes. Call the business line and let it ring out to confirm.",
+      };
+    case "uscellular":
+      return {
+        checks: [],
+        note: "UScellular answers no interrogation codes. Call the business line and let it ring out to confirm.",
+      };
+    case "voip":
+    case "app_only":
+      return {
+        checks: [],
+        note: "Forwarding lives in the provider's panel, not on the keypad — confirm it there with the owner.",
+      };
+    default:
+      return {
+        checks: GSM_STATUS_CHECKS,
+        note: "Carrier unconfirmed: these read GSM settings and report nothing on a Verizon-network line. Establish the network first.",
+      };
+  }
+}

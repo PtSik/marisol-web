@@ -1,5 +1,11 @@
 import { describe, expect, it } from "bun:test";
-import { carrierCodes, carrierFromLookup, dialable, forwardingGuide } from "@/lib/forwarding";
+import {
+  carrierCodes,
+  carrierFromLookup,
+  dialable,
+  forwardingGuide,
+  forwardingVerification,
+} from "@/lib/forwarding";
 import { en } from "@/lib/i18n/en";
 import { es } from "@/lib/i18n/es";
 
@@ -128,5 +134,32 @@ describe("carrierFromLookup", () => {
     expect(carrierFromLookup({ carrierName: "Straight Talk", type: "mobile" })).toBeNull();
     expect(carrierFromLookup({ type: "tollFree" })).toBeNull();
     expect(carrierFromLookup({})).toBeNull();
+  });
+});
+
+describe("forwardingVerification", () => {
+  it("gives the GSM networks all four interrogation codes", () => {
+    for (const carrier of ["att", "tmobile", "other_mobile"] as const) {
+      expect(forwardingVerification(carrier).checks.map((c) => c.code)).toEqual([
+        "*#21#",
+        "*#61#",
+        "*#67#",
+        "*#62#",
+      ]);
+    }
+  });
+
+  it("offers no code where the network answers none — a test call instead", () => {
+    for (const carrier of ["verizon", "uscellular", "voip", "app_only"] as const) {
+      const { checks, note } = forwardingVerification(carrier);
+      expect(checks).toEqual([]);
+      expect(note).not.toBe("");
+    }
+  });
+
+  it("warns that the GSM codes are unattributed when no carrier was established", () => {
+    const { checks, note } = forwardingVerification(undefined);
+    expect(checks.map((c) => c.code)).toContain("*#21#");
+    expect(note).toContain("Verizon-network");
   });
 });
