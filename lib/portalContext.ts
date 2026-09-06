@@ -35,6 +35,8 @@ export async function resolveAccountShops(
     if (only) shops = [only];
   }
 
+  shops = shops.filter((shop) => shop.status !== "cancelled" && shop.status !== "suspended");
+
   const activeShopId = pickActiveShopId(shops, await shopIdFromCookies(), session.shopId);
   const activeShop = shops.find((s) => s.id === activeShopId);
 

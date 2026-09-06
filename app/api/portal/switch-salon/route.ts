@@ -1,4 +1,5 @@
 import { env } from "cloudflare:workers";
+import { portalAccessRedirect } from "@/lib/portalAccess";
 import { type PortalEnv, listAccountShops } from "@/lib/portalApi";
 import { getSession, sessionIdFromCookies, shopCookie } from "@/lib/session";
 
@@ -15,6 +16,9 @@ export async function POST(request: Request): Promise<Response> {
 
   const session = await getSession(cfEnv.RATE_LIMIT_KV, await sessionIdFromCookies());
   if (!session) return Response.redirect(new URL("/login", request.url).toString(), 303);
+  if (await portalAccessRedirect(cfEnv, session)) {
+    return Response.json({ error: "service is not active" }, { status: 403 });
+  }
 
   const form = await request.formData();
   const target = String(form.get("shop_id") ?? "");
@@ -23,7 +27,7 @@ export async function POST(request: Request): Promise<Response> {
   // The switch is only accepted for a salon the account actually owns — the one check that keeps
   // one signed-in owner from pointing the portal at another shop's data.
   const owned = await listAccountShops(cfEnv, session.accountId);
-  if (!owned.some((s) => s.id === target)) {
+  if (!owned.some((s) => s.id === target && s.status !== "cancelled" && s.status !== "suspended")) {
     return Response.json({ error: "not your salon" }, { status: 403 });
   }
 

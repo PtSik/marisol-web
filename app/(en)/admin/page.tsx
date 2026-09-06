@@ -1,5 +1,6 @@
 import { env } from "cloudflare:workers";
 import { LogoMark } from "@/components/Logo";
+import { TeardownActions } from "@/components/portal/TeardownActions";
 import { ADMIN_COOKIE, isAdminCookieValid } from "@/lib/adminAuth";
 import { CARRIER_REFERENCE, CARRIER_STATUS_CHECKS, carrierCodes } from "@/lib/forwarding";
 import {
@@ -13,6 +14,7 @@ import { PAYOUT_LABEL, isPayoutMethod } from "@/lib/payout";
 import { normalizePlan } from "@/lib/plans";
 import { type Referral, listReferrals } from "@/lib/referrals";
 import { siteHref } from "@/lib/site";
+import { listTeardowns } from "@/lib/teardownQueue";
 import { usAreaCode } from "@/lib/twilio";
 import { voiceAgentFetch } from "@/lib/voiceAgent";
 import { cookies } from "next/headers";
@@ -26,6 +28,7 @@ export const metadata = {
 };
 
 interface AdminEnv {
+  OUTREACH_DB?: D1Database;
   LEADS_KV?: KVNamespace;
   ADMIN_DASH_KEY?: string;
   VOICE_AGENT_API?: Fetcher;
@@ -241,11 +244,16 @@ function LeadTile({ lead, shop }: { lead: CheckoutLead; shop?: Shop }) {
 }
 
 function ActivationAction({ lead }: { lead: CheckoutLead }) {
-  if (
-    lead.status === "provisioned" ||
-    lead.status === "cancelled" ||
-    lead.status === "cancellation_pending"
-  ) {
+  if (lead.status === "cancellation_pending")
+    return (
+      <form method="post" action="/api/admin/teardown/retry" className="mt-3">
+        <input type="hidden" name="leadId" value={lead.id} />
+        <button type="submit" className="rounded border px-4 py-2">
+          Queue pending cleanup
+        </button>
+      </form>
+    );
+  if (lead.status === "provisioned" || lead.status === "cancelled") {
     return null;
   }
   if (lead.status === "activating" || activationNeedsReconciliation(lead)) {
@@ -301,7 +309,7 @@ function isCalendarConnected(shop?: Shop): boolean {
 
 function CalendarInviteAction({ lead, connected }: { lead: CheckoutLead; connected: boolean }) {
   if (connected) return null;
-  if (lead.calendarEmailSentAt) {
+  if (lead.calendarEmailSentAt && lead.calendarAccessGrantedAt) {
     return (
       <p className="mt-3 text-sm text-muted">
         Calendar invite sent {fmtDate(lead.calendarEmailSentAt)} — not connected yet.
@@ -310,6 +318,10 @@ function CalendarInviteAction({ lead, connected }: { lead: CheckoutLead; connect
   }
   return (
     <form method="post" action={`/api/admin/leads/${lead.id}/calendar-email`} className="mt-3">
+      <label className="mb-2 block text-sm">
+        <input type="checkbox" name="accessConfirmed" value="yes" required /> I added{" "}
+        {lead.basics.email} as a Google test user or verified production access.
+      </label>
       <button
         type="submit"
         className="w-full rounded-[10px] border border-teal/30 bg-teal/10 px-4 py-2 text-sm font-medium text-teal"
@@ -469,6 +481,7 @@ export default async function AdminPage({
   const authed = await isAdminCookieValid(jar.get(ADMIN_COOKIE)?.value, cfEnv.ADMIN_DASH_KEY);
   if (!authed) return <LoginForm error={Boolean(error)} />;
 
+  const teardownJobs = await listTeardowns(cfEnv.OUTREACH_DB).catch(() => null);
   const leads = await listLeads(cfEnv.LEADS_KV);
   const checkout = leads.filter((l): l is CheckoutLead => l.intent === "checkout");
   const callLeads = leads.filter((l): l is CallLead => l.intent === "call");
@@ -545,6 +558,23 @@ export default async function AdminPage({
           </p>
         )}
         {leads.length === 0 && <p className="mt-10 text-muted">No leads yet.</p>}
+        {teardownJobs === null && (
+          <p className="mt-4">Teardown queue unavailable. Check the D1 migration and binding.</p>
+        )}
+        {teardownJobs && (
+          <Section title="Teardown incomplete" count={teardownJobs.length}>
+            {teardownJobs.map((job) => (
+              <article key={job.id} className="mt-3 rounded-xl border p-4">
+                <p className="font-medium">{job.id}</p>
+                <p>
+                  {job.status} · {job.attempts} attempts
+                </p>
+                {job.last_error && <p>{job.last_error}</p>}
+                <TeardownActions id={job.id} status={job.status} />
+              </article>
+            ))}
+          </Section>
+        )}
         <Section title="Active clients" count={active.length}>
           {active.map((l) => (
             <LeadTile key={l.id} lead={l} shop={shopFor(l)} />

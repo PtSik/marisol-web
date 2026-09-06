@@ -2,7 +2,7 @@ import { env } from "cloudflare:workers";
 import { ADMIN_COOKIE, isAdminCookieValid } from "@/lib/adminAuth";
 import { getLead, putLead } from "@/lib/leads";
 import { sendCalendarInvite } from "@/lib/notify";
-import { buildCalendarConnectUrl } from "@/lib/provisioning";
+import { buildCalendarConnectUrl, patchShop } from "@/lib/provisioning";
 import { cookies } from "next/headers";
 
 export const dynamic = "force-dynamic";
@@ -37,6 +37,14 @@ export async function POST(
   const { id } = await params;
   const lead = await getLead(cfEnv.LEADS_KV, id);
   if (!lead?.shopId) return back(request, "missing");
+  if (lead.status !== "provisioned") return back(request, "missing");
+  const form = await request.formData();
+  if (form.get("accessConfirmed") !== "yes") return back(request, "failed");
+  const grantedAt = lead.calendarAccessGrantedAt ?? new Date().toISOString();
+  if (!(await patchShop(cfEnv, lead.shopId, { calendar_access_granted_at: grantedAt })))
+    return back(request, "failed");
+  lead.calendarAccessGrantedAt = grantedAt;
+  await putLead(cfEnv.LEADS_KV, lead);
   if (lead.calendarEmailSentAt) return back(request, "already-sent");
 
   const calendarConnectUrl = await buildCalendarConnectUrl(cfEnv, lead.shopId);

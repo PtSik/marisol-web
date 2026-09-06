@@ -273,3 +273,44 @@ describe("deprovisionLead", () => {
     expect(patches).toEqual(['{"status":"suspended"}']);
   });
 });
+
+it("releases a stored SID even when the phone string was lost", async () => {
+  const urls: string[] = [];
+  globalThis.fetch = (async (url) => {
+    urls.push(String(url));
+    return new Response(null, { status: 204 });
+  }) as typeof fetch;
+  expect((await deprovisionLead(env, lead({ twilioNumberSid: "PN123" }))).complete).toBe(true);
+  expect(urls).toHaveLength(1);
+  expect(urls[0]).toContain("/IncomingPhoneNumbers/PN123.json");
+});
+
+it("rolls back a checkpoint failure sequentially and retains resources if release fails", async () => {
+  const events: string[] = [];
+  globalThis.fetch = (async (input, init) => {
+    const url = String(input);
+    if (url.includes("AvailablePhoneNumbers"))
+      return Response.json({ available_phone_numbers: [{ phone_number: "+13055550123" }] });
+    if (init?.method === "DELETE") {
+      events.push("release");
+      return new Response(null, { status: 503 });
+    }
+    if (url.endsWith("IncomingPhoneNumbers.json"))
+      return Response.json({ phone_number: "+13055550123", sid: "PN123" });
+    if (url.endsWith("/admin/shops")) return Response.json({ shop: { id: "shop-1" } });
+    events.push(JSON.parse(String(init?.body)).status);
+    return Response.json({ shop: { id: "shop-1" } });
+  }) as typeof fetch;
+  const result = await provisionLead(env, lead(), {
+    checkpoint: async (resource) => {
+      if (resource.shopId) throw new Error("checkpoint failed");
+    },
+  });
+  expect(events).toEqual(["suspended", "release"]);
+  expect(result).toMatchObject({
+    ok: false,
+    cleanupComplete: false,
+    shopId: "shop-1",
+    numberSid: "PN123",
+  });
+});

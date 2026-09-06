@@ -39,7 +39,8 @@ export function isDashboardLocked(status: LeadStatus): boolean {
     status === "pending_review" ||
     status === "activating" ||
     status === "activation_failed" ||
-    status === "cancellation_pending"
+    status === "cancellation_pending" ||
+    status === "cancelled"
   );
 }
 
@@ -86,6 +87,7 @@ export interface CheckoutLead {
   activationAreaCodeOverride?: string;
   /* set once the client's address is a Google Cloud test user and the connect link was mailed */
   calendarEmailSentAt?: string;
+  calendarAccessGrantedAt?: string;
   deprovisionedAt?: string;
   cancellationPendingAt?: string;
   /* first past_due notice; keeps every Stripe retry from re-alerting the team */

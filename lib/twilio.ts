@@ -183,13 +183,22 @@ export async function lookupNumberSid(env: TwilioEnv, phoneNumber: string): Prom
   const url =
     `https://api.twilio.com/2010-04-01/Accounts/${env.TWILIO_ACCOUNT_SID}` +
     `/IncomingPhoneNumbers.json?PhoneNumber=${encodeURIComponent(phoneNumber)}`;
-  const res = await fetch(url, { headers: { Authorization: auth(env) } }).catch(() => null);
+  const res = await fetch(url, {
+    headers: { Authorization: auth(env) },
+    signal: AbortSignal.timeout(10_000),
+  }).catch(() => null);
   if (!res) throw new Error("Twilio number lookup failed");
   if (!res.ok) throw new Error(`Twilio number lookup failed (${res.status})`);
   const data = (await res.json().catch(() => null)) as {
     incoming_phone_numbers?: { sid?: string }[];
   } | null;
-  return data?.incoming_phone_numbers?.[0]?.sid ?? null;
+  const numbers = data?.incoming_phone_numbers;
+  if (!Array.isArray(numbers)) throw new Error("Invalid Twilio number lookup response");
+  if (numbers.length === 0) return null;
+  if (numbers.length !== 1 || typeof numbers[0]?.sid !== "string" || !numbers[0].sid.trim()) {
+    throw new Error("Invalid Twilio number lookup identity");
+  }
+  return numbers[0].sid;
 }
 
 // Which network a number is really on, portability included — the brand on the bill is what the
@@ -263,7 +272,11 @@ export async function releaseTwilioNumber(env: TwilioEnv, sid: string): Promise<
   if (!env.TWILIO_ACCOUNT_SID || !env.TWILIO_AUTH_TOKEN) return false;
   const res = await fetch(
     `https://api.twilio.com/2010-04-01/Accounts/${env.TWILIO_ACCOUNT_SID}/IncomingPhoneNumbers/${sid}.json`,
-    { method: "DELETE", headers: { Authorization: auth(env) } },
+    {
+      method: "DELETE",
+      headers: { Authorization: auth(env) },
+      signal: AbortSignal.timeout(10_000),
+    },
   ).catch(() => null);
   // DELETE is idempotent from our perspective: a 404 means the number is already gone.
   return Boolean(res?.ok || res?.status === 404);

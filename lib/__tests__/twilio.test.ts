@@ -133,3 +133,21 @@ describe("Twilio number cleanup", () => {
     await expect(lookupNumberSid(env, "+13055550123")).rejects.toThrow("(401)");
   });
 });
+
+for (const payload of [
+  null,
+  {},
+  { incoming_phone_numbers: null },
+  { incoming_phone_numbers: [{}] },
+  { incoming_phone_numbers: [{ sid: "" }] },
+  { incoming_phone_numbers: [{ sid: "PN1" }, { sid: "PN2" }] },
+]) {
+  it(`rejects an ambiguous lookup: ${JSON.stringify(payload)}`, async () => {
+    globalThis.fetch = (async () => Response.json(payload)) as unknown as typeof fetch;
+    await expect(lookupNumberSid(env, "+13055550123")).rejects.toThrow("Invalid Twilio");
+  });
+}
+it("rejects malformed JSON instead of declaring a number absent", async () => {
+  globalThis.fetch = (async () => new Response("invalid JSON")) as unknown as typeof fetch;
+  await expect(lookupNumberSid(env, "+13055550123")).rejects.toThrow("Invalid Twilio");
+});

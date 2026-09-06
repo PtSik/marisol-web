@@ -4,8 +4,9 @@ import { PortalHeading, PortalNotice } from "@/components/portal/PortalHeading";
 import { getLead } from "@/lib/leads";
 import { coerceTimezone } from "@/lib/onboarding";
 import { normalizePlan } from "@/lib/plans";
-import type { PortalEnv, Shop } from "@/lib/portalApi";
+import { type PortalEnv, type Shop, listAccountShopsStrict } from "@/lib/portalApi";
 import { getPortalContext } from "@/lib/portalContext";
+import { manageableSalons } from "@/lib/portalSalons";
 
 export const dynamic = "force-dynamic";
 
@@ -36,6 +37,7 @@ function SalonRow({ shop, primary }: { shop: Shop; primary: boolean }) {
         <p className="text-[13px] text-muted-2">
           {shop.twilio_number ?? "No number yet"}
           {cancelled && " · removed"}
+          {shop.status === "suspended" && " · suspended"}
         </p>
       </div>
       {!primary && !cancelled && (
@@ -56,7 +58,10 @@ export default async function PortalSalonsPage({
   searchParams: Promise<{ removed?: string; added?: string }>;
 }) {
   const cfEnv = env as unknown as PortalEnv;
-  const { session, shops } = await getPortalContext(cfEnv);
+  const { session, shops: operationalShops } = await getPortalContext(cfEnv);
+  const listed = await listAccountShopsStrict(cfEnv, session.accountId);
+  if (!listed) throw new Error("Unable to load locations for management");
+  const shops = manageableSalons(listed.length ? listed : operationalShops);
   const { removed, added } = await searchParams;
 
   const primary = session.leadId ? await getLead(cfEnv.LEADS_KV, session.leadId) : null;

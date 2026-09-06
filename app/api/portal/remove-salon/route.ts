@@ -2,6 +2,7 @@ import { env } from "cloudflare:workers";
 import { getLead, getLeadIdForShop, putLead } from "@/lib/leads";
 import { notifyTeam } from "@/lib/notify";
 import { extraLocationCount, normalizePlan } from "@/lib/plans";
+import { portalAccessRedirect } from "@/lib/portalAccess";
 import { type PortalEnv, listAccountShopsStrict } from "@/lib/portalApi";
 import { deprovisionLead, deprovisionShop } from "@/lib/provisioning";
 import { overRateLimit } from "@/lib/rateLimit";
@@ -28,6 +29,9 @@ export async function POST(request: Request): Promise<Response> {
 
   const session = await getSession(cfEnv.RATE_LIMIT_KV, await sessionIdFromCookies());
   if (!session) return Response.redirect(new URL("/login", request.url).toString(), 303);
+  if (await portalAccessRedirect(cfEnv, session)) {
+    return Response.json({ error: "service is not active" }, { status: 403 });
+  }
 
   if (await overRateLimit(cfEnv.RATE_LIMIT_KV, `remove-salon:${session.accountId}`, 10)) {
     return back(request, "failed");

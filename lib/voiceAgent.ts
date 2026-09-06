@@ -13,6 +13,7 @@ export async function voiceAgentFetch(
   const url = `${env.VOICE_AGENT_API_URL}${path}`;
   const withAuth: RequestInit = {
     ...init,
+    signal: init.signal ?? AbortSignal.timeout(15_000),
     headers: {
       "Content-Type": "application/json",
       Authorization: `Bearer ${env.ADMIN_API_KEY}`,

@@ -409,10 +409,13 @@ export async function provisionLead(
     };
   } catch (err) {
     const reason = err instanceof Error ? err.message : "provisioning error";
-    const [released, cancelledShop] = await Promise.all([
-      releaseTwilioNumber(env, bought.sid),
-      shopId ? patchShop(env, shopId, { status: "cancelled" }) : Promise.resolve(true),
-    ]);
+    const cleanup = await deprovisionLead(env, {
+      ...lead,
+      shopId,
+      assignedNumber: bought.number,
+      twilioNumberSid: bought.sid,
+    });
+    const { releasedNumber: released, cancelledShop } = cleanup;
     await sendProvisionAlert(
       env,
       lead,
@@ -467,9 +470,9 @@ async function releaseLeadNumber(
   phoneNumber: string | undefined,
   storedSid?: string,
 ): Promise<boolean> {
-  if (!phoneNumber) return true;
+  if (!phoneNumber && !storedSid) return true;
   try {
-    const sid = storedSid ?? (await lookupNumberSid(env, phoneNumber));
+    const sid = storedSid || (phoneNumber ? await lookupNumberSid(env, phoneNumber) : null);
     // A successful lookup with no row means the number has already been released.
     return sid ? await releaseTwilioNumber(env, sid) : true;
   } catch {

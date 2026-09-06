@@ -1,6 +1,7 @@
 import { env } from "cloudflare:workers";
 import { getLead, putLead } from "@/lib/leads";
 import { type SetupDetails, TIMEZONE_IDS, validateSetupPayload } from "@/lib/onboarding";
+import { portalAccessRedirect } from "@/lib/portalAccess";
 import type { PortalEnv } from "@/lib/portalApi";
 import { resolveAccountShops } from "@/lib/portalContext";
 import { patchShop, toShopHours, toShopServices, toShopStaff } from "@/lib/provisioning";
@@ -19,6 +20,9 @@ export async function POST(request: Request): Promise<Response> {
 
   const session = await getSession(cfEnv.RATE_LIMIT_KV, await sessionIdFromCookies());
   if (!session) return Response.json({ error: "not signed in" }, { status: 401 });
+  if (await portalAccessRedirect(cfEnv, session)) {
+    return Response.json({ error: "service is not active" }, { status: 403 });
+  }
 
   if (await overRateLimit(cfEnv.RATE_LIMIT_KV, `portal-setup:${session.accountId}`, 60)) {
     return Response.json({ error: "too many requests" }, { status: 429 });

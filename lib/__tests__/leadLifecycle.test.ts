@@ -76,7 +76,7 @@ describe("assisted-launch lead lifecycle", () => {
     }
     expect(isDashboardLocked("created")).toBe(false);
     expect(isDashboardLocked("provisioned")).toBe(false);
-    expect(isDashboardLocked("cancelled")).toBe(false);
+    expect(isDashboardLocked("cancelled")).toBe(true);
   });
 
   it("recognises cancellation pages without treating them as setup", () => {

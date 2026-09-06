@@ -10,7 +10,11 @@ export const dynamic = "force-dynamic";
 export default async function PortalCalendarPage() {
   const cfEnv = env as unknown as PortalEnv;
   const { activeShop: shop, activeShopId } = await getPortalContext(cfEnv);
-  const connectUrl = activeShopId ? await buildCalendarConnectUrl(cfEnv, activeShopId) : undefined;
+  const accessGranted = Boolean(
+    shop?.calendar_access_granted_at || shop?.integration === "google_calendar",
+  );
+  const connectUrl =
+    activeShopId && accessGranted ? await buildCalendarConnectUrl(cfEnv, activeShopId) : undefined;
 
   const connected = shop?.integration === "google_calendar";
   const writeCalendar = shop?.calendar_routing?.write_calendar_id;
@@ -50,7 +54,9 @@ export default async function PortalCalendarPage() {
           </a>
         ) : (
           <PortalNotice tone="warn">
-            We couldn't build your connect link.{" "}
+            {accessGranted
+              ? "We couldn’t build your connect link. "
+              : "We’re preparing your Google Calendar access. We’ll email you when it’s ready. "}
             <a href={SALES_EMAIL_HREF} className="font-medium underline">
               Email us
             </a>{" "}

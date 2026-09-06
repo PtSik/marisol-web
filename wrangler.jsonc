@@ -3,7 +3,8 @@
   "name": "kaijiro-landing",
   "compatibility_date": "2026-02-12",
   "compatibility_flags": ["nodejs_compat"],
-  "main": "vinext/server/app-router-entry",
+  "main": "worker/launch.ts",
+  "triggers": { "crons": ["* * * * *"] },
   "preview_urls": true,
   "observability": {
     "enabled": true
@@ -75,6 +76,7 @@
   },
   "env": {
     "preview": {
+      "triggers": { "crons": [] },
       "routes": [{ "pattern": "test.callmarisol.com", "custom_domain": true }],
       // Own namespaces, never production's: LEADS_KV is the client portal's store and the referral
       // ledger writes to it, so a preview deploy sharing it would edit live customer records.

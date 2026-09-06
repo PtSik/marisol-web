@@ -1,15 +1,7 @@
 import { env } from "cloudflare:workers";
-import {
-  type CheckoutLead,
-  checkoutCompletionCanAdvance,
-  getLead,
-  getLeadIdForShop,
-  getLeadStrict,
-  putLead,
-} from "@/lib/leads";
+import { enqueueSubscriptionCancellation } from "@/lib/cancellation";
+import { type CheckoutLead, checkoutCompletionCanAdvance, getLead, putLead } from "@/lib/leads";
 import { notifyTeam } from "@/lib/notify";
-import { type Shop, getShop, listAccountShopsStrict } from "@/lib/portalApi";
-import { deprovisionLead, deprovisionShop } from "@/lib/provisioning";
 import {
   type ReferralEnv,
   maybeSendReferralInvite,
@@ -23,14 +15,13 @@ import { type StripeCheckoutSession, getSubscription } from "@/lib/stripe";
 export const dynamic = "force-dynamic";
 
 interface WebhookEnv extends ReferralEnv {
+  OUTREACH_DB?: D1Database;
   STRIPE_WEBHOOK_SECRET?: string;
   TWILIO_ACCOUNT_SID?: string;
   TWILIO_AUTH_TOKEN?: string;
 }
 
 const TOLERANCE_SECONDS = 300;
-
-type CancellationOutcome = "complete" | "retryable" | "unresolvable";
 
 interface StripeEvent {
   type?: string;
@@ -116,133 +107,14 @@ async function leadForSubscription(
   return lead && lead.status !== "cancelled" ? lead : null;
 }
 
-async function cancelLead(cfEnv: WebhookEnv, lead: CheckoutLead, reason: string): Promise<boolean> {
-  const result = await deprovisionLead(cfEnv, lead);
-  lead.status = result.complete ? "cancelled" : "cancellation_pending";
-  if (result.complete) {
-    lead.deprovisionedAt = new Date().toISOString();
-    lead.cancellationPendingAt = undefined;
-  } else {
-    lead.cancellationPendingAt = lead.cancellationPendingAt ?? new Date().toISOString();
-  }
-  await Promise.all([
-    putLead(cfEnv.LEADS_KV, lead),
-    notifyTeam(
-      cfEnv,
-      result.complete
-        ? `🚫 ${reason} — deprovisioned ${lead.basics.businessName}`
-        : `🛑 ${reason} — deprovision incomplete for ${lead.basics.businessName}`,
-      {
-        shopId: lead.shopId,
-        number: lead.assignedNumber,
-        releasedNumber: result.releasedNumber,
-        suspendedShop: result.suspendedShop,
-        cancelledShop: result.cancelledShop,
-      },
-    ),
-  ]);
-  return result.complete;
-}
-
-async function leadForShop(cfEnv: WebhookEnv, shopId: string): Promise<CheckoutLead | null> {
-  const leadId = await getLeadIdForShop(cfEnv.LEADS_KV, shopId);
-  return leadId ? await getLead(cfEnv.LEADS_KV, leadId) : null;
-}
-
-async function cancelOrphanShop(cfEnv: WebhookEnv, shop: Shop, reason: string): Promise<boolean> {
-  const result = await deprovisionShop(cfEnv, shop.id, shop.twilio_number);
-  await notifyTeam(
-    cfEnv,
-    result.complete
-      ? `🚫 ${reason} — deprovisioned ${shop.name ?? shop.id} (no lead on file)`
-      : `🛑 ${reason} — deprovision incomplete for ${shop.name ?? shop.id} (no lead on file)`,
-    {
-      shopId: shop.id,
-      number: shop.twilio_number,
-      releasedNumber: result.releasedNumber,
-      suspendedShop: result.suspendedShop,
-      cancelledShop: result.cancelledShop,
-    },
-  );
-  return result.complete;
-}
-
-// One subscription now backs every salon on an account, so cancelling it must tear down all of
-// them — not just the primary lead in the subscription metadata. Enumerate the account's live
-// shops and deprovision each through its own lead (falling back to the shop row when the lead
-// index is missing). Legacy accounts with no account_id link keep the single-lead teardown.
 async function cancelSubscriptionSalons(
   cfEnv: WebhookEnv,
   leadId: string | undefined,
   reason: string,
   subscriptionId?: string,
-): Promise<CancellationOutcome> {
-  if (!leadId) {
-    await notifyTeam(cfEnv, `🛑 ${reason} — Stripe subscription has no lead_id`, {
-      reason,
-      subscriptionId,
-    });
-    // No retry can invent metadata on the delivered Stripe object. Acknowledge after alerting so a
-    // manual/out-of-funnel subscription cannot poison the whole webhook endpoint for days.
-    return "unresolvable";
-  }
-  let primary: CheckoutLead | null;
-  try {
-    primary = await getLeadStrict(cfEnv.LEADS_KV, leadId);
-  } catch (error) {
-    await notifyTeam(cfEnv, `🛑 ${reason} — lead lookup temporarily unavailable`, {
-      leadId,
-      subscriptionId,
-      error: error instanceof Error ? error.message : "KV lookup failed",
-    });
-    return "retryable";
-  }
-  if (!primary) {
-    await notifyTeam(cfEnv, `🛑 ${reason} — Stripe lead no longer exists`, {
-      leadId,
-      subscriptionId,
-    });
-    // A confirmed KV miss is permanent. There is no safe resource mapping to act on automatically.
-    return "unresolvable";
-  }
-
-  const accountId =
-    primary.accountId ??
-    (primary.shopId
-      ? ((await getShop(cfEnv, primary.shopId))?.account_id ?? undefined)
-      : undefined);
-  if (!accountId) {
-    if (primary.status === "cancelled") return "complete";
-    return (await cancelLead(cfEnv, primary, reason)) ? "complete" : "retryable";
-  }
-
-  const accountShops = await listAccountShopsStrict(cfEnv, accountId);
-  if (!accountShops) {
-    await notifyTeam(cfEnv, `🛑 ${reason} — could not list all account salons`, {
-      accountId,
-      leadId,
-    });
-    return "retryable";
-  }
-  const shops = accountShops.filter((s) => s.status !== "cancelled");
-  let handledPrimary = false;
-  let complete = true;
-  for (const shop of shops) {
-    if (shop.id === primary.shopId) handledPrimary = true;
-    const lead = shop.id === primary.shopId ? primary : await leadForShop(cfEnv, shop.id);
-    if (lead) {
-      if (lead.status !== "cancelled") {
-        complete = (await cancelLead(cfEnv, lead, reason)) && complete;
-      }
-    } else {
-      complete = (await cancelOrphanShop(cfEnv, shop, reason)) && complete;
-    }
-  }
-  // The listing dropped the primary salon (or failed) — never leave the anchor salon live.
-  if (!handledPrimary && primary.status !== "cancelled") {
-    complete = (await cancelLead(cfEnv, primary, reason)) && complete;
-  }
-  return complete ? "complete" : "retryable";
+): Promise<void> {
+  // Acknowledge only after the cancellation has a durable owner independent of Stripe retries.
+  await enqueueSubscriptionCancellation(cfEnv, { leadId, reason, subscriptionId });
 }
 
 export async function POST(request: Request) {
@@ -270,9 +142,7 @@ export async function POST(request: Request) {
     const sub = event.data?.object as StripeSubscription | undefined;
     const leadId = sub?.metadata?.lead_id;
     if (leadId) await voidReferral(cfEnv, leadId);
-    if ((await cancelSubscriptionSalons(cfEnv, leadId, "Cancelled", sub?.id)) === "retryable") {
-      return Response.json({ error: "deprovision incomplete" }, { status: 500 });
-    }
+    await cancelSubscriptionSalons(cfEnv, leadId, "Cancelled", sub?.id);
     return received(cfEnv);
   }
 
@@ -300,16 +170,12 @@ export async function POST(request: Request) {
     }
 
     if (sub.status === "unpaid") {
-      if (
-        (await cancelSubscriptionSalons(
-          cfEnv,
-          sub.metadata?.lead_id,
-          "Unpaid — retries exhausted",
-          sub.id,
-        )) === "retryable"
-      ) {
-        return Response.json({ error: "deprovision incomplete" }, { status: 500 });
-      }
+      await cancelSubscriptionSalons(
+        cfEnv,
+        sub.metadata?.lead_id,
+        "Unpaid — retries exhausted",
+        sub.id,
+      );
       return received(cfEnv);
     }
 

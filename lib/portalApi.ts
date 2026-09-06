@@ -28,6 +28,7 @@ export interface Shop {
   integration?: string;
   twilio_number?: string;
   reminders_enabled?: boolean;
+  calendar_access_granted_at?: string | null;
   calendar_routing?: { write_calendar_id?: string } | null;
 }
 

@@ -11,6 +11,7 @@ import {
   validateSetupPayload,
 } from "@/lib/onboarding";
 import { type Billing, canAddLocation, normalizePlan } from "@/lib/plans";
+import { portalAccessRedirect } from "@/lib/portalAccess";
 import type { PortalEnv } from "@/lib/portalApi";
 import { overRateLimit } from "@/lib/rateLimit";
 import { getSession, sessionIdFromCookies } from "@/lib/session";
@@ -37,6 +38,9 @@ export async function POST(request: Request): Promise<Response> {
 
   const session = await getSession(cfEnv.RATE_LIMIT_KV, await sessionIdFromCookies());
   if (!session) return Response.json({ error: "not signed in" }, { status: 401 });
+  if (await portalAccessRedirect(cfEnv, session)) {
+    return Response.json({ error: "service is not active" }, { status: 403 });
+  }
 
   if (await overRateLimit(cfEnv.RATE_LIMIT_KV, `add-salon:${session.accountId}`, 10)) {
     return Response.json({ error: "too many requests" }, { status: 429 });

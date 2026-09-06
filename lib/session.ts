@@ -1,4 +1,5 @@
 import { env } from "cloudflare:workers";
+import { portalAccessRedirect } from "@/lib/portalAccess";
 import { type PortalEnv, findAccountByEmail } from "@/lib/portalApi";
 import { cookies } from "next/headers";
 import { redirect } from "next/navigation";
@@ -138,6 +139,8 @@ export async function requirePortalSession(env: PortalEnv): Promise<PortalSessio
   const id = await sessionIdFromCookies();
   const session = await getSession(kv, id);
   if (!session) redirect("/login");
+  const blocked = await portalAccessRedirect(env, session);
+  if (blocked) redirect(blocked);
   if (!session.shopId && id) {
     const account = await findAccountByEmail(env, session.email);
     if (account?.shop_id) {
