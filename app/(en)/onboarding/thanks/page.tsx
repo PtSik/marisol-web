@@ -1,9 +1,9 @@
 import { env } from "cloudflare:workers";
-import { LogoMark } from "@/components/Logo";
-import { SignOutButton } from "@/components/auth/SignOutButton";
 import { ForwardingCard } from "@/components/onboarding/ForwardingCard";
+import { FunnelNav } from "@/components/onboarding/FunnelNav";
 import { SetupForm } from "@/components/onboarding/SetupForm";
 import { SetupCompleteHeading, ThanksHeading } from "@/components/onboarding/ThanksHeading";
+import { settleCheckout } from "@/lib/checkoutSettlement";
 import {
   type Dict,
   LOCALE_PATH,
@@ -16,6 +16,8 @@ import {
 import { getLead, isCancellationState, isWaitingForActivation } from "@/lib/leads";
 import { VERTICAL_IDS, type Vertical } from "@/lib/onboarding";
 import { TRIAL_DAYS } from "@/lib/plans";
+import { type PortalEnv, getShop } from "@/lib/portalApi";
+import { buildCalendarConnectUrl } from "@/lib/provisioning";
 import { getSession, sessionIdFromCookies } from "@/lib/session";
 import { CUSTOMER_PORTAL_URL, SALES_EMAIL_HREF, siteHref } from "@/lib/site";
 import { SESSION_ID_RE, checkoutSettled, getCheckoutSession } from "@/lib/stripe";
@@ -35,7 +37,7 @@ export async function generateMetadata({ searchParams }: ThanksProps) {
   return { title: t.metaTitle, description: t.metaDescription };
 }
 
-interface ThanksEnv {
+interface ThanksEnv extends PortalEnv {
   STRIPE_SECRET_KEY?: string;
   LEADS_KV?: KVNamespace;
   RATE_LIMIT_KV?: KVNamespace;
@@ -43,7 +45,7 @@ interface ThanksEnv {
 
 function ConflictNote({ name, t }: { name: string; t: Dict["thanks"] }) {
   return (
-    <p className="mb-6 rounded-[14px] border border-[#B97E24]/30 bg-[#B97E24]/10 px-5 py-4 text-[14px] leading-[1.55] text-[#8A5D17]">
+    <p className="mb-6 rounded-[14px] border border-gold/30 bg-gold/10 px-5 py-4 t-body-sm text-gold-ink">
       {t.gate.conflictBefore}
       <strong>{name}</strong>
       {t.gate.conflictAfter}
@@ -60,18 +62,12 @@ function Shell({
   return (
     // The route lives under the English layout, so the Spanish funnel marks its own language here.
     <div lang={locale}>
-      <nav className="mx-auto max-w-shell px-[22px] pt-[14px]">
-        <div className="flex w-full items-center justify-between gap-5 rounded-[18px] border border-ink/10 bg-cream/80 px-5 py-3 backdrop-blur-md">
-          <a
-            href={siteHref(home)}
-            className="flex items-center gap-[7px] font-display text-[22px] tracking-tight no-underline"
-          >
-            <LogoMark className="h-5 w-5 rounded-[3.5px]" />
-            Marisol
-          </a>
-          {email && <SignOutButton label={getDict(locale).auth.signOut} />}
-        </div>
-      </nav>
+      <FunnelNav
+        locale={locale}
+        path="/onboarding/thanks"
+        showLangSwitch={false}
+        showSignOut={!!email}
+      />
       <main className="mx-auto max-w-[720px] px-[22px] pb-[clamp(48px,7vw,88px)] pt-[clamp(40px,6vw,72px)]">
         {children}
       </main>
@@ -82,8 +78,8 @@ function Shell({
 function ReferralNote({ t, locale }: { t: Dict["thanks"]; locale: Locale }) {
   return (
     <div className="mt-4 rounded-[16px] bg-ink px-[20px] py-[18px] text-cream">
-      <p className="m-0 text-[15px] font-medium">{t.referralTitle}</p>
-      <p className="m-0 mt-[6px] text-[13.5px] leading-[1.5] text-cream/[0.78]">
+      <p className="m-0 t-body-sm font-medium">{t.referralTitle}</p>
+      <p className="m-0 mt-[6px] t-caption text-cream/[0.78]">
         {t.referralBody}{" "}
         <a
           href={siteHref(locale === "es" ? "/es/referrals" : "/referrals")}
@@ -106,14 +102,12 @@ function NextSteps({ t, locale }: { t: Dict["thanks"]; locale: Locale }) {
             key={step.title}
             className="flex items-start gap-[14px] rounded-[16px] bg-cream-100 px-[18px] py-4"
           >
-            <span className="flex h-[28px] w-[28px] flex-none items-center justify-center rounded-full bg-ink text-[13px] font-semibold text-cream">
+            <span className="flex h-[28px] w-[28px] flex-none items-center justify-center rounded-full bg-ink t-caption font-semibold text-cream">
               {i + 1}
             </span>
             <span>
-              <span className="block text-[15px] font-medium">{step.title}</span>
-              <span className="mt-[2px] block text-[13.5px] leading-[1.5] text-muted">
-                {step.desc}
-              </span>
+              <span className="block t-body-sm font-medium">{step.title}</span>
+              <span className="mt-[2px] block t-caption text-muted">{step.desc}</span>
             </span>
           </li>
         ))}
@@ -129,7 +123,7 @@ function ContactLine({
   portal = false,
 }: { t: Dict["thanks"]; locale: Locale; portal?: boolean }) {
   return (
-    <p className="mt-8 text-center text-[14px] text-muted">
+    <p className="mt-8 text-center t-body-sm text-muted">
       {t.contactIntro}
       <a href={SALES_EMAIL_HREF} className="font-medium text-teal">
         {t.contactEmail}
@@ -160,16 +154,11 @@ function SessionNotFound({
   return (
     <Shell locale={locale} email={email}>
       <div className="text-center">
-        <h1 className="mx-auto max-w-[24ch] font-display text-[clamp(28px,5vw,44px)] font-light leading-[1.08] tracking-[-0.03em]">
+        <h1 className="mx-auto max-w-[24ch] font-display t-h2 font-bold text-balance">
           {t.notFoundTitle}
         </h1>
-        <p className="mx-auto mt-[14px] max-w-[44ch] text-[15.5px] leading-[1.55] text-muted">
-          {t.notFoundLead}
-        </p>
-        <a
-          href={onboardingHref(locale)}
-          className="mt-7 inline-flex min-h-[50px] items-center justify-center rounded-[13px] bg-ink px-7 py-[14px] text-[15px] font-medium text-cream no-underline"
-        >
+        <p className="mx-auto mt-[14px] max-w-[44ch] t-body text-muted">{t.notFoundLead}</p>
+        <a href={onboardingHref(locale)} className="btn btn-lg btn-primary mt-7">
           {t.notFoundCta}
         </a>
       </div>
@@ -217,12 +206,10 @@ export default async function ThanksPage({ searchParams }: ThanksProps) {
     return (
       <Shell locale={locale} email={email}>
         <div className="text-center">
-          <h1 className="mx-auto max-w-[22ch] font-display text-[clamp(28px,5vw,44px)] font-light leading-[1.08] tracking-[-0.03em]">
+          <h1 className="mx-auto max-w-[22ch] font-display t-h2 font-bold text-balance">
             {t.processingTitle}
           </h1>
-          <p className="mx-auto mt-[14px] max-w-[44ch] text-[15.5px] leading-[1.55] text-muted">
-            {t.processingLead}
-          </p>
+          <p className="mx-auto mt-[14px] max-w-[44ch] t-body text-muted">{t.processingLead}</p>
         </div>
         <ContactLine t={t} locale={locale} />
       </Shell>
@@ -238,7 +225,10 @@ export default async function ThanksPage({ searchParams }: ThanksProps) {
   if (checkoutAccountId && checkoutAccountId !== portalSession.accountId) redirect("/portal");
 
   const leadId = session.metadata?.lead_id;
-  const lead = leadId ? await getLead(LEADS_KV, leadId) : null;
+  let lead = leadId ? await getLead(LEADS_KV, leadId) : null;
+  if (lead?.flowVersion === 2 && (lead.status === "created" || lead.status === "paid")) {
+    lead = await settleCheckout(LEADS_KV, session);
+  }
   if (lead?.locale) {
     locale = lead.locale;
     t = getDict(locale).thanks;
@@ -253,14 +243,99 @@ export default async function ThanksPage({ searchParams }: ThanksProps) {
           lead={pending ? t.cancellationPendingLead : t.cancelledLead}
         />
         <form method="post" action="/api/portal/billing-portal" className="mt-7 text-center">
-          <button
-            type="submit"
-            className="inline-flex min-h-[50px] items-center justify-center rounded-[13px] bg-ink px-7 py-[14px] text-[15px] font-medium text-cream"
-          >
+          <button type="submit" className="btn btn-lg btn-primary">
             {t.cancellationBillingCta}
           </button>
         </form>
         <ContactLine t={t} locale={locale} />
+      </Shell>
+    );
+  }
+
+  if (lead?.flowVersion === 2 && isWaitingForActivation(lead.status)) {
+    const cfEnv = env as unknown as ThanksEnv;
+    const shop = lead.shopId ? await getShop(cfEnv, lead.shopId) : null;
+    const connected =
+      shop?.integration === "google_calendar" && Boolean(shop.calendar_routing?.write_calendar_id);
+    const connectUrl =
+      lead.shopId && lead.calendarAccessGrantedAt
+        ? await buildCalendarConnectUrl(cfEnv, lead.shopId)
+        : undefined;
+    const es = locale === "es";
+    return (
+      <Shell locale={locale} email={email}>
+        <ThanksHeading
+          title={{
+            before: es ? "Tu configuración está " : "Your setup is ",
+            accent: es ? "en revisión" : "ready for review",
+          }}
+          lead={
+            es
+              ? "Tus datos están guardados. Marisol empezará a atender cuando terminemos las comprobaciones y activemos el servicio."
+              : "Your details are saved. Marisol starts answering after we complete the checks and activate your service."
+          }
+        />
+        <ol className="mt-8 space-y-4">
+          <li className="rounded-2xl bg-cream-100 p-5">
+            <h2 className="font-semibold">1. {es ? "Revisión del negocio" : "Business review"}</h2>
+            <p className="mt-2 t-body-sm text-muted">
+              {lead.preparedAt
+                ? es
+                  ? "Datos revisados. Número preparado; el teléfono sigue sin activarse."
+                  : "Details reviewed. Your number is prepared; the phone is still inactive."
+                : es
+                  ? "Nuestro equipo está revisando tus servicios, horario, equipo y teléfonos."
+                  : "Our team is checking your services, hours, team and phone numbers."}
+            </p>
+          </li>
+          <li className="rounded-2xl bg-cream-100 p-5">
+            <h2 className="font-semibold">
+              2. {es ? "Calendario y citas existentes" : "Calendar and existing appointments"}
+            </h2>
+            <p className="mt-2 t-body-sm text-muted">
+              {connected
+                ? es
+                  ? "Calendario conectado. Verificaremos las citas y las asignaciones contigo."
+                  : "Calendar connected. We’ll verify existing appointments and staff assignments with you."
+                : es
+                  ? "Te ayudaremos a conectar tu calendario y comprobar las citas antes de activar el servicio."
+                  : "We’ll help connect your calendar and check existing appointments before activation."}
+            </p>
+            {connectUrl && (
+              <a className="btn btn-md btn-primary mt-4" href={connectUrl}>
+                {connected
+                  ? es
+                    ? "Revisar calendarios"
+                    : "Review calendars"
+                  : es
+                    ? "Conectar Google Calendar"
+                    : "Connect Google Calendar"}
+              </a>
+            )}
+          </li>
+          <li className="rounded-2xl bg-cream-100 p-5">
+            <h2 className="font-semibold">
+              3. {es ? "Activación y prueba del teléfono" : "Activation and phone connection test"}
+            </h2>
+            <p className="mt-2 t-body-sm text-muted">
+              {es
+                ? "Después de verificar la configuración, activaremos Marisol y te guiaremos para conectar tu número y realizar una llamada de prueba."
+                : "After the setup checks, we’ll activate Marisol and guide you through connecting your existing number and making a test call."}
+            </p>
+          </li>
+        </ol>
+        <p className="mt-5 t-body-sm text-muted">
+          {es
+            ? `Tu prueba de ${TRIAL_DAYS} días empieza al completar el pago, también durante la revisión.`
+            : `Your ${TRIAL_DAYS}-day trial starts at checkout, including time spent in setup review.`}
+        </p>
+        <a
+          href={`/onboarding/thanks?session_id=${encodeURIComponent(session.id)}${es ? "&lang=es" : ""}`}
+          className="mt-4 inline-block t-body-sm text-teal underline"
+        >
+          {es ? "Actualizar estado" : "Refresh status"}
+        </a>
+        <ContactLine t={t} locale={locale} portal />
       </Shell>
     );
   }
@@ -286,10 +361,7 @@ export default async function ThanksPage({ searchParams }: ThanksProps) {
             t={getDict(locale).forwarding}
           />
         )}
-        <a
-          href="/portal"
-          className="mx-auto mt-6 flex min-h-[50px] w-fit items-center justify-center rounded-[13px] bg-ink px-7 py-[14px] text-[15px] font-medium text-cream no-underline"
-        >
+        <a href="/portal" className="btn btn-lg btn-primary mx-auto mt-6 flex w-fit">
           {t.dashboardCta}
         </a>
         <NextSteps t={t} locale={locale} />

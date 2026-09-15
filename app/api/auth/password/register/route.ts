@@ -77,7 +77,7 @@ export async function POST(request: Request): Promise<Response> {
     });
   }
 
-  const response = Response.json({ redirect: "/portal" });
+  const response = Response.json({ redirect: "/onboarding" });
   response.headers.append("Set-Cookie", sessionCookie(sessionId));
   return response;
 }

@@ -6,6 +6,7 @@ import {
   checkoutRequestMatchesLead,
   getLead,
   getLeadIdForAccount,
+  getLeadStrict,
   putLead,
   putLeadIdForAccount,
 } from "@/lib/leads";
@@ -17,6 +18,7 @@ import {
   type SetupDetails,
   VERTICAL_IDS,
   isTimezoneId,
+  isUsPhone,
   validateSetupPayload,
 } from "@/lib/onboarding";
 import {
@@ -80,6 +82,7 @@ interface OnboardingRequest {
   call?: CallRequest;
   sessionId?: string;
   setup?: SetupDetails;
+  flowVersion?: 2;
   referralCode?: string;
   promoCode?: string;
   locale?: string;
@@ -114,10 +117,11 @@ function validateBasics(basics: unknown): string | null {
   if (!isShortString(b.businessName) || !b.businessName.trim()) return "invalid businessName";
   if (!isShortString(b.ownerName) || !b.ownerName.trim()) return "invalid ownerName";
   for (const field of ["businessPhone", "ownerMobile"] as const) {
-    if (!isShortString(b[field]) || !PHONE_RE.test(b[field])) return `invalid ${field}`;
+    if (!isShortString(b[field]) || !isUsPhone(b[field])) return `invalid ${field}`;
   }
   // US-only, and the same list the portal offers — a shop that gets a zone the portal can't render
   // is a shop whose owner can never save its setup again.
+  if (b.address !== undefined && !isShortString(b.address, 300)) return "invalid address";
   if (!isTimezoneId(b.timezone)) return "invalid timezone";
   return null;
 }
@@ -173,6 +177,7 @@ async function handleCheckout(
   accountId: string,
   codes: { promo?: string; referral?: string },
   locale: Locale,
+  setup?: SetupDetails,
 ): Promise<Response> {
   // One subscription per account. A client whose provisioning failed still lands back in the wizard
   // (there is no salon to show them), and without this they could buy a second subscription while
@@ -194,6 +199,25 @@ async function handleCheckout(
   }
 
   const { discount, attribution } = await resolveCodes(cfEnv, request, codes);
+  // An earlier Stripe POST may have succeeded even when the KV write of its session id failed.
+  // Replaying the same immutable request recovers the idempotent result. A changed request cannot
+  // reuse that attempt key with a different reviewed setup or price.
+  if (
+    existingLead?.status === "created" &&
+    existingLead.checkoutRequestSentAt &&
+    !existingLead.stripeSessionId &&
+    !checkoutRequestMatchesLead(existingLead, {
+      plan,
+      billing,
+      locale,
+      basics,
+      setup,
+      promotionId: discount?.promoId,
+      referralCode: attribution?.code,
+    })
+  ) {
+    return Response.json({ error: "could not verify previous checkout" }, { status: 503 });
+  }
   let checkoutAttempt = existingLead?.checkoutAttempt ?? 1;
   if (existingLead?.status === "created" && existingLead.stripeSessionId) {
     const lookup = await lookupCheckoutSession(STRIPE_SECRET_KEY, existingLead.stripeSessionId);
@@ -217,6 +241,7 @@ async function handleCheckout(
           billing,
           locale,
           basics,
+          setup,
           promotionId: discount?.promoId,
           referralCode: attribution?.code,
         });
@@ -254,6 +279,8 @@ async function handleCheckout(
     billing,
     locale,
     basics,
+    setup,
+    flowVersion: setup ? 2 : undefined,
     status: "created",
     accountId,
     checkoutAttempt,
@@ -264,6 +291,10 @@ async function handleCheckout(
     // session but our response or final KV write is lost, the next request reuses this same attempt
     // number/idempotency key instead of creating another subscription-capable session.
     stripeSessionId: undefined,
+    checkoutRequestSentAt:
+      existingLead?.status === "created" && !existingLead.stripeSessionId
+        ? existingLead.checkoutRequestSentAt
+        : undefined,
   };
 
   await Promise.all([
@@ -283,6 +314,7 @@ async function handleCheckout(
     success_url: `${APP_URL}/onboarding/thanks?session_id={CHECKOUT_SESSION_ID}${langQuery}`,
     cancel_url: `${origin}/onboarding?plan=${plan}&billing=${billing}&cancelled=1${langQuery}`,
     "metadata[lead_id]": lead.id,
+    "metadata[checkout_attempt]": String(checkoutAttempt),
     "metadata[account_id]": accountId,
     "metadata[locale]": locale,
     "metadata[plan]": plan,
@@ -299,6 +331,9 @@ async function handleCheckout(
   if (discount) params.set("discounts[0][promotion_code]", discount.promoId);
   if (attribution) params.set("metadata[referral_code]", attribution.code);
 
+  // Only after this checkpoint may the Stripe call happen. Losing its response then leaves a
+  // recoverable same-parameters retry instead of silently replacing the snapshot.
+  await putLead(cfEnv.LEADS_KV, { ...lead, checkoutRequestSentAt: new Date().toISOString() });
   const res = await fetch("https://api.stripe.com/v1/checkout/sessions", {
     method: "POST",
     headers: {
@@ -315,6 +350,13 @@ async function handleCheckout(
     // owner round the same loop — the same reason setup errors are translated in lib/i18n/dict.ts.
     const failure = (await res.json().catch(() => null)) as { error?: { code?: string } } | null;
     if (failure?.error?.code === "coupon_applies_to_nothing") {
+      // Stripe rejected this request before creating a session. Move the attempt key forward so
+      // a corrected promo code can be submitted rather than trapping the account on a dead key.
+      await putLead(cfEnv.LEADS_KV, {
+        ...lead,
+        checkoutAttempt: checkoutAttempt + 1,
+        checkoutRequestSentAt: undefined,
+      });
       return Response.json({ error: "promo not applicable" }, { status: 400 });
     }
     return Response.json({ error: "failed to create checkout session" }, { status: 502 });
@@ -325,8 +367,34 @@ async function handleCheckout(
     return Response.json({ error: "failed to create checkout session" }, { status: 502 });
   }
 
-  if (session.id) {
-    await putLead(cfEnv.LEADS_KV, { ...lead, stripeSessionId: session.id });
+  if (!session.id)
+    return Response.json({ error: "failed to create checkout session" }, { status: 502 });
+  const latest = await getLeadStrict(cfEnv.LEADS_KV, lead.id);
+  if (
+    !latest ||
+    latest.checkoutAttempt !== checkoutAttempt ||
+    (latest.stripeSessionId && latest.stripeSessionId !== session.id)
+  ) {
+    return Response.json({ error: "could not verify previous checkout" }, { status: 503 });
+  }
+  if (latest.status === "created") {
+    if (
+      !checkoutRequestMatchesLead(latest, {
+        plan,
+        billing,
+        locale,
+        basics,
+        setup,
+        promotionId: discount?.promoId,
+        referralCode: attribution?.code,
+      })
+    ) {
+      return Response.json({ error: "could not verify previous checkout" }, { status: 503 });
+    }
+    // Preserve any state written by a faster webhook instead of writing the pre-Stripe snapshot.
+    await putLead(cfEnv.LEADS_KV, { ...latest, stripeSessionId: session.id });
+  } else if (latest.stripeSessionId !== session.id) {
+    return Response.json({ error: "could not verify previous checkout" }, { status: 503 });
   }
 
   return Response.json({ url: session.url });
@@ -370,8 +438,6 @@ async function handleSetup(
   }
 
   if (lead.status === "provisioned") {
-    lead.setup = setup;
-    await putLead(cfEnv.LEADS_KV, lead);
     return Response.json({ ok: true, provisioned: true, number: lead.assignedNumber });
   }
 
@@ -386,7 +452,7 @@ async function handleSetup(
   }
 
   const shouldNotify = lead.status !== "pending_review";
-  lead.setup = setup;
+  if (lead.flowVersion !== 2) lead.setup = setup;
   lead.stripeSessionId = session.id;
   if (typeof session.customer === "string") lead.stripeCustomerId = session.customer;
   if (typeof session.subscription === "string") lead.stripeSubscriptionId = session.subscription;
@@ -455,6 +521,14 @@ export async function POST(request: Request) {
     const basics: BusinessBasics = { ...(body.basics as BusinessBasics), email: session.email };
     const error = validateBasics(basics);
     if (error) return Response.json({ error }, { status: 400 });
+    if (body.flowVersion !== undefined && body.flowVersion !== 2)
+      return Response.json({ error: "invalid flowVersion" }, { status: 400 });
+    if (body.flowVersion === 2) {
+      const setupError = validateSetupPayload(body.setup);
+      if (setupError) return Response.json({ error: setupError }, { status: 400 });
+      if (body.setup?.services.some((s) => s.durationMaxMin?.trim()))
+        return Response.json({ error: "invalid services" }, { status: 400 });
+    }
     return handleCheckout(
       cfEnv,
       request,
@@ -467,6 +541,9 @@ export async function POST(request: Request) {
         referral: typeof body.referralCode === "string" ? body.referralCode : undefined,
       },
       parseLocale(body.locale),
+      body.flowVersion === 2
+        ? { ...(body.setup as SetupDetails), fixedDurations: true }
+        : undefined,
     );
   }
 

@@ -104,7 +104,7 @@ export function SetupForm({
           patch={patch}
         />
         {submitError && (
-          <p role="alert" className="mt-5 text-center text-[13.5px] font-medium text-[#B4452C]">
+          <p role="alert" className="mt-5 text-center t-body-sm font-medium text-danger">
             {submitError}
           </p>
         )}
@@ -113,7 +113,7 @@ export function SetupForm({
             type="button"
             onClick={submit}
             disabled={submitting}
-            className="inline-flex min-h-[50px] w-full items-center justify-center gap-2 rounded-[13px] bg-ink px-7 py-[14px] text-[15px] font-medium text-cream disabled:opacity-60 sm:w-auto"
+            className="btn btn-lg btn-primary w-full disabled:opacity-60 sm:w-auto"
           >
             {submitting ? t.submitting : t.submit}
           </button>

@@ -16,6 +16,7 @@ import {
   ACTIVATABLE_LEAD_STATUSES,
   type CheckoutLead,
   activationNeedsReconciliation,
+  isPreparedLead,
 } from "@/lib/leads";
 import { normalizePlan } from "@/lib/plans";
 import { usAreaCode } from "@/lib/twilio";
@@ -267,35 +268,63 @@ function ActivationAction({ lead }: { lead: CheckoutLead }) {
     );
   }
   if (!lead.setup || !ACTIVATABLE_LEAD_STATUSES.has(lead.status)) return null;
+  const prepared = isPreparedLead(lead);
   const clientAreaCode = usAreaCode(lead.setup.forwardNumber || lead.basics.businessPhone);
   return (
-    <ActionPanel title="Activation">
+    <ActionPanel
+      title={
+        prepared ? "Verify and activate" : lead.flowVersion === 2 ? "Prepare setup" : "Activation"
+      }
+    >
       <form method="post" action={`/api/admin/leads/${lead.id}/activate`} className="space-y-3">
-        <label className="block text-xs">
-          <span className="mb-1 block font-medium text-ink">Twilio area code</span>
-          <input
-            name="areaCodeOverride"
-            inputMode="numeric"
-            pattern="[2-9][0-9]{2}"
-            maxLength={3}
-            defaultValue={lead.activationAreaCodeOverride ?? ""}
-            placeholder={clientAreaCode ?? "305"}
-            className="w-full rounded-[10px] border border-black/10 bg-white px-3 py-2 text-sm tabular-nums text-ink outline-none focus:border-teal/50"
-          />
-          <span className="mt-1 block text-muted-2">
-            Blank uses {clientAreaCode ?? "the client number"}. Override only with owner approval.
-          </span>
-        </label>
+        {!prepared && (
+          <label className="block text-xs">
+            <span className="mb-1 block font-medium text-ink">Twilio area code</span>
+            <input
+              name="areaCodeOverride"
+              inputMode="numeric"
+              pattern="[2-9][0-9]{2}"
+              maxLength={3}
+              defaultValue={lead.activationAreaCodeOverride ?? ""}
+              placeholder={clientAreaCode ?? "305"}
+              className="w-full rounded-[10px] border border-black/10 bg-white px-3 py-2 text-sm tabular-nums text-ink outline-none focus:border-teal/50"
+            />
+            <span className="mt-1 block text-muted-2">
+              Blank uses {clientAreaCode ?? "the client number"}. Override only with owner approval.
+            </span>
+          </label>
+        )}
         <label className="flex items-start gap-2 text-xs text-muted">
-          <input type="checkbox" required className="mt-0.5" />
+          <input type="checkbox" name="reviewConfirmed" value="yes" required className="mt-0.5" />
           <span>I reviewed phone, area code, hours, services, staff and forwarding.</span>
         </label>
+        {prepared && (
+          <label className="flex items-start gap-2 text-xs text-muted">
+            <input
+              type="checkbox"
+              name="readinessConfirmed"
+              value="yes"
+              required
+              className="mt-0.5"
+            />
+            <span>
+              I verified calendar ownership, a known busy appointment, team assignments, time zone
+              and existing bookings with the owner. We are ready for the phone connection test.
+            </span>
+          </label>
+        )}
         <SubmitButton>
-          {lead.status === "activation_failed"
-            ? "Review and retry activation"
-            : "Activate receptionist"}
+          {lead.flowVersion === 2 && !prepared
+            ? "Prepare number and calendar setup"
+            : lead.status === "activation_failed"
+              ? "Review and retry activation"
+              : "Activate receptionist"}
         </SubmitButton>
-        <Hint>Buys a Twilio number and emails the client once the shop is live.</Hint>
+        <Hint>
+          {lead.flowVersion === 2 && !prepared
+            ? "Buys and links a number, keeping the receptionist suspended. Connect and verify the calendar next."
+            : "Activates the receptionist and sends the welcome email. Complete the phone connection test with the owner."}
+        </Hint>
       </form>
     </ActionPanel>
   );

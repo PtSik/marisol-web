@@ -10,14 +10,22 @@ import {
   type CheckoutLead,
   activationNeedsReconciliation,
   getLead,
+  isPreparedLead,
   putLead,
 } from "@/lib/leads";
 import { notifyTeam } from "@/lib/notify";
+import { validateSetupPayload } from "@/lib/onboarding";
 import { extraLocationCount, normalizePlan } from "@/lib/plans";
-import { listAccountShopsStrict } from "@/lib/portalApi";
-import { type ProvisioningEnv, provisionLead, sendProvisionedWelcome } from "@/lib/provisioning";
+import { getShop, listAccountShopsStrict } from "@/lib/portalApi";
+import {
+  type ProvisioningEnv,
+  patchShop,
+  provisionLead,
+  sendProvisionedWelcome,
+} from "@/lib/provisioning";
 import { UPGRADABLE_STATUSES, getSubscription, setSubscriptionExtraLocations } from "@/lib/stripe";
 import { isUsAreaCode } from "@/lib/twilio";
+import { voiceAgentFetch } from "@/lib/voiceAgent";
 import { cookies } from "next/headers";
 
 export const dynamic = "force-dynamic";
@@ -100,6 +108,25 @@ export async function POST(
   }
   const form = await request.formData().catch(() => null);
   if (!form) return back(request, "invalid-area-code");
+  if (validateSetupPayload(lead.setup)) return back(request, "not-ready");
+  const prepared = isPreparedLead(lead);
+  if (lead.flowVersion === 2 && form.get("reviewConfirmed") !== "yes")
+    return back(request, "not-ready");
+  if (prepared && form.get("readinessConfirmed") !== "yes") return back(request, "not-ready");
+  if (prepared) {
+    const shop = lead.shopId ? await getShop(cfEnv, lead.shopId) : null;
+    if (
+      !shop ||
+      shop.status !== "suspended" ||
+      shop.account_id !== lead.accountId ||
+      shop.twilio_number !== lead.assignedNumber
+    )
+      return back(request, "reconcile");
+    if (lead.setup.calendar === "google_calendar") {
+      const health = await voiceAgentFetch(cfEnv, `/admin/shops/${lead.shopId}/calendar-check`);
+      if (!health?.ok) return back(request, "calendar-not-ready");
+    }
+  }
   const rawAreaCode = form.get("areaCodeOverride");
   if (rawAreaCode !== null && typeof rawAreaCode !== "string") {
     return back(request, "invalid-area-code");
@@ -115,7 +142,15 @@ export async function POST(
     return back(request, "billing-inactive");
   }
   const subscription = await getSubscription(cfEnv.STRIPE_SECRET_KEY, lead.stripeSubscriptionId);
-  if (!subscription || !UPGRADABLE_STATUSES.has(subscription.status ?? "")) {
+  // Review-stage preparation buys a number. Never buy one for a customer whose trial is already
+  // past due or set to cancel, even though those states can be eligible for legacy upgrades.
+  const billingReady =
+    lead.flowVersion === 2
+      ? !!subscription &&
+        (subscription.status === "trialing" || subscription.status === "active") &&
+        !subscription.cancel_at_period_end
+      : !!subscription && UPGRADABLE_STATUSES.has(subscription.status ?? "");
+  if (!billingReady) {
     return back(request, "billing-inactive");
   }
 
@@ -132,6 +167,11 @@ export async function POST(
   }
   if (!acquired) return back(request, "in-progress");
 
+  const latest = await getLead(cfEnv.LEADS_KV, lead.id);
+  if (!latest || latest.status !== lead.status || latest.preparedAt !== lead.preparedAt) {
+    await releaseActivationLock(cfEnv.OUTREACH_DB, lead.id, lockToken);
+    return back(request, "not-ready");
+  }
   lead.status = "activating";
   lead.activationStartedAt = new Date().toISOString();
   lead.activationLockToken = lockToken;
@@ -147,16 +187,26 @@ export async function POST(
   }
 
   try {
-    const result = await provisionLead(cfEnv, lead, {
-      sendWelcome: false,
-      areaCodeOverride,
-      checkpoint: async (resources) => {
-        lead.assignedNumber = resources.number;
-        lead.twilioNumberSid = resources.numberSid;
-        if (resources.shopId) lead.shopId = resources.shopId;
-        await putLead(cfEnv.LEADS_KV, lead);
-      },
-    });
+    const result = prepared
+      ? {
+          ok: await patchShop(cfEnv, lead.shopId as string, { status: "active" }),
+          shopId: lead.shopId,
+          number: lead.assignedNumber,
+          numberSid: lead.twilioNumberSid,
+          cleanupComplete: false,
+          reason: "prepared shop activation failed",
+        }
+      : await provisionLead(cfEnv, lead, {
+          activate: lead.flowVersion !== 2,
+          sendWelcome: false,
+          areaCodeOverride,
+          checkpoint: async (resources) => {
+            lead.assignedNumber = resources.number;
+            lead.twilioNumberSid = resources.numberSid;
+            if (resources.shopId) lead.shopId = resources.shopId;
+            await putLead(cfEnv.LEADS_KV, lead);
+          },
+        });
     if (!result.ok) {
       lead.status = "activation_failed";
       lead.activationFailedAt = new Date().toISOString();
@@ -195,6 +245,22 @@ export async function POST(
       return back(request, result.cleanupComplete ? "failed" : "reconcile");
     }
 
+    if (lead.flowVersion === 2 && !prepared) {
+      lead.status = "pending_review";
+      lead.shopId = result.shopId;
+      lead.assignedNumber = result.number;
+      lead.twilioNumberSid = result.numberSid;
+      lead.preparedAt = new Date().toISOString();
+      lead.activationStartedAt = undefined;
+      lead.provisionError = undefined;
+      // Persist resources before releasing the mutation lock. A failed write remains blocked.
+      await putLead(cfEnv.LEADS_KV, lead);
+      await releaseActivationLock(cfEnv.OUTREACH_DB, lead.id, lockToken);
+      lead.activationLockToken = undefined;
+      await putLead(cfEnv.LEADS_KV, lead);
+      return back(request, "prepared");
+    }
+    if (prepared) lead.readinessReviewedAt = new Date().toISOString();
     lead.status = "provisioned";
     lead.shopId = result.shopId;
     lead.assignedNumber = result.number;

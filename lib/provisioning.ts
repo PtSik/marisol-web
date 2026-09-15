@@ -6,6 +6,7 @@ import {
   type SetupDetails,
   type WeekHours,
   coerceTimezone,
+  openingLanguage,
 } from "@/lib/onboarding";
 import { normalizePlan } from "@/lib/plans";
 import { type Account, createAccount, patchAccount } from "@/lib/portalApi";
@@ -116,6 +117,15 @@ export function toShopStaff(setup: SetupDetails): Array<Record<string, unknown>>
     });
 }
 
+export function toServiceCatalog(setup: SetupDetails) {
+  if (setup.services.some((s) => s.durationMaxMin?.trim()))
+    throw new Error("Choose a fixed duration for each service");
+  return setup.services.map((s) => ({
+    name: s.name.trim(),
+    duration_minutes: Number(s.durationMin),
+  }));
+}
+
 export function buildShopPayload(
   lead: CheckoutLead,
   twilioNumber: string,
@@ -126,6 +136,9 @@ export function buildShopPayload(
   const ownerMobile = toUsE164(basics.ownerMobile);
   if (!ownerMobile) throw new Error("owner mobile is not a valid US phone number");
   const payload: Record<string, unknown> = {
+    ...(lead.flowVersion === 2
+      ? { transfers_enabled: false, service_catalog: toServiceCatalog(setup) }
+      : {}),
     name: basics.businessName,
     twilio_number: twilioNumber,
     escalation_phone: ownerMobile,
@@ -148,10 +161,11 @@ export function buildShopPayload(
     // voice-agent launch guard only serves active shops; a failed provisioning run stays suspended.
     status: "suspended",
     reminders_enabled: normalizePlan(lead.plan) !== "basic",
-    // Which language the agent opens in. The client's explicit pick wins; otherwise we inherit
-    // the funnel they arrived through, so an /es lead gets a Spanish-first agent by default.
-    // Either way language_detection keeps the call bilingual once it's running.
-    primary_language: setup.primaryLanguage ?? lead.locale ?? "en",
+    // Which language the agent opens in. A single-language mode names it outright; a bilingual one
+    // falls back to the client's pick, then to the funnel they arrived through, so an /es lead gets
+    // a Spanish-first agent by default. language_detection keeps the call bilingual once running —
+    // a single-language mode is not enforced downstream until the dedicated agents exist.
+    primary_language: openingLanguage(setup, lead.locale ?? "en"),
   };
   // Pinned per vertical rather than left to voice-agent's ELEVENLABS_TEMPLATE_AGENT_ID fallback:
   // relying on that env var meant every non-grooming shop silently inherited the barber agent,
@@ -281,6 +295,8 @@ export async function provisionLead(
   lead: CheckoutLead,
   options: {
     sendWelcome?: boolean;
+    // Preparation creates/link resources but keeps the shop suspended for calendar setup.
+    activate?: boolean;
     areaCodeOverride?: string;
     checkpoint?: (resources: ProvisioningCheckpoint) => Promise<void>;
   } = {},
@@ -389,11 +405,11 @@ export async function provisionLead(
     if (!(await patchShop(env, shop.id, { account_id: accountId }))) {
       throw new Error("shop account link failed");
     }
-    if (!(await patchShop(env, shop.id, { status: "active" }))) {
+    if (options.activate !== false && !(await patchShop(env, shop.id, { status: "active" }))) {
       throw new Error("shop activation failed");
     }
 
-    if (options.sendWelcome !== false) {
+    if (options.activate !== false && options.sendWelcome !== false) {
       await sendProvisionedWelcome(env, lead, {
         number: bought.number,
         shopId: shop.id,

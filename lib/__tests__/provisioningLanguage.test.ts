@@ -43,6 +43,35 @@ describe("buildShopPayload — primary_language", () => {
     const p = buildShopPayload(lead({ locale: "es", setup }), "+18336596941", AGENTS);
     expect(p.primary_language).toBe("en");
   });
+
+  // A single-language mode names the opening tongue outright, so it wins over both the bilingual
+  // pick left behind by an earlier answer and the funnel the client arrived through.
+  it("takes the opening language from a single-language mode", () => {
+    const setup = {
+      ...defaultSetup("barbershop", ["Haircut"]),
+      languageMode: "es" as const,
+      primaryLanguage: "en" as const,
+    };
+    const p = buildShopPayload(lead({ locale: "en", setup }), "+18336596941", AGENTS);
+    expect(p.primary_language).toBe("es");
+  });
+
+  it("falls back to the bilingual pick when the mode names no language", () => {
+    const setup = {
+      ...defaultSetup("barbershop", ["Haircut"]),
+      languageMode: "bilingual" as const,
+      primaryLanguage: "es" as const,
+    };
+    const p = buildShopPayload(lead({ locale: "en", setup }), "+18336596941", AGENTS);
+    expect(p.primary_language).toBe("es");
+  });
+
+  // Every lead created before the mode existed behaves exactly as it did before.
+  it("treats a missing mode as bilingual", () => {
+    const setup = { ...defaultSetup("barbershop", ["Haircut"]), primaryLanguage: "es" as const };
+    const p = buildShopPayload(lead({ locale: "en", setup }), "+18336596941", AGENTS);
+    expect(p.primary_language).toBe("es");
+  });
 });
 
 describe("buildShopPayload — agent per vertical", () => {
@@ -71,7 +100,7 @@ describe("validateSetupPayload — primaryLanguage", () => {
   // defaultSetup leaves forwardNumber and staff names blank, which trip earlier guards — fill
   // both so these cases actually reach the language check.
   const base = () => {
-    const setup = defaultSetup("barbershop", ["Haircut"]);
+    const setup = defaultSetup("barbershop", ["Haircut", "Beard trim", "Cut and beard"]);
     return {
       ...setup,
       forwardNumber: "+13055550111",
@@ -92,6 +121,18 @@ describe("validateSetupPayload — primaryLanguage", () => {
   it("rejects an unsupported language before it can reach provisioning", () => {
     expect(validateSetupPayload({ ...base(), primaryLanguage: "de" })).toBe(
       "invalid primaryLanguage",
+    );
+  });
+
+  it("accepts every supported language mode", () => {
+    expect(validateSetupPayload({ ...base(), languageMode: "en" })).toBeNull();
+    expect(validateSetupPayload({ ...base(), languageMode: "es" })).toBeNull();
+    expect(validateSetupPayload({ ...base(), languageMode: "bilingual" })).toBeNull();
+  });
+
+  it("rejects an unknown language mode", () => {
+    expect(validateSetupPayload({ ...base(), languageMode: "trilingual" })).toBe(
+      "invalid languageMode",
     );
   });
 });

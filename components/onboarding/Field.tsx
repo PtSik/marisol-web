@@ -20,17 +20,17 @@ export function Field({
 }) {
   return (
     <div className="flex flex-col gap-[6px]">
-      <label htmlFor={htmlFor} className="text-[13.5px] font-medium text-ink">
+      <label htmlFor={htmlFor} className="t-body-sm font-medium text-ink">
         {label}
       </label>
       {children}
       {hint && !error && (
-        <span className="text-[12.5px] text-muted-2" aria-live={liveHint ? "polite" : undefined}>
+        <span className="t-caption text-muted-2" aria-live={liveHint ? "polite" : undefined}>
           {hint}
         </span>
       )}
       {error && (
-        <span role="alert" className="text-[12.5px] font-medium text-[#B4452C]">
+        <span role="alert" className="t-caption font-medium text-danger">
           {error}
         </span>
       )}

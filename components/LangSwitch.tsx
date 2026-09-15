@@ -166,9 +166,17 @@ export function LangToggle({
   locale,
   t,
   path = "",
+  byQuery = false,
   className = "",
-}: { locale: Locale; t: Dict["lang"]; path?: string; className?: string }) {
-  const options = useLangOptions(t, path, false);
+}: {
+  locale: Locale;
+  t: Dict["lang"];
+  path?: string;
+  /** The funnel has no `/es` route and carries the locale as `?lang=es`. */
+  byQuery?: boolean;
+  className?: string;
+}) {
+  const options = useLangOptions(t, path, byQuery);
 
   return (
     <div

@@ -65,6 +65,9 @@ export interface CheckoutLead {
      the shop to the owner's existing portal login instead of minting a second one */
   accountId?: string;
   stripeSessionId?: string;
+  // Written before the Stripe POST. When the response or session-id write is lost, this marks an
+  // attempt that may already have created a payable Checkout session.
+  checkoutRequestSentAt?: string;
   checkoutAttempt?: number;
   /* Resolved Stripe promotion inputs used to decide whether an open Checkout is truly reusable. */
   checkoutReuseVersion?: 1;
@@ -74,6 +77,10 @@ export interface CheckoutLead {
   stripeSubscriptionId?: string;
   paidAt?: string;
   setup?: SetupDetails;
+  /* Version 2 submits the reviewed setup before payment. It is frozen for that checkout. */
+  flowVersion?: 2;
+  preparedAt?: string;
+  readinessReviewedAt?: string;
   setupCompletedAt?: string;
   shopId?: string;
   assignedNumber?: string;
@@ -96,7 +103,17 @@ export interface CheckoutLead {
   referralEmailSentAt?: string;
 }
 
+export function isPreparedLead(lead: CheckoutLead): boolean {
+  return (
+    lead.flowVersion === 2 &&
+    lead.status === "pending_review" &&
+    Boolean(lead.preparedAt && lead.shopId && lead.assignedNumber && lead.twilioNumberSid) &&
+    !lead.activationLockToken
+  );
+}
+
 export function activationNeedsReconciliation(lead: CheckoutLead): boolean {
+  if (isPreparedLead(lead)) return false;
   return Boolean(
     lead.activationStartedAt ||
       lead.activationLockToken ||
@@ -113,6 +130,7 @@ export function checkoutRequestMatchesLead(
     billing: Billing;
     locale: Locale;
     basics: BusinessBasics;
+    setup?: SetupDetails;
     promotionId?: string;
     referralCode?: string;
   },
@@ -134,7 +152,9 @@ export function checkoutRequestMatchesLead(
     (lead.locale ?? "en") === requested.locale &&
     (lead.checkoutPromotionId ?? undefined) === requested.promotionId &&
     (lead.checkoutReferralCode ?? undefined) === requested.referralCode &&
-    basicFields.every((field) => lead.basics[field] === requested.basics[field])
+    basicFields.every((field) => lead.basics[field] === requested.basics[field]) &&
+    JSON.stringify(lead.flowVersion === 2 ? lead.setup : undefined) ===
+      JSON.stringify(requested.setup)
   );
 }
 

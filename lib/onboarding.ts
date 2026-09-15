@@ -4,9 +4,30 @@ import type { Locale } from "@/lib/i18n/dict";
 export const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 export const PHONE_RE = /^(?=(?:\D*\d){7})[+()\-.\s\d]{7,20}$/;
 
+export function isUsPhone(value: unknown): value is string {
+  if (typeof value !== "string" || !PHONE_RE.test(value)) return false;
+  const digits = value.replace(/\D/g, "");
+  return /^(?:1)?[2-9]\d{2}[2-9]\d{6}$/.test(digits);
+}
+
 export const VERTICAL_IDS = ["grooming", "barbershop"] as const;
 
 export type Vertical = (typeof VERTICAL_IDS)[number];
+
+export const LANGUAGE_MODES = ["en", "es", "bilingual"] as const;
+
+export type LanguageMode = (typeof LANGUAGE_MODES)[number];
+
+export function isLanguageMode(value: unknown): value is LanguageMode {
+  return LANGUAGE_MODES.includes(value as LanguageMode);
+}
+
+/** The tongue the agent opens a call in, for a mode that may or may not name one itself. */
+export function openingLanguage(setup: SetupDetails, fallback: Locale): Locale {
+  const mode = setup.languageMode ?? "bilingual";
+  if (mode !== "bilingual") return mode;
+  return setup.primaryLanguage ?? fallback;
+}
 
 export interface ServiceEntry {
   name: string;
@@ -96,6 +117,7 @@ export interface StaffEntry {
 }
 
 export interface SetupDetails {
+  fixedDurations?: boolean;
   hours: WeekHours;
   services: ServiceEntry[];
   staff: StaffEntry[];
@@ -105,6 +127,10 @@ export interface SetupDetails {
   // Optional: leads created before the carrier question exists still validate, and the forwarding
   // card falls back to showing both code families.
   carrier?: Carrier;
+  // Optional: leads created before this question existed are bilingual, which is what every agent
+  // did when `primaryLanguage` was the only control. A single-language mode is recorded here now
+  // and enforced by a dedicated ElevenLabs agent later; until then it only sets the opening tongue.
+  languageMode?: LanguageMode;
   // Optional: leads created before this question existed fall back to the funnel locale.
   // Picks the language the agent *opens* in, not the only one it speaks.
   primaryLanguage?: Locale;
@@ -154,7 +180,68 @@ export function defaultSetup(vertical: Vertical, serviceNames: readonly string[]
   };
 }
 
-const TIME_RE = /^\d{2}:\d{2}$/;
+// This wizard books with a fixed server-owned duration. The legacy example catalog uses ranges
+// for grooming, so convert its upper bound to the proposed reserved slot before showing it.
+// An owner must still review those example lengths and prices before Checkout.
+export function fixedOnboardingPresets(
+  vertical: Vertical,
+  serviceNames: readonly string[],
+): ServiceEntry[] {
+  return defaultSetup(vertical, serviceNames).services.map((service) => ({
+    ...service,
+    durationMin: service.durationMaxMin?.trim() || service.durationMin,
+    durationMaxMin: "",
+  }));
+}
+
+// True only while the menu is still, row for row, this vertical's untouched example set in either
+// language. That is what lets a change of vertical swap the examples out: anything the owner typed
+// over is their data and outranks the switch.
+export function isExampleMenu(
+  services: readonly ServiceEntry[],
+  vertical: Vertical,
+  localizedNames: ReadonlyArray<readonly string[]>,
+): boolean {
+  const presets = fixedOnboardingPresets(vertical, []);
+  if (!services.length || services.length !== presets.length) return false;
+  return services.every((service, index) => {
+    const preset = presets[index];
+    return (
+      localizedNames.some((names) => names[index] === service.name) &&
+      service.durationMin === preset.durationMin &&
+      (service.durationMaxMin ?? "") === (preset.durationMaxMin ?? "") &&
+      service.price === preset.price &&
+      (service.priceMax ?? "") === (preset.priceMax ?? "")
+    );
+  });
+}
+
+// Drafts saved while the wizard used the legacy presets already contain ranges. Upgrade only a
+// row still identical to an untouched EN/ES example; a changed service remains the owner's data.
+export function upgradeUneditedPresetRanges(
+  services: ServiceEntry[],
+  vertical: Vertical,
+  localizedNames: ReadonlyArray<readonly string[]>,
+): ServiceEntry[] {
+  let changed = false;
+  const next = services.map((service, index) => {
+    const preset = SERVICE_PRESETS[vertical][index];
+    if (
+      !preset?.durationMaxMin ||
+      !localizedNames.some((names) => names[index] === service.name) ||
+      service.durationMin !== preset.durationMin ||
+      service.durationMaxMin !== preset.durationMaxMin ||
+      service.price !== preset.price ||
+      service.priceMax !== preset.priceMax
+    )
+      return service;
+    changed = true;
+    return { ...service, durationMin: preset.durationMaxMin, durationMaxMin: "" };
+  });
+  return changed ? next : services;
+}
+
+const TIME_RE = /^(?:[01]\d|2[0-3]):[0-5]\d$/;
 
 function isShortString(value: unknown, max = 120): value is string {
   return typeof value === "string" && value.length <= max;
@@ -202,19 +289,44 @@ export function normalizeSetup(setup: SetupDetails): SetupDetails {
   };
 }
 
+export function isValidService(value: unknown): boolean {
+  if (!value || typeof value !== "object") return false;
+  const svc = value as ServiceEntry;
+  const duration = (v: unknown) =>
+    typeof v === "string" && /^\d{1,4}$/.test(v) && Number(v) >= 5 && Number(v) <= 1440;
+  const price = (v: unknown) =>
+    typeof v === "string" &&
+    (v.trim() === "" || (/^\d{1,6}(?:\.\d{1,2})?$/.test(v) && Number(v) <= 100000));
+  return (
+    isShortString(svc.name) &&
+    !!svc.name.trim() &&
+    duration(svc.durationMin) &&
+    price(svc.price) &&
+    (svc.durationMaxMin == null ||
+      (typeof svc.durationMaxMin === "string" && svc.durationMaxMin.trim() === "") ||
+      duration(svc.durationMaxMin)) &&
+    (svc.priceMax == null || price(svc.priceMax)) &&
+    !(typeof svc.priceMax === "string" && svc.priceMax.trim() && !svc.price.trim()) &&
+    !aboveIsBelow(svc.durationMin, svc.durationMaxMin) &&
+    !aboveIsBelow(svc.price, svc.priceMax)
+  );
+}
+
 // Server-side gate for anything that writes a shop's configuration — the onboarding setup
 // submit and the portal's later edits go through the same rules.
 export function validateSetupPayload(setup: unknown): string | null {
   if (typeof setup !== "object" || setup === null) return "invalid setup";
   const s = setup as SetupDetails;
 
-  if (!isShortString(s.forwardNumber) || !PHONE_RE.test(s.forwardNumber))
+  if (!isShortString(s.forwardNumber) || !isUsPhone(s.forwardNumber))
     return "invalid forwardNumber";
   if (s.carrier !== undefined && !isCarrier(s.carrier)) return "invalid carrier";
   // Guarded here rather than left to the shops CHECK constraint: without this a bad value
   // reaches provisioning and surfaces as a raw Postgres error mid-signup instead of a 400.
   if (s.primaryLanguage !== undefined && s.primaryLanguage !== "en" && s.primaryLanguage !== "es")
     return "invalid primaryLanguage";
+  if (s.languageMode !== undefined && !isLanguageMode(s.languageMode))
+    return "invalid languageMode";
   if (s.calendar !== "google_calendar" && s.calendar !== "none") return "invalid calendar";
   if (typeof s.notes !== "string" || s.notes.length > 2000) return "invalid notes";
 
@@ -222,20 +334,12 @@ export function validateSetupPayload(setup: unknown): string | null {
 
   if (!Array.isArray(s.services) || s.services.length === 0 || s.services.length > 30)
     return "invalid services";
-  const hasService = s.services.some(
-    (svc) => isShortString(svc?.name) && svc.name.trim() && Number(svc?.durationMin) > 0,
-  );
-  if (
-    !hasService ||
-    !s.services.every(
-      (svc) =>
-        isShortString(svc?.name) &&
-        isShortString(svc?.durationMin, 5) &&
-        isShortString(svc?.price, 10) &&
-        isOptionalShortString(svc?.durationMaxMin, 5) &&
-        isOptionalShortString(svc?.priceMax, 10),
-    )
-  )
+  if (s.fixedDurations !== undefined && typeof s.fixedDurations !== "boolean")
+    return "invalid services";
+  if (!s.services.every(isValidService)) return "invalid services";
+  if (new Set(s.services.map((v) => v.name.trim().toLowerCase())).size !== s.services.length)
+    return "invalid services";
+  if (s.fixedDurations && s.services.some((v) => v.durationMaxMin?.trim()))
     return "invalid services";
   // An upper bound below its lower bound would be spoken to callers as "ninety to sixty dollars".
   if (
@@ -250,9 +354,15 @@ export function validateSetupPayload(setup: unknown): string | null {
   if (typeof s.staffCustomHours !== "boolean") return "invalid staff";
   if (!Array.isArray(s.staff) || s.staff.length === 0 || s.staff.length > 30)
     return "invalid staff";
-  if (!s.staff.some((m) => isShortString(m?.name) && m.name.trim())) return "invalid staff";
+  const ids = new Set<string>();
+  const names = new Set<string>();
   for (const m of s.staff) {
-    if (!isShortString(m?.name) || !isShortString(m?.id, 40)) return "invalid staff";
+    if (!isShortString(m?.name) || !m.name.trim() || !isShortString(m?.id, 40) || !m.id.trim())
+      return "invalid staff";
+    const name = m.name.trim().toLocaleLowerCase();
+    if (ids.has(m.id) || names.has(name)) return "invalid staff";
+    ids.add(m.id);
+    names.add(name);
     if (m.hours === null || m.hours === undefined) continue;
     if (invalidWeekHours(m.hours)) return "invalid staff";
   }

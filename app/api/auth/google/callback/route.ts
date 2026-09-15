@@ -82,10 +82,13 @@ export async function GET(request: Request): Promise<Response> {
   });
   if (!sessionId) return toLogin(request, "session_failed");
 
-  // The locale survived the round trip in the state cookie; `/portal` needs it because a brand new
-  // Google account has no salon and is forwarded straight into the onboarding wizard.
+  // The locale survived the round trip in the state cookie. A brand new Google account goes to
+  // onboarding directly; an existing account still enters its protected portal/status resolver.
   const headers = new Headers({
-    Location: appHref(oauthState.lang === "es" ? "es" : "en", "/portal"),
+    Location: appHref(
+      oauthState.lang === "es" ? "es" : "en",
+      !account.shop_id && !account.lead_id ? "/onboarding" : "/portal",
+    ),
   });
   headers.append("Set-Cookie", sessionCookie(sessionId));
   headers.append("Set-Cookie", clearedStateCookie());

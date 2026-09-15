@@ -8,10 +8,8 @@ function Codes({ codes }: { codes: CodeLine[] }) {
     <ul className="mt-2 flex list-none flex-col gap-1.5 p-0">
       {codes.map((line) => (
         <li key={line.code} className="rounded-[12px] bg-cream px-[14px] py-2.5">
-          {line.label && <span className="text-[13.5px] text-muted-2">{line.label} — </span>}
-          <strong className="font-display text-[17px] tracking-[0.01em] text-ink">
-            {line.code}
-          </strong>
+          {line.label && <span className="t-body-sm text-muted-2">{line.label} — </span>}
+          <strong className="font-display t-body tracking-[0.01em] text-ink">{line.code}</strong>
         </li>
       ))}
     </ul>
@@ -26,24 +24,20 @@ export function ForwardingCard({
   const guide = forwardingGuide(carrier, twilioNumber, t);
 
   return (
-    <div className="mt-9 rounded-[24px] bg-cream-100 p-[clamp(20px,4vw,34px)]">
-      <p className="text-[11.5px] font-semibold uppercase tracking-[0.16em] text-muted-2">
-        {t.kicker}
-      </p>
-      <p className="mt-1.5 font-display text-[clamp(26px,4vw,34px)] tracking-[-0.02em]">
-        {twilioNumber}
-      </p>
-      <h2 className="mt-7 text-[17px] font-medium">{t.heading}</h2>
-      <p className="mt-2 text-[15px] leading-[1.55] text-muted">{t.lead}</p>
+    <div className="surface mt-9 rounded-[24px] p-[clamp(20px,4vw,34px)]">
+      <p className="t-eyebrow text-muted-2">{t.kicker}</p>
+      <p className="mt-1.5 font-display t-stat font-bold tabular-nums">{twilioNumber}</p>
+      <h2 className="mt-7 t-body font-medium">{t.heading}</h2>
+      <p className="mt-2 t-body text-muted">{t.lead}</p>
 
-      <p className="mt-4 rounded-[14px] bg-[#B4452C]/10 px-[16px] py-3 text-[13.5px] leading-[1.5] text-ink">
+      <p className="mt-4 rounded-[14px] bg-danger/10 px-[16px] py-3 t-body-sm text-ink">
         {guide.warning}
       </p>
 
       {guide.manual ? (
         <div className="mt-5">
-          <p className="text-[15px] font-medium">{guide.manual.title}</p>
-          <p className="mt-1.5 text-[14.5px] leading-[1.55] text-muted">{guide.manual.body}</p>
+          <p className="t-body font-medium">{guide.manual.title}</p>
+          <p className="mt-1.5 t-body-sm text-muted">{guide.manual.body}</p>
           <ForwardingHelpButton topic="forwarding_voip" variant="button" t={t} />
         </div>
       ) : (
@@ -51,10 +45,10 @@ export function ForwardingCard({
           <ol className="mt-5 flex list-none flex-col gap-4 p-0">
             {guide.steps.map((step, i) => (
               <li key={step.text} className="flex gap-3">
-                <span className="mt-[1px] flex h-[24px] w-[24px] shrink-0 items-center justify-center rounded-full bg-ink text-[13px] font-medium text-cream">
+                <span className="mt-[1px] flex h-[24px] w-[24px] shrink-0 items-center justify-center rounded-full bg-ink t-caption font-medium text-cream">
                   {i + 1}
                 </span>
-                <span className="text-[15px] leading-[1.5]">
+                <span className="t-body">
                   {step.text}
                   <Codes codes={step.codes} />
                 </span>
@@ -62,7 +56,7 @@ export function ForwardingCard({
             ))}
           </ol>
           {guide.turnOff && (
-            <p className="mt-5 text-[13.5px] leading-[1.5] text-muted-2">
+            <p className="mt-5 t-body-sm text-muted-2">
               {guide.turnOff.text}{" "}
               {guide.turnOff.codes.map((line, i) => (
                 <span key={line.code}>

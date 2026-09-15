@@ -1,6 +1,13 @@
 "use client";
 
 import { ParallaxLayer } from "@/components/motion/ParallaxLayer";
+import {
+  StatusPill,
+  VoiceFootnote,
+  VoiceOrb,
+  VoiceTranscript,
+  formatCallTime,
+} from "@/components/voice/VoiceStage";
 import { DEFAULT_PERSONA, type DemoPersona, getDemoAgent } from "@/lib/demoAgents";
 import type { Dict, Locale } from "@/lib/i18n/dict";
 import { fetchConversationToken } from "@/lib/startConversation";
@@ -9,12 +16,6 @@ import { ConversationProvider, useConversation } from "@elevenlabs/react";
 import { useCallback, useEffect, useRef, useState } from "react";
 
 type Line = { source: "user" | "ai"; text: string };
-
-function fmtTime(sec: number): string {
-  const m = Math.floor(sec / 60);
-  const s = sec % 60;
-  return `${m}:${String(s).padStart(2, "0")}`;
-}
 
 type WidgetProps = { t: Dict["widget"]; personas: Dict["personas"]; locale: Locale };
 
@@ -33,7 +34,6 @@ function DemoStage({ t, personas, locale }: WidgetProps) {
   const [error, setError] = useState<string | null>(null);
   const [ended, setEnded] = useState(false);
   const endTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
-  const transcriptRef = useRef<HTMLDivElement | null>(null);
 
   const conversation = useConversation({
     onConnect: () => {
@@ -66,14 +66,6 @@ function DemoStage({ t, personas, locale }: WidgetProps) {
     },
     [],
   );
-
-  // biome-ignore lint/correctness/useExhaustiveDependencies: scroll must re-run when lines change
-  useEffect(() => {
-    transcriptRef.current?.scrollTo({
-      top: transcriptRef.current.scrollHeight,
-      behavior: "smooth",
-    });
-  }, [lines]);
 
   const start = useCallback(async () => {
     const agent = getDemoAgent(persona);
@@ -142,11 +134,6 @@ function DemoStage({ t, personas, locale }: WidgetProps) {
         ? t.primaryAgain
         : t.primaryIdle;
 
-  const orbScale = active && isSpeaking ? 1.12 : active ? 1.04 : 1;
-  const ringAnim = busy ? "ringOut 2.4s ease-out infinite" : "none";
-  const waveOpacity = active && !isSpeaking ? 1 : active ? 0.4 : 0.18;
-  const waveAnim = busy ? "bar 0.7s ease-in-out infinite" : "none";
-
   return (
     <div className="grid grid-cols-1 items-stretch gap-[18px] md:grid-cols-2">
       <div className="relative flex min-h-[380px] flex-col overflow-hidden rounded-[26px] shadow-[0_30px_70px_-45px_rgba(36,27,20,0.6)] md:h-[560px]">
@@ -190,13 +177,9 @@ function DemoStage({ t, personas, locale }: WidgetProps) {
         {/* The status badge and the persona picker share one row, so the picker has to fit what is
             left of a 350px stage: at the desktop chip size "Barbershop" ran off the right edge. */}
         <div className="relative z-[3] flex items-start justify-between gap-2 p-3 md:p-4">
-          <div className="flex items-center gap-[7px] rounded-full bg-ink/30 px-3 py-1.5 text-xs text-cream backdrop-blur-md md:py-[7px]">
-            <span
-              className="h-2 w-2 rounded-full"
-              style={{ background: statusDot, boxShadow: `0 0 0 4px ${statusDot}33` }}
-            />
+          <StatusPill tone="dark" dot={statusDot}>
             {statusText}
-          </div>
+          </StatusPill>
           <fieldset className="m-0 flex flex-row gap-1 rounded-[13px] border-0 bg-cream/92 p-1 shadow-[0_8px_22px_-12px_rgba(36,27,20,0.55)] backdrop-blur-sm">
             <legend className="sr-only">{t.personaLegend}</legend>
             {(["grooming", "barbershop"] as const).map((p) => (
@@ -216,54 +199,13 @@ function DemoStage({ t, personas, locale }: WidgetProps) {
         </div>
 
         <div className="relative z-[2] flex flex-1 flex-col items-center justify-center gap-3 px-4 pb-3 pt-1 md:gap-[22px] md:pb-5 md:pt-2">
-          <div className="relative flex h-20 w-20 items-center justify-center md:h-32 md:w-32">
-            <div
-              className="absolute h-full w-full rounded-full border-[1.5px] border-white/70"
-              style={{ animation: ringAnim }}
-            />
-            <div
-              className="absolute h-full w-full rounded-full border-[1.5px] border-white/50"
-              style={{ animation: busy ? "ringOut 2.4s ease-out infinite 1.2s" : "none" }}
-            />
-            <div
-              className="flex h-14 w-14 items-center justify-center rounded-full bg-cream/90 shadow-[inset_0_0_24px_rgba(255,255,255,0.6),0_12px_30px_-10px_rgba(36,27,20,0.5)] transition-transform duration-300 md:h-24 md:w-24"
-              style={{
-                transform: `scale(${orbScale})`,
-                animation: active && isSpeaking ? "orbBreathe 1.4s ease-in-out infinite" : "none",
-              }}
-            >
-              <svg
-                viewBox="0 0 24 24"
-                fill="none"
-                stroke="currentColor"
-                strokeWidth="1.6"
-                strokeLinecap="round"
-                strokeLinejoin="round"
-                aria-hidden="true"
-                className="h-5 w-5 text-ink md:h-[34px] md:w-[34px]"
-              >
-                <path d="M12 1a3 3 0 0 0-3 3v8a3 3 0 0 0 6 0V4a3 3 0 0 0-3-3z" />
-                <path d="M19 10v2a7 7 0 0 1-14 0v-2" />
-                <line x1="12" y1="19" x2="12" y2="23" />
-              </svg>
-            </div>
-          </div>
-          <div
-            aria-hidden="true"
-            className="flex h-5 items-center gap-[5px] transition-opacity duration-300 md:h-[30px]"
-            style={{ opacity: waveOpacity }}
-          >
-            {[0, 120, 240, 360, 180, 300, 60].map((delay) => (
-              <span
-                key={delay}
-                className="h-full w-1 origin-center rounded-[3px] bg-cream/95"
-                style={{ animation: waveAnim, animationDelay: `${delay}ms` }}
-              />
-            ))}
-          </div>
-          <div className="font-display text-xl tracking-[-0.02em] tabular-nums text-ink md:text-[30px]">
-            {fmtTime(seconds)}
-          </div>
+          <VoiceOrb
+            tone="dark"
+            active={active}
+            busy={busy}
+            isSpeaking={isSpeaking}
+            timer={formatCallTime(seconds)}
+          />
         </div>
 
         <div className="relative z-[3] flex flex-col items-center gap-2 px-4 pb-4 md:gap-[10px] md:pb-[18px]">
@@ -299,83 +241,50 @@ function DemoStage({ t, personas, locale }: WidgetProps) {
               </a>
             </div>
           ) : (
-            <div className="max-w-[30ch] t-caption text-center text-ink/[0.62]">
-              {error ?? t.footnote}
-            </div>
+            <VoiceFootnote tone="dark">{error ?? t.footnote}</VoiceFootnote>
           )}
         </div>
       </div>
 
-      <div className="flex h-[380px] flex-col rounded-[26px] bg-white p-[18px] shadow-[0_30px_70px_-55px_rgba(36,27,20,0.5)] md:h-[560px]">
+      <div className="flex h-[380px] flex-col rounded-[26px] bg-offwhite p-[18px] shadow-[0_30px_70px_-55px_rgba(36,27,20,0.5)] md:h-[560px]">
         <div className="mb-[6px] flex items-center justify-between border-b border-cream-200 px-[6px] pb-[14px] pt-1">
           <span className="t-eyebrow text-muted-2">{t.transcript}</span>
-          <span className="text-xs text-muted-2">{agent.shopLabel}</span>
+          <span className="t-caption text-muted-2">{agent.shopLabel}</span>
         </div>
-        <div
-          ref={transcriptRef}
-          aria-live="polite"
-          className="flex min-h-0 flex-1 flex-col gap-[10px] overflow-y-auto px-1 py-2"
-        >
-          {lines.length === 0 ? (
-            <div className="m-auto flex max-w-[26ch] flex-col items-center gap-[10px] text-center text-muted-2">
-              <svg
-                width="30"
-                height="30"
-                viewBox="0 0 24 24"
-                fill="none"
-                stroke="currentColor"
-                strokeWidth="1.5"
-                strokeLinecap="round"
-                strokeLinejoin="round"
-                aria-hidden="true"
-                className="text-cream-200"
-              >
-                <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z" />
-              </svg>
-              <span className="text-sm leading-[1.5]">
-                {t.emptyBefore}
-                <strong className="text-muted-2">{t.emptyStrong}</strong>
-                {t.emptyAfter}
-              </span>
-              <div className="mt-6 flex flex-col items-center gap-[6px]">
-                <span className="t-eyebrow text-muted-2">{t.tryAsking}</span>
-                {personas[persona].prompts.map((prompt) => (
-                  <span
-                    key={prompt}
-                    className="rounded-full bg-cream-100 px-[13px] py-[7px] t-caption leading-[1.4] text-muted"
-                  >
-                    “{prompt}”
-                  </span>
-                ))}
-              </div>
-            </div>
-          ) : (
-            lines.map((line, i) => {
-              const ai = line.source === "ai";
-              return (
-                <div
-                  key={`${i}-${line.text.slice(0, 8)}`}
-                  className={`flex ${ai ? "justify-start" : "justify-end"}`}
+        <VoiceTranscript lines={lines} speakerAi={t.speakerAi} speakerUser={t.speakerUser}>
+          <div className="m-auto flex max-w-[26ch] flex-col items-center gap-[10px] text-center text-muted-2">
+            <svg
+              width="30"
+              height="30"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              strokeWidth="1.5"
+              strokeLinecap="round"
+              strokeLinejoin="round"
+              aria-hidden="true"
+              className="text-cream-200"
+            >
+              <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z" />
+            </svg>
+            <span className="t-body-sm">
+              {t.emptyBefore}
+              <strong className="text-muted-2">{t.emptyStrong}</strong>
+              {t.emptyAfter}
+            </span>
+            <div className="mt-6 flex flex-col items-center gap-[6px]">
+              <span className="t-eyebrow text-muted-2">{t.tryAsking}</span>
+              {personas[persona].prompts.map((prompt) => (
+                <span
+                  key={prompt}
+                  className="rounded-full bg-cream-100 px-[13px] py-[7px] t-caption text-muted"
                 >
-                  <div className="flex max-w-[82%] flex-col gap-[3px]">
-                    <span className="px-1 t-eyebrow" style={{ color: ai ? "#B9A892" : "#c4a08a" }}>
-                      {ai ? t.speakerAi : t.speakerUser}
-                    </span>
-                    <div
-                      className={`px-[15px] py-[11px] t-body-sm leading-[1.45] ${
-                        ai
-                          ? "rounded-[16px_16px_16px_5px] bg-cream-100 text-ink"
-                          : "rounded-[16px_16px_5px_16px] bg-ink text-cream"
-                      }`}
-                    >
-                      {line.text}
-                    </div>
-                  </div>
-                </div>
-              );
-            })
-          )}
-        </div>
+                  “{prompt}”
+                </span>
+              ))}
+            </div>
+          </div>
+        </VoiceTranscript>
       </div>
     </div>
   );

@@ -13,7 +13,7 @@ export function BookCallForm({
 
   if (!open) {
     return (
-      <p className="mt-6 text-center text-[14px] text-muted">
+      <p className="mt-6 text-center t-body-sm text-muted">
         {t.bookCallBefore}
         <button type="button" onClick={() => setOpen(true)} className="font-medium text-teal">
           {t.bookCallLink}

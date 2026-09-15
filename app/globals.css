@@ -6,6 +6,9 @@
   --color-cream: #fbf6ef;
   --color-ink: #241b14;
   --color-teal: #4f8c80;
+  --color-offwhite: #fffdf9;
+  --color-success: #2c7a4b;
+  --color-danger: #b4452c;
 
   /* Two section densities, not eleven ad-hoc paddings — that is what stopped the old page reading
      as one block repeated. `.section` is the default; `.section-tight` is for the panels that carry
@@ -54,6 +57,14 @@ body {
   outline: 2px solid var(--color-ink);
   outline-offset: 3px;
   border-radius: 6px;
+}
+
+/* Containers focused only so a screen reader lands there — a step heading, an error summary, a
+   modal panel. They are not keyboard-reachable and not controls, so the ring says nothing; around
+   a page title it just reads as a bug. The elements carried `outline-none`, which lost on source
+   order because Tailwind's utilities are emitted above this file's own rules. */
+[tabindex="-1"]:focus-visible {
+  outline: none;
 }
 
 .shell {
@@ -617,6 +628,23 @@ body {
 [data-reveal].reveal-armed.is-visible {
   opacity: 1;
   transform: none;
+}
+
+/* The wizard's step change. Forward and back get the same short rise: the progress rail above
+   already says which way the flow is going, and a directional slide under a heading that stays put
+   reads as the page jumping rather than as the step turning over. */
+@keyframes stepIn {
+  from {
+    opacity: 0;
+    transform: translateY(10px);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+.step-in {
+  animation: stepIn 0.32s cubic-bezier(0.22, 0.61, 0.36, 1);
 }
 
 @media (prefers-reduced-motion: reduce) {

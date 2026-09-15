@@ -137,19 +137,21 @@ export async function shopIdFromCookies(): Promise<string | undefined> {
 export async function requirePortalSession(env: PortalEnv): Promise<PortalSession> {
   const kv = env.RATE_LIMIT_KV;
   const id = await sessionIdFromCookies();
-  const session = await getSession(kv, id);
+  let session = await getSession(kv, id);
   if (!session) redirect("/login");
-  const blocked = await portalAccessRedirect(env, session);
-  if (blocked) redirect(blocked);
+  // A session minted before the first shop/lead was linked can outlive that account update. Refresh
+  // it before resolving access so a now-active customer is not mistaken for a new setup account.
   if (!session.shopId && id) {
     const account = await findAccountByEmail(env, session.email);
-    if (account?.shop_id) {
+    if (account?.shop_id || account?.lead_id) {
       const refreshed = await refreshSession(kv, id, {
-        shopId: account.shop_id,
+        shopId: account.shop_id ?? session.shopId,
         leadId: account.lead_id ?? session.leadId,
       });
-      if (refreshed) return refreshed;
+      if (refreshed) session = refreshed;
     }
   }
+  const blocked = await portalAccessRedirect(env, session);
+  if (blocked) redirect(blocked);
   return session;
 }

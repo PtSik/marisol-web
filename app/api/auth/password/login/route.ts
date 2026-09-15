@@ -66,7 +66,9 @@ export async function POST(request: Request): Promise<Response> {
     return Response.json({ error: "could not create session" }, { status: 502 });
   }
 
-  const response = Response.json({ redirect: "/portal" });
+  const response = Response.json({
+    redirect: !account.shop_id && !account.lead_id ? "/onboarding" : "/portal",
+  });
   response.headers.append("Set-Cookie", sessionCookie(sessionId));
   return response;
 }

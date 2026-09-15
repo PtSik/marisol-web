@@ -135,11 +135,14 @@ export function PlanCards({
   onBillingChange,
   renderCta,
   detailsHref,
+  showTerms = true,
 }: {
   t: Dict["pricing"];
   billing: Billing;
   onBillingChange: (billing: Billing) => void;
   detailsHref?: string;
+  /** Off inside the checkout picker, where the full cancellation terms are a detour, not a help. */
+  showTerms?: boolean;
   renderCta: (tier: Plan) => ReactNode;
 }) {
   return (
@@ -171,7 +174,7 @@ export function PlanCards({
       </div>
       <div className="mx-auto mt-5 max-w-[80ch] text-center t-caption leading-[1.55] text-muted-2">
         <p>{fill(t.trialNote, { days: TRIAL_DAYS })}</p>
-        {detailsHref ? (
+        {!showTerms ? null : detailsHref ? (
           <a
             href={detailsHref}
             className="mt-1 inline-flex min-h-[44px] items-center text-teal underline underline-offset-4"

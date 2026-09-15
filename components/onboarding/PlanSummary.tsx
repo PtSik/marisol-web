@@ -26,31 +26,29 @@ export function PlanSummary({
   const annual = billing === "annual";
 
   return (
-    <div className="flex flex-col gap-3 rounded-[16px] border border-ink/12 bg-white/70 px-[18px] py-4 sm:flex-row sm:items-center sm:justify-between">
+    <div className="flex flex-col gap-3 rounded-[18px] border border-ink/[0.07] bg-cream-100 px-[18px] py-4 sm:flex-row sm:items-center sm:justify-between">
       <div>
-        <div className="text-[11.5px] font-semibold uppercase tracking-[0.14em] text-muted-4">
-          {t.planSummary}
-        </div>
-        <div className="mt-[6px] text-[15px] font-medium text-ink">
+        <div className="t-eyebrow text-muted-4">{t.planSummary}</div>
+        <div className="mt-[6px] t-body font-medium text-ink">
           {PLAN_LABELS[plan]} ·{" "}
           {annual
             ? fill(pricing.billedYearly, { total: annualTotal(plan).toLocaleString("en-US") })
             : pricing.billedMonthly}
         </div>
         <div className="mt-[2px] flex flex-wrap items-baseline gap-x-[10px] gap-y-1">
-          <span className="text-[15px] text-ink">
+          <span className="t-body text-ink">
             ${PRICE[plan][billing]}
             {pricing.perMonth}
           </span>
           {annual && (
             <>
-              <span aria-hidden="true" className="text-[13.5px] text-muted-3 line-through">
+              <span aria-hidden="true" className="t-body-sm text-muted-3 line-through">
                 ${PRICE[plan].monthly}
               </span>
               <span className="sr-only">
                 {fill(pricing.wasPrice, { price: PRICE[plan].monthly })}
               </span>
-              <span className="text-[12.5px] font-medium text-teal">
+              <span className="t-caption font-medium text-teal">
                 {fill(pricing.savePerYear, { amount: annualSavingPerYear(plan) })}
               </span>
             </>
@@ -60,7 +58,7 @@ export function PlanSummary({
       <button
         type="button"
         onClick={onChange}
-        className="self-start rounded-[10px] text-[13.5px] font-medium text-teal sm:self-center"
+        className="min-h-[44px] self-start t-body-sm font-medium text-teal sm:self-center"
       >
         {t.changePlan} →
       </button>

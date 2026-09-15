@@ -14,6 +14,10 @@ module.exports = {
         offwhite: "#FFFDF9",
         teal: "#4F8C80",
         success: "#2C7A4B",
+        danger: "#B4452C",
+        // The one caution tone: the checkout-conflict notice. Amber over cream, with its own
+        // darker text shade because #B97E24 on a 10% wash of itself does not reach 4.5:1.
+        gold: { DEFAULT: "#B97E24", ink: "#8A5D17" },
         muted: {
           DEFAULT: "#6F6457",
           2: "#796E61",

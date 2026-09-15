@@ -42,12 +42,7 @@
       "dataset": "kaijiro_funnel"
     }
   ],
-  "services": [
-    {
-      "binding": "VOICE_AGENT_API",
-      "service": "voice-agent-api"
-    }
-  ],
+  "services": [{ "binding": "VOICE_AGENT_API", "service": "voice-agent-api" }],
   "vars": {
     "VOICE_AGENT_API_URL": "https://voice-agent-api.patrykgniewek9.workers.dev",
     "STRIPE_PRICE_BASIC_MONTHLY": "price_1TzG5B8DgPA5sdCxq7KZXQ5i",
@@ -69,6 +64,7 @@
     // exists — the pool falls back to the English one, which still switches mid-call.
     "DEMO_POOL_AGENT_ID": "agent_3801kx681qx9e199h4skk2139rz2",
     "DEMO_POOL_AGENT_ID_ES": "",
+    "ONBOARDING_PREVIEW_AGENT_ID": "agent_6801m2j748mpez1bvn58skcffh60",
     "GCAL_SHARE_EMAIL": "bookings@marisol-voice.iam.gserviceaccount.com",
     // 10%-off, duration=once coupon that referred clients redeem via their referrer's code.
     "STRIPE_REFERRAL_COUPON": "marisol_referral_10off",
@@ -113,6 +109,7 @@
         "BARBER_AGENT_ID": "agent_8301ks8brwmbedw8nv1sgnwwcdfw",
         "DEMO_POOL_AGENT_ID": "agent_3801kx681qx9e199h4skk2139rz2",
         "DEMO_POOL_AGENT_ID_ES": "",
+        "ONBOARDING_PREVIEW_AGENT_ID": "agent_6801m2j748mpez1bvn58skcffh60",
         "GCAL_SHARE_EMAIL": "bookings@marisol-voice.iam.gserviceaccount.com",
         "STRIPE_REFERRAL_COUPON": "marisol_referral_10off",
         // Scoped to the preview host so a session minted on test/ never travels to the apex or the

@@ -1,5 +1,6 @@
 import { env } from "cloudflare:workers";
 import { enqueueSubscriptionCancellation } from "@/lib/cancellation";
+import { settleCheckout } from "@/lib/checkoutSettlement";
 import { type CheckoutLead, checkoutCompletionCanAdvance, getLead, putLead } from "@/lib/leads";
 import { notifyTeam } from "@/lib/notify";
 import {
@@ -225,16 +226,12 @@ export async function POST(request: Request) {
     return received(cfEnv);
   }
 
-  lead.status = "paid";
-  lead.paidAt = new Date().toISOString();
-  lead.stripeSessionId = session.id;
-  if (typeof session.customer === "string") lead.stripeCustomerId = session.customer;
-  if (typeof session.subscription === "string") lead.stripeSubscriptionId = session.subscription;
-
-  await Promise.all([
-    putLead(cfEnv.LEADS_KV, lead),
-    notifyTeam(cfEnv, `PAID — start setup: ${lead.basics.businessName}`, lead),
-  ]);
+  const settled = await settleCheckout(cfEnv.LEADS_KV, session);
+  await notifyTeam(
+    cfEnv,
+    `${settled.status === "pending_review" ? "Setup ready for review" : "PAID — start setup"}: ${settled.basics.businessName}`,
+    settled,
+  );
 
   return received(cfEnv);
 }

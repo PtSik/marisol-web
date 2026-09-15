@@ -1,5 +1,6 @@
 import { env } from "cloudflare:workers";
 import { PortalHeading, PortalNotice } from "@/components/portal/PortalHeading";
+import { getLead } from "@/lib/leads";
 import type { PortalEnv } from "@/lib/portalApi";
 import { getPortalContext } from "@/lib/portalContext";
 import { buildCalendarConnectUrl } from "@/lib/provisioning";
@@ -9,9 +10,12 @@ export const dynamic = "force-dynamic";
 
 export default async function PortalCalendarPage() {
   const cfEnv = env as unknown as PortalEnv;
-  const { activeShop: shop, activeShopId } = await getPortalContext(cfEnv);
+  const { activeShop: shop, activeShopId, activeLeadId } = await getPortalContext(cfEnv);
+  const lead = activeLeadId ? await getLead(cfEnv.LEADS_KV, activeLeadId) : null;
   const accessGranted = Boolean(
-    shop?.calendar_access_granted_at || shop?.integration === "google_calendar",
+    lead?.calendarAccessGrantedAt ||
+      shop?.calendar_access_granted_at ||
+      shop?.integration === "google_calendar",
   );
   const connectUrl =
     activeShopId && accessGranted ? await buildCalendarConnectUrl(cfEnv, activeShopId) : undefined;

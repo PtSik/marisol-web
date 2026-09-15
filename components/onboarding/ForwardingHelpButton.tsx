@@ -32,12 +32,12 @@ export function ForwardingHelpButton({
   };
 
   if (state === "sent") {
-    return <output className="block text-[13.5px] font-medium text-teal">{t.helpSent}</output>;
+    return <output className="block t-body-sm font-medium text-teal">{t.helpSent}</output>;
   }
 
   if (state === "failed") {
     return (
-      <p className="text-[13.5px] leading-[1.5] text-muted-2">
+      <p className="t-body-sm text-muted-2">
         {t.helpFailedBefore}
         <a href={SALES_EMAIL_HREF} className="font-medium text-teal">
           {t.helpFailedLink}
@@ -51,7 +51,7 @@ export function ForwardingHelpButton({
 
   if (variant === "link") {
     return (
-      <p className="text-[13.5px] leading-[1.5] text-muted-2">
+      <p className="t-body-sm text-muted-2">
         {t.troubleBefore}
         <button
           type="button"
@@ -71,7 +71,7 @@ export function ForwardingHelpButton({
       type="button"
       onClick={send}
       disabled={state === "sending"}
-      className="mt-4 inline-flex min-h-[46px] items-center justify-center rounded-[13px] bg-ink px-6 py-[12px] text-[15px] font-medium text-cream disabled:opacity-60"
+      className="btn btn-md btn-primary mt-4 disabled:opacity-60"
     >
       {label}
     </button>

@@ -170,3 +170,30 @@ describe("setup error copy", () => {
     }
   });
 });
+
+describe("complete operational configuration", () => {
+  it("rejects invalid clock values and unfinished extra rows", () => {
+    expect(invalidWeekHours(hoursWith("mon", { open: "25:00", close: "26:00" }))).toBe(true);
+    expect(invalidWeekHours(hoursWith("mon", { open: "09:60" }))).toBe(true);
+    const base = setupWith();
+    for (const service of [
+      { name: "", durationMin: "30", price: "" },
+      { name: "Bad", durationMin: "Infinity", price: "20" },
+      { name: "Bad", durationMin: "30", price: "-2" },
+      { name: "Bad", durationMin: "30", price: "20", durationMaxMin: 40 },
+    ]) {
+      expect(validateSetupPayload({ ...base, services: [...base.services, service] })).toBe(
+        "invalid services",
+      );
+    }
+    expect(validateSetupPayload({ ...base, staff: [...base.staff, newStaffEntry()] })).toBe(
+      "invalid staff",
+    );
+    expect(
+      validateSetupPayload({
+        ...base,
+        staff: [base.staff[0], { ...base.staff[0], id: "other", name: "LUIS" }],
+      }),
+    ).toBe("invalid staff");
+  });
+});

@@ -12,6 +12,12 @@ function env(status: string, stripeSessionId?: string) {
   return { LEADS_KV: { get: async () => ({ status, stripeSessionId }) } as unknown as KVNamespace };
 }
 describe("portal lifecycle access", () => {
+  it("sends an account with no lead or shop to setup after login", async () => {
+    const newAccount = { ...session, leadId: undefined, shopId: undefined };
+    const empty = { LEADS_KV: { get: async () => null } as unknown as KVNamespace };
+    expect(await portalAccessRedirect(empty, newAccount)).toBe("/onboarding");
+    expect(await portalAccessRedirect(env("created"), session)).toBe("/onboarding");
+  });
   it("rechecks a live session after cancellation, preserving the billing recovery page", async () => {
     expect(await portalAccessRedirect(env("provisioned"), session)).toBeNull();
     expect(await portalAccessRedirect(env("cancelled", "cs_1"), session)).toBe(
