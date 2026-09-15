@@ -20,7 +20,7 @@ describe("activation lock", () => {
 
   beforeEach(async () => {
     sqlite = new Database(":memory:");
-    sqlite.run(await Bun.file("d1/0006_activation_locks.sql").text());
+    sqlite.run(await Bun.file("d1/migrations/0006_activation_locks.sql").text());
     db = d1(sqlite);
   });
 

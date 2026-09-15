@@ -16,8 +16,8 @@ let db: D1Database;
 const originalFetch = globalThis.fetch;
 beforeEach(async () => {
   sqlite = new Database(":memory:");
-  sqlite.run(await Bun.file("d1/0007_teardown_jobs.sql").text());
-  sqlite.run(await Bun.file("d1/0008_teardown_manual_resolution.sql").text());
+  sqlite.run(await Bun.file("d1/migrations/0007_teardown_jobs.sql").text());
+  sqlite.run(await Bun.file("d1/migrations/0008_teardown_manual_resolution.sql").text());
   interface Statement {
     bind(...next: unknown[]): Statement;
     first(): Promise<unknown>;
@@ -272,11 +272,11 @@ it("never manually resolves a running task or steals its lease", async () => {
 it("preserves existing jobs when extending the status constraint", async () => {
   const old = new Database(":memory:");
   try {
-    old.run(await Bun.file("d1/0007_teardown_jobs.sql").text());
+    old.run(await Bun.file("d1/migrations/0007_teardown_jobs.sql").text());
     old.run(
       "INSERT INTO teardown_jobs (id, kind, payload, status, created_at, token, attempts) VALUES ('legacy', 'resource', '{}', 'running', 123, 'lease', 3)",
     );
-    old.run(await Bun.file("d1/0008_teardown_manual_resolution.sql").text());
+    old.run(await Bun.file("d1/migrations/0008_teardown_manual_resolution.sql").text());
     expect(old.query("SELECT id, status, token, attempts FROM teardown_jobs").get()).toEqual({
       id: "legacy",
       status: "running",

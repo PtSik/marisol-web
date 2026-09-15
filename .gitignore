@@ -27,14 +27,11 @@ scripts/*
 # runtime reads, so they stay out of the repo and live alongside it instead.
 ph/
 docs/
-# Scraped lead data — real businesses with phone numbers and addresses. The generator writes one
-# file per area (seed-leads-fort-lauderdale.sql and friends), so match the whole family.
-d1/seed-leads*.sql
-d1/seed-demo-pool.sql
-# Generated from the live table, so it carries the same real phone numbers as a seed file.
-d1/backfill-zip.sql
-# One-off output of scripts/reclassify-areas.ts, regenerated whenever AREAS changes.
-d1/reclassify-areas.sql
+# d1/ holds migrations and nothing else. Everything else written there is generator output —
+# seeds, requeues, rescans — carrying real businesses' phone numbers and addresses, so the rule
+# admits the migrations directory rather than naming each generated family and missing the next one.
+d1/*
+!d1/migrations/
 # Working notes, internal specs, sales material — anything that stays off the remote
 /local/
 # Playwright MCP scratch output — page snapshots and screenshots taken while working.

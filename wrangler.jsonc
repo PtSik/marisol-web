@@ -32,7 +32,8 @@
     {
       "binding": "OUTREACH_DB",
       "database_name": "marisol-outreach",
-      "database_id": "df37b1e3-ff67-4842-b2db-c5cd2b949b88"
+      "database_id": "df37b1e3-ff67-4842-b2db-c5cd2b949b88",
+      "migrations_dir": "d1/migrations"
     }
   ],
   "analytics_engine_datasets": [
@@ -88,7 +89,8 @@
         {
           "binding": "OUTREACH_DB",
           "database_name": "marisol-outreach-preview",
-          "database_id": "efb170b9-28b6-444a-8c0e-6c3a4b26f207"
+          "database_id": "efb170b9-28b6-444a-8c0e-6c3a4b26f207",
+          "migrations_dir": "d1/migrations"
         }
       ],
       "analytics_engine_datasets": [
