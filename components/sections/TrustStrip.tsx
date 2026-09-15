@@ -1,12 +1,9 @@
 import { Reveal } from "@/components/motion/Reveal";
 import type { Dict } from "@/lib/i18n/dict";
 
-// const BENEFITS = [
-//   { stat: "24/7", desc: "every call answered" },
-//   { stat: "Instant", desc: "no hold, no voicemail" },
-//   { stat: "Booked", desc: "straight into your calendar" },
-// ];
-
+// Real client names. Nothing else goes in this block — no photograph, no avatar, no face — because
+// anything with a person in it, sitting beside these names, reads as a claim that the person is one
+// of them. The photography on this page stays out of here on purpose.
 const BRANDS = [
   { name: "Sharp & Co.", className: "" },
   { name: "LUMA SPA", className: "font-sans font-semibold tracking-[0.02em]" },
@@ -15,43 +12,42 @@ const BRANDS = [
   { name: "BARBAROSSA", className: "font-sans tracking-[0.18em] text-[0.8em]" },
 ];
 
+// The loop travels -50% of the track, so one half has to be at least as wide as the strip or the
+// tail of the second copy scrolls into view and leaves a gap. Two copies measure 866px of travel
+// against an 892px strip at 2560px wide — 26px short, which the edge fade still covers — but the
+// wide tier takes the strip past 1200px, where the shortfall is far too big to hide. Four copies
+// (an even count, so -50% still lands on an identical frame) clear any strip up to ~1730px.
+const MARQUEE = [...BRANDS, ...BRANDS, ...BRANDS, ...BRANDS];
+
 export function TrustStrip({ t }: { t: Dict["trust"] }) {
   return (
-    <section aria-label={t.ariaLabel} className="border-y border-cream-200 bg-cream-100">
-      <Reveal className="mx-auto flex max-w-content flex-col items-center gap-[18px] px-[22px] py-[26px]">
-        <span className="text-xs uppercase tracking-[0.14em] text-muted-4">{t.kicker}</span>
+    <section aria-label={t.ariaLabel} className="border-y border-ink/[0.07] bg-cream-100">
+      <Reveal className="shell flex flex-col items-center gap-[16px] py-[26px] sm:flex-row sm:gap-[clamp(24px,4vw,56px)]">
+        <span className="flex-none t-eyebrow text-muted-2">{t.kicker}</span>
         <div
-          className="flex w-full overflow-hidden"
+          className="flex w-full min-w-0 overflow-hidden"
           style={{
-            WebkitMaskImage: "linear-gradient(to right,transparent,#000 12%,#000 88%,transparent)",
-            maskImage: "linear-gradient(to right,transparent,#000 12%,#000 88%,transparent)",
+            WebkitMaskImage: "linear-gradient(to right,transparent,#000 8%,#000 92%,transparent)",
+            maskImage: "linear-gradient(to right,transparent,#000 8%,#000 92%,transparent)",
           }}
         >
           <div
             aria-hidden="true"
-            className="marquee-track flex w-max flex-none items-center gap-[clamp(20px,5vw,52px)] whitespace-nowrap pr-[clamp(20px,5vw,52px)] font-display text-[clamp(15px,2.4vw,21px)] tracking-[-0.01em] text-ink opacity-55"
+            className="marquee-track flex w-max flex-none items-center gap-[clamp(26px,5vw,56px)] whitespace-nowrap pr-[clamp(26px,5vw,56px)] font-display text-[clamp(15px,2vw,20px)] tracking-[-0.01em] text-ink opacity-50"
           >
-            {[...BRANDS, ...BRANDS].map((b, i) => (
+            {MARQUEE.map((b, i) => (
               <span key={`${b.name}-${i}`} className={b.className}>
                 {b.name}
               </span>
             ))}
           </div>
         </div>
-
-        {/* <dl className="m-0 flex w-full flex-col items-center justify-center gap-3 border-t border-cream-200 pt-[18px] sm:flex-row sm:gap-[clamp(28px,6vw,72px)]">
-          {BENEFITS.map((b) => (
-            <div key={b.stat} className="flex items-baseline gap-2">
-              <dt className="sr-only">{b.desc}</dt>
-              <dd className="m-0 flex items-baseline gap-2">
-                <span className="font-display text-[clamp(17px,2.4vw,22px)] tracking-[-0.02em] text-ink">
-                  {b.stat}
-                </span>
-                <span className="text-[13px] text-muted">{b.desc}</span>
-              </dd>
-            </div>
+        {/* The marquee is decorative duplication; the list itself stays in the accessibility tree. */}
+        <ul className="sr-only">
+          {BRANDS.map((b) => (
+            <li key={b.name}>{b.name}</li>
           ))}
-        </dl> */}
+        </ul>
       </Reveal>
     </section>
   );

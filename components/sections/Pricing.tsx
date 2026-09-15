@@ -4,15 +4,20 @@ import { useAuthModal } from "@/components/auth/AuthModalProvider";
 import { Reveal } from "@/components/motion/Reveal";
 import { MultiLocationBand, PlanCards, tierCtaLabel } from "@/components/pricing/PlanCards";
 import { type Dict, type Locale, appHref, fill } from "@/lib/i18n/dict";
-import { type Billing, EXTRA_LOCATION_PRICE, type Plan, TRIAL_DAYS } from "@/lib/plans";
+import {
+  type Billing,
+  EXTRA_LOCATION_ANNUAL_TOTAL,
+  EXTRA_LOCATION_PRICE,
+  type Plan,
+  TRIAL_DAYS,
+} from "@/lib/plans";
 import { SALES_EMAIL_HREF } from "@/lib/site";
 import { useState } from "react";
 
-const CTA_BASE =
-  "inline-flex min-h-[50px] items-center justify-center gap-2 rounded-[13px] px-5 py-[14px] text-[15px] font-medium no-underline";
-
+// The complete tier's card is ink-filled, so its button inverts; everything else is the page's
+// one primary button.
 const ctaCls = (tier: Plan): string =>
-  tier === "complete" ? `${CTA_BASE} bg-cream text-ink` : `${CTA_BASE} bg-ink text-cream`;
+  tier === "complete" ? "btn btn-md btn-on-dark" : "btn btn-md btn-primary";
 
 export function Pricing({
   t,
@@ -39,42 +44,36 @@ export function Pricing({
   };
 
   return (
-    <section
-      id="pricing"
-      className="mx-auto max-w-content px-[22px] pb-[clamp(20px,3vw,40px)] pt-[clamp(48px,7vw,88px)]"
-    >
-      <Reveal className="mb-6 text-center">
-        <span className="inline-block rounded-full bg-cream-200 px-[13px] py-[7px] text-[11.5px] font-semibold uppercase tracking-[0.16em] text-muted-2">
-          {t.badge}
-        </span>
-        <h2 className="mx-auto mt-[18px] max-w-[18ch] font-display text-[clamp(28px,5vw,46px)] font-light leading-[1.08] tracking-[-0.03em]">
+    <section id="pricing" className="shell section-tight pt-[var(--section-y)]">
+      <Reveal className="mb-[clamp(22px,3vw,32px)] text-center">
+        <h2 className="mx-auto max-w-[40ch] font-display t-h2 font-bold text-balance">
           {t.title.before}
-          <span className="text-teal">{t.title.accent}</span>
+          <span className="whitespace-nowrap text-teal">{t.title.accent}</span>
           {t.title.after}
         </h2>
-        <p className="mx-auto mt-[14px] max-w-[46ch] text-[15.5px] leading-[1.55] text-muted">
-          {t.subtitle}
+        <p className="mx-auto mt-[14px] max-w-[46ch] t-body text-muted">
+          {fill(t.subtitle, { days: TRIAL_DAYS })}
         </p>
       </Reveal>
 
       <div className="text-center">
-        <PlanCards t={t} billing={billing} onBillingChange={setBilling} renderCta={renderCta} />
+        <PlanCards
+          t={t}
+          billing={billing}
+          onBillingChange={setBilling}
+          renderCta={renderCta}
+          detailsHref="#faq"
+        />
       </div>
-
-      <p className="mt-7 text-center font-display text-[clamp(17px,2.2vw,21px)] font-light leading-[1.4] tracking-[-0.02em]">
-        {t.guarantee}
-      </p>
-
-      <p className="mt-4 text-center text-[13px] leading-[1.55] text-muted-2">
-        {fill(t.extraLocationNote, { price: EXTRA_LOCATION_PRICE[billing] })}
-        <br />
-        {fill(t.trialNote, { days: TRIAL_DAYS })}
-      </p>
 
       <MultiLocationBand
         t={t}
+        priceNote={fill(billing === "annual" ? t.extraLocationAnnualNote : t.extraLocationNote, {
+          price: EXTRA_LOCATION_PRICE[billing],
+          total: EXTRA_LOCATION_ANNUAL_TOTAL.toLocaleString(locale === "es" ? "es-US" : "en-US"),
+        })}
         cta={
-          <a href={SALES_EMAIL_HREF} className={`${CTA_BASE} bg-ink text-cream`}>
+          <a href={SALES_EMAIL_HREF} className="btn btn-md btn-primary">
             {t.multiLocation.cta}
           </a>
         }

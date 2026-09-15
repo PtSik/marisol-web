@@ -1,9 +1,13 @@
 // Same line the grooming demo agent answers on (see DEMO_AGENTS in lib/demoAgents.ts).
-export const DEMO_PHONE = process.env.NEXT_PUBLIC_DEMO_PHONE ?? "+1 (878) 867-8115";
+// `||`, not `??`: the var is declared-but-empty in .dev.vars and .env.example, and an empty
+// string is not nullish, so `??` handed the fallback straight past it. The client bundle then
+// built `tel:` with no number — three dead phone links on the homepage, plus a hydration
+// mismatch against the server render, which is where that console error came from.
+export const DEMO_PHONE = process.env.NEXT_PUBLIC_DEMO_PHONE || "+1 (878) 867-8115";
 
 export const telHref = `tel:${DEMO_PHONE.replace(/[^0-9+]/g, "")}`;
 
-export const SALES_EMAIL = process.env.NEXT_PUBLIC_SALES_EMAIL ?? "sales@getmarisol.com";
+export const SALES_EMAIL = process.env.NEXT_PUBLIC_SALES_EMAIL || "sales@getmarisol.com";
 
 export const SALES_EMAIL_HREF = `mailto:${SALES_EMAIL}?subject=${encodeURIComponent("Question about Marisol")}`;
 

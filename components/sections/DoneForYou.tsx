@@ -1,87 +1,70 @@
+import { Photo } from "@/components/Photo";
 import { Reveal } from "@/components/motion/Reveal";
 import type { Dict } from "@/lib/i18n/dict";
 
+// The dark chapter of the page. The panel used to be a flat green rectangle with two blurred blobs
+// on it; it is now a photograph of a shop being closed up for the night, pushed well under a green
+// scrim so the type stays the brightest thing in the frame.
 export function DoneForYou({ t }: { t: Dict["doneForYou"] }) {
   return (
-    <section
-      aria-label={t.ariaLabel}
-      className="mx-auto max-w-content px-[22px] py-[clamp(48px,7vw,88px)]"
-    >
-      <div className="relative overflow-hidden rounded-[26px] bg-[#1F3A35] px-[clamp(24px,4vw,46px)] py-[clamp(34px,5vw,52px)]">
-        <div
-          style={{
-            position: "absolute",
-            left: "78%",
-            top: "18%",
-            width: "280px",
-            height: "280px",
-            borderRadius: "50%",
-            background: "radial-gradient(circle,rgba(79,140,128,.55),rgba(79,140,128,0) 70%)",
-            filter: "blur(8px)",
-            pointerEvents: "none",
-          }}
+    <section id="how" aria-label={t.ariaLabel} className="shell section-tight">
+      <div className="relative overflow-hidden rounded-[26px]">
+        <Photo
+          name="panel-empty-desk"
+          alt={t.photoAlt}
+          fill
+          // Both scrim panels sit straight inside `.shell`, so the slot is the shell minus its two
+          // gutters: 1136px from 1264px up, then growing again once the wide tier unfreezes
+          // `--shell` at 1536px, and flat at 1480px from 2108px where the shell meets its ceiling.
+          // The middle clause declares the shell itself rather than shell-minus-gutters, which
+          // over-states the slot by up to 80px — the safe direction, and never enough to change
+          // which rendition is picked.
+          sizes="(min-width: 2108px) 1480px, (min-width: 1536px) 74vw, (min-width: 1264px) 1136px, calc(100vw - 64px)"
         />
+        {/* Weighted left on desktop, where the type sits, so the lamp still reads on the right.
+            Below sm the copy is full-width and the horizontal wash would leave it over the bright
+            half, so it gets an even scrim. */}
+        <div aria-hidden="true" className="absolute inset-0 bg-[#0C1B18]/[0.88] sm:hidden" />
         <div
-          style={{
-            position: "absolute",
-            left: "8%",
-            top: "84%",
-            width: "200px",
-            height: "200px",
-            borderRadius: "50%",
-            background: "radial-gradient(circle,rgba(242,166,90,.28),rgba(242,166,90,0) 70%)",
-            filter: "blur(8px)",
-            pointerEvents: "none",
-          }}
+          aria-hidden="true"
+          className="absolute inset-0 hidden bg-gradient-to-r from-[#0C1B18]/[0.95] via-[#102220]/[0.87] to-[#102220]/[0.5] sm:block"
         />
 
-        <Reveal className="relative z-[2] mb-[clamp(20px,3vw,28px)] text-center">
-          <span className="inline-block rounded-full bg-[#9CD0C4]/[0.16] px-[13px] py-[7px] text-[11.5px] font-semibold uppercase tracking-[0.16em] text-[#9CD0C4]">
-            {t.badge}
-          </span>
-        </Reveal>
+        <div className="relative px-[clamp(22px,4vw,52px)] py-[clamp(34px,4.5vw,58px)]">
+          {/* Same rule as the other section headings: the measure goes on the h2, where `ch`
+              resolves against the heading's own size. Capped on this wrapper it stayed at the
+              wrapper's inherited 16px — about 440px — and the heading wrapped onto two lines the
+              moment the display sizes grew. 17ch holds both locales on one line. */}
+          <Reveal>
+            <h2 className="max-w-[17ch] font-display t-h2 font-bold text-cream text-balance">
+              {t.titleTop}
+              <span className="text-[#9CD0C4]">{t.titleAccent}</span>
+            </h2>
+            <p className="mt-[14px] max-w-[50ch] t-body text-cream/[0.8]">{t.subtitle}</p>
+          </Reveal>
 
-        <Reveal className="relative z-[2] mx-auto mb-[clamp(24px,3vw,36px)] max-w-[42ch] text-center">
-          <h2 className="font-display text-[clamp(26px,4.4vw,42px)] font-light leading-[1.1] tracking-[-0.03em] text-cream">
-            <span className="whitespace-nowrap">{t.titleTop}</span>
-            <br />
-            <span className="text-[#9CD0C4]">{t.titleAccent}</span>
-          </h2>
-          <p className="mt-[14px] text-[15px] leading-[1.55] text-cream/80">{t.subtitle}</p>
-        </Reveal>
-
-        <ul className="relative z-[2] flex flex-wrap gap-x-[clamp(16px,3vw,26px)] gap-y-6 sm:gap-y-[clamp(16px,3vw,26px)]">
-          {t.items.map((item, i) => (
-            <Reveal
-              as="li"
-              key={item.title}
-              delay={i * 90}
-              className="flex min-w-[230px] flex-1 items-start gap-[13px]"
-            >
-              <span className="flex h-[30px] w-[30px] flex-none items-center justify-center rounded-[9px] bg-[#9CD0C4]/[0.16]">
-                <svg
-                  width="16"
-                  height="16"
-                  viewBox="0 0 24 24"
-                  fill="none"
-                  stroke="#9CD0C4"
-                  strokeWidth="2.4"
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                  aria-hidden="true"
-                >
-                  <polyline points="20 6 9 17 4 12" />
-                </svg>
-              </span>
-              <div>
-                <div className="font-display text-[17px] tracking-[-0.01em] text-cream">
-                  {item.title}
+          <ol className="m-0 mt-[clamp(28px,3.5vw,42px)] grid list-none grid-cols-1 gap-x-[clamp(20px,3vw,40px)] gap-y-[22px] p-0 md:grid-cols-3">
+            {t.items.map((item, i) => (
+              <Reveal
+                as="li"
+                key={item.title}
+                delay={i * 90}
+                className="flex items-start gap-[13px]"
+              >
+                <span className="mt-[2px] flex h-[28px] w-[28px] flex-none items-center justify-center rounded-[9px] bg-[#9CD0C4]/[0.16]">
+                  <span className="t-caption font-semibold text-[#9CD0C4]">{i + 1}</span>
+                </span>
+                <div>
+                  <div className="font-display t-h3 text-cream">{item.title}</div>
+                  <div className="mt-[5px] t-body-sm text-cream/[0.72]">{item.desc}</div>
                 </div>
-                <div className="mt-[2px] text-[13.5px] text-cream/[0.66]">{item.desc}</div>
-              </div>
-            </Reveal>
-          ))}
-        </ul>
+              </Reveal>
+            ))}
+          </ol>
+          <p className="relative mt-8 max-w-[75ch] border-t border-cream/20 pt-5 t-body-sm text-cream/80">
+            {t.calendarNote}
+          </p>
+        </div>
       </div>
     </section>
   );

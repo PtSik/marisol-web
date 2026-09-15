@@ -19,6 +19,13 @@ out/
 scripts/*
 !scripts/get-leads.ts
 !scripts/reclassify-areas.ts
+# Cuts the homepage photography from the masters in ph/ into the AVIF/WebP renditions under
+# public/photos and prints lib/photos.ts. No keys, no scraped data, and without it the only way
+# back to a rebuilt crop is by hand.
+!scripts/build-photos.mjs
+# The masters build-photos.mjs cuts those renditions from. ~40MB of JPGs that nothing at
+# runtime reads, so they stay out of the repo and live alongside it instead.
+ph/
 docs/
 # Scraped lead data — real businesses with phone numbers and addresses. The generator writes one
 # file per area (seed-leads-fort-lauderdale.sql and friends), so match the whole family.
@@ -30,3 +37,5 @@ d1/backfill-zip.sql
 d1/reclassify-areas.sql
 # Working notes, internal specs, sales material — anything that stays off the remote
 /local/
+# Playwright MCP scratch output — page snapshots and screenshots taken while working.
+.playwright-mcp/

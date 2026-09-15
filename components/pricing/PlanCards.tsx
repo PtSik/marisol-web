@@ -22,10 +22,7 @@ function FeatureList({
   return (
     <ul className="mb-[22px] flex flex-1 flex-col gap-[9px]">
       {feats.map((feat) => (
-        <li
-          key={feat}
-          className={`flex items-start gap-[9px] text-[13.5px] leading-[1.45] ${itemCls}`}
-        >
+        <li key={feat} className={`flex items-start gap-[9px] t-body-sm leading-[1.45] ${itemCls}`}>
           <svg
             width="16"
             height="16"
@@ -66,7 +63,6 @@ function PlanCard({
         card: "bg-ink text-cream shadow-[0_30px_60px_-34px_rgba(36,27,20,0.7)]",
         label: "text-cream/[0.62]",
         perMonth: "text-cream/60",
-        was: "text-cream/45",
         save: "text-[#7FD18F]",
         note: "text-cream/60",
         desc: "text-cream/[0.78]",
@@ -75,10 +71,9 @@ function PlanCard({
         item: "text-cream/[0.92]",
       }
     : {
-        card: "bg-cream-200 text-ink",
-        label: "text-muted-4",
+        card: "surface text-ink",
+        label: "text-muted-2",
         perMonth: "text-muted-2",
-        was: "text-muted-3",
         save: "text-teal",
         note: "text-muted-2",
         desc: "text-muted",
@@ -90,44 +85,39 @@ function PlanCard({
   return (
     <div className={`flex w-full flex-col rounded-[24px] px-[22px] pb-7 pt-[20px] ${cls.card}`}>
       <div className="flex min-h-[26px] items-center justify-between gap-3">
-        <div className={`text-[11.5px] font-semibold uppercase tracking-[0.14em] ${cls.label}`}>
-          {copy.name}
-        </div>
+        <div className={`t-eyebrow ${cls.label}`}>{copy.name}</div>
         {dark && (
-          <span className="rounded-full bg-teal/25 px-[10px] py-[5px] text-[10.5px] font-medium uppercase tracking-[0.08em] text-cream/[0.92]">
+          <span className="rounded-full bg-teal/25 px-[10px] py-[5px] t-eyebrow text-cream/[0.92]">
             {t.popularTag}
           </span>
         )}
       </div>
 
       <div className="mt-[14px] flex flex-wrap items-baseline gap-x-[9px] gap-y-1">
-        <span className="font-display text-[clamp(32px,3.4vw,42px)] font-light leading-none tracking-[-0.03em]">
+        {annual && (
+          <span className={`text-[18px] ${cls.note}`}>
+            <span aria-hidden="true">≈</span>
+            <span className="sr-only">{t.approximate}</span>
+          </span>
+        )}
+        <span className="font-display text-[clamp(32px,3.4vw,42px)] font-bold leading-none tracking-[-0.018em]">
           ${PRICE[tier][billing]}
         </span>
-        <span className={`text-[14px] ${cls.perMonth}`}>{t.perMonth}</span>
-        {annual && (
-          <>
-            {/* Decorative — read flat, a screen reader would announce a number contradicting
-                the live price, so the sr-only line below carries the meaning instead. */}
-            <span aria-hidden="true" className={`line-through text-[14px] ${cls.was}`}>
-              ${PRICE[tier].monthly}
-            </span>
-            <span className="sr-only">{fill(t.wasPrice, { price: PRICE[tier].monthly })}</span>
-            <span className={`text-[11px] font-semibold uppercase tracking-[0.08em] ${cls.save}`}>
-              {fill(t.savePerYear, { amount: annualSavingPerYear(tier) })}
-            </span>
-          </>
-        )}
+        <span className={`t-body-sm ${cls.perMonth}`}>{t.perMonth}</span>
       </div>
-      <div className={`mt-[6px] text-[12px] ${cls.note}`}>
+      <div className={`mt-[6px] t-caption ${cls.note}`}>
         {annual
           ? fill(t.billedYearly, { total: annualTotal(tier).toLocaleString("en-US") })
           : t.billedMonthly}
-        {" · "}
-        {t.cancelAnytime}
       </div>
 
-      <p className={`mt-[14px] text-[13.5px] leading-[1.5] ${cls.desc}`}>{copy.desc}</p>
+      {annual && (
+        <p className={`mt-2 t-caption font-medium ${cls.save}`}>
+          {fill(t.savePerYear, { amount: annualSavingPerYear(tier) })}
+        </p>
+      )}
+
+      <p className={`mt-[14px] t-body-sm leading-[1.5] ${cls.desc}`}>{copy.desc}</p>
       <div className={`my-[18px] mt-5 border-t ${cls.rule}`} />
       <FeatureList
         feats={copy.features.map((feat) => fill(feat, { price: EXTRA_LOCATION_PRICE[billing] }))}
@@ -144,15 +134,17 @@ export function PlanCards({
   billing,
   onBillingChange,
   renderCta,
+  detailsHref,
 }: {
   t: Dict["pricing"];
   billing: Billing;
   onBillingChange: (billing: Billing) => void;
+  detailsHref?: string;
   renderCta: (tier: Plan) => ReactNode;
 }) {
   return (
     <>
-      <fieldset className="m-0 inline-flex items-center gap-1 rounded-[14px] border-0 bg-cream-200 p-1 shadow-[inset_0_1px_2px_rgba(36,27,20,0.06)]">
+      <fieldset className="m-0 inline-flex items-center gap-1 rounded-[14px] border border-ink/[0.07] bg-cream-200 p-1 shadow-[inset_0_1px_2px_rgba(36,27,20,0.06)]">
         <legend className="sr-only">{t.billingLegend}</legend>
         {(["monthly", "annual"] as const).map((period) => {
           const isActive = period === billing;
@@ -162,7 +154,7 @@ export function PlanCards({
               type="button"
               aria-pressed={isActive}
               onClick={() => onBillingChange(period)}
-              className={`min-h-[38px] rounded-[10px] px-4 py-[9px] text-[13px] font-medium transition-all ${
+              className={`min-h-[44px] rounded-[10px] px-4 py-[11px] t-caption font-medium transition-all ${
                 isActive ? "bg-ink text-cream" : "bg-transparent text-muted"
               }`}
             >
@@ -172,38 +164,42 @@ export function PlanCards({
         })}
       </fieldset>
 
-      <div className="mx-auto mt-[clamp(28px,4vw,40px)] grid grid-cols-1 items-stretch gap-4 text-left sm:grid-cols-2 lg:grid-cols-3">
+      <div className="mx-auto mt-[clamp(28px,4vw,40px)] grid grid-cols-1 items-stretch gap-4 text-left lg:grid-cols-3">
         {PLAN_OPTIONS.map((tier) => (
           <PlanCard key={tier} t={t} tier={tier} billing={billing} renderCta={renderCta} />
         ))}
+      </div>
+      <div className="mx-auto mt-5 max-w-[80ch] text-center t-caption leading-[1.55] text-muted-2">
+        <p>{fill(t.trialNote, { days: TRIAL_DAYS })}</p>
+        {detailsHref ? (
+          <a
+            href={detailsHref}
+            className="mt-1 inline-flex min-h-[44px] items-center text-teal underline underline-offset-4"
+          >
+            {t.detailsLink}
+          </a>
+        ) : (
+          <p className="mt-2">{t.billingNote}</p>
+        )}
+        <p className="mt-1 t-caption">{t.smsNote}</p>
       </div>
     </>
   );
 }
 
-// Multi-location sits outside the grid: it has no price, and a "Custom" card next to three real
-// figures breaks the comparison the row exists for.
-export function MultiLocationBand({ t, cta }: { t: Dict["pricing"]; cta: ReactNode }) {
+// Keep location add-ons separate from the three core plans.
+export function MultiLocationBand({
+  t,
+  cta,
+  priceNote,
+}: { t: Dict["pricing"]; cta: ReactNode; priceNote: string }) {
   const copy = t.multiLocation;
   return (
-    <div className="mt-[clamp(24px,3vw,34px)] flex flex-col gap-5 rounded-[24px] border border-ink/[0.12] bg-cream-200/60 px-[clamp(20px,3vw,30px)] py-[clamp(20px,2.6vw,26px)] text-left md:flex-row md:items-center md:justify-between md:gap-10">
+    <div className="surface mt-[clamp(24px,3vw,34px)] flex flex-col gap-5 rounded-[24px] px-[clamp(20px,3vw,30px)] py-[clamp(20px,2.6vw,26px)] text-left md:flex-row md:items-center md:justify-between md:gap-10">
       <div>
-        <div className="text-[11.5px] font-semibold uppercase tracking-[0.14em] text-muted-4">
-          {copy.name}
-        </div>
-        <p className="mt-[10px] text-[15.5px] leading-[1.5]">{copy.desc}</p>
-        <ul className="mt-[9px] flex flex-wrap items-center gap-x-[7px] gap-y-[6px] text-[13px] text-muted">
-          {copy.highlights.map((item, i) => (
-            <li key={item} className="flex items-center gap-[7px]">
-              {i > 0 && (
-                <span aria-hidden="true" className="text-muted-3">
-                  ·
-                </span>
-              )}
-              {item}
-            </li>
-          ))}
-        </ul>
+        <div className="t-eyebrow text-muted-2">{copy.name}</div>
+        <p className="mt-[10px] t-body leading-[1.5]">{copy.desc}</p>
+        <p className="mt-2 t-caption leading-relaxed text-muted">{priceNote}</p>
       </div>
       <div className="flex-none">{cta}</div>
     </div>

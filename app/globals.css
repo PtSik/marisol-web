@@ -6,6 +6,25 @@
   --color-cream: #fbf6ef;
   --color-ink: #241b14;
   --color-teal: #4f8c80;
+
+  /* Two section densities, not eleven ad-hoc paddings — that is what stopped the old page reading
+     as one block repeated. `.section` is the default; `.section-tight` is for the panels that carry
+     their own internal padding (done-for-you, referrals, the closing CTA), so gaps between adjacent
+     sections land on one of a few deliberate values rather than on whatever each component chose. */
+  --shell: 1200px;
+  --gutter: 20px;
+  /* The sticky bar's own height in the flow: 14px of lead-in, a 44px tap target and 12px of
+     padding either side of it, plus the card's hairline. The first screen subtracts it so the
+     hero and the names under it add up to exactly one viewport. */
+  --nav-h: 84px;
+  --section-y: clamp(52px, 6.4vw, 88px);
+  --section-y-tight: clamp(40px, 5vw, 68px);
+}
+
+@media (min-width: 640px) {
+  :root {
+    --gutter: 32px;
+  }
 }
 
 * {
@@ -37,15 +56,443 @@ body {
   border-radius: 6px;
 }
 
-@keyframes floatY {
-  0%,
-  100% {
-    transform: translateY(0);
+.shell {
+  width: 100%;
+  max-width: var(--shell);
+  margin-inline: auto;
+  padding-inline: var(--gutter);
+}
+
+.shell-narrow {
+  width: 100%;
+  max-width: 940px;
+  margin-inline: auto;
+  padding-inline: var(--gutter);
+}
+
+.section {
+  padding-block: var(--section-y);
+}
+
+.section-tight {
+  padding-block: var(--section-y-tight);
+}
+
+/* Keep linked section headings below the sticky navigation. */
+#demo,
+#how,
+#pricing,
+#faq {
+  scroll-margin-top: 100px;
+}
+
+.text-balance {
+  text-wrap: balance;
+}
+
+/* The type scale. Before this there were 31 distinct font sizes on one viewport and nine section
+   headings spread across 40/42/44/46/50/54 — a cloud, not a tier. Family and colour stay on the
+   element; size, leading and tracking live here so they can't drift apart.
+
+   Display sizes are deliberately unchanged from the light-weight version: measured against the
+   references, the headline was never too small (57px vs their 56px). What was missing was weight.
+   Going bold forces two companion changes — tracking loosens from -0.035em, which only ever suited
+   300, and leading opens from 1.04, because heavy faces collide at tight leading. */
+.t-h1 {
+  font-size: clamp(32px, 4.7vw, 57px);
+  line-height: 1.08;
+  letter-spacing: -0.018em;
+}
+/* One step down from the H1, for the two full-bleed moments — the after-hours band and the closing
+   CTA. They need to carry a wide field without competing with the opening promise. */
+.t-display {
+  font-size: clamp(28px, 4.4vw, 48px);
+  line-height: 1.08;
+  letter-spacing: -0.016em;
+}
+.t-h2 {
+  font-size: clamp(27px, 4.1vw, 44px);
+  line-height: 1.08;
+  letter-spacing: -0.016em;
+}
+/* Raised from 21px. The old scale jumped 44 -> 21, a 2.1x cliff with nothing in between, which is
+   why the page read as "big heading, then small print". 27px matches the size Features already
+   hand-rolled as a one-off clamp, so this step was being asked for. */
+.t-h3 {
+  font-size: clamp(21px, 2.3vw, 27px);
+  line-height: 1.2;
+  letter-spacing: -0.012em;
+}
+.t-lead {
+  font-size: clamp(16.5px, 1.6vw, 20px);
+  line-height: 1.55;
+}
+.t-body {
+  font-size: 16px;
+  line-height: 1.6;
+}
+.t-body-sm {
+  font-size: 14px;
+  line-height: 1.55;
+}
+.t-caption {
+  font-size: 13px;
+  line-height: 1.45;
+}
+
+/* One eyebrow, not seven. The uppercase section label shipped with nine different tracking values
+   (0.08 through 0.18em) and five sizes — close enough that no single instance looked wrong, which
+   is exactly why it never got fixed. */
+.t-eyebrow {
+  font-size: 11.5px;
+  line-height: 1;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.14em;
+}
+
+/* The hero's four facts sit between the display sizes and the body sizes: big enough to be read as
+   values rather than as labels, small enough not to argue with the h1 directly above them. */
+.t-stat {
+  font-size: clamp(20px, 2.2vw, 26px);
+  line-height: 1.16;
+  letter-spacing: -0.02em;
+}
+
+/* ---- The wide tier -------------------------------------------------------------------------
+   Everything above roughly 1375px used to be frozen. Each clamp reaches its ceiling somewhere
+   between 1075px (t-h2) and 1375px (--section-y), and --shell was a flat 1200px, so past that
+   the extra width became margin and the extra height became air: on a 2560px monitor the page
+   was a 1200px island, 47% of the frame, with a 57px headline and 520px of dead cream stacked
+   inside the hero.
+
+   This is a second ceiling, not a new scale. The 74vw term stays under the 1200px floor until
+   the window passes 1622px, so every laptop width renders exactly as before and only genuinely
+   wide screens see any of it. Paragraph measures are all in `ch` and widen on their own; the
+   four section headings that capped their measure on a 16px wrapper had to be moved onto the
+   heading itself, or raising these sizes would only have bought more line wraps. */
+@media (min-width: 1536px) {
+  /* Every vw term below is the step's previous ceiling divided by 1536, so at the boundary the
+     new clamp's floor and its vw term are the same number and nothing jumps when a window is
+     dragged across 1536px — the page just keeps growing until it meets the second ceiling
+     somewhere between 1700px and 2100px. */
+  :root {
+    --shell: clamp(1200px, 74vw, 1560px);
+    --gutter: clamp(32px, 2.08vw, 40px);
+    --section-y: clamp(88px, 5.73vw, 120px);
+    --section-y-tight: clamp(68px, 4.43vw, 92px);
   }
-  50% {
-    transform: translateY(-10px);
+
+  .shell-narrow {
+    max-width: 1120px;
+  }
+
+  .t-h1 {
+    font-size: clamp(57px, 3.71vw, 74px);
+  }
+  .t-display {
+    font-size: clamp(48px, 3.12vw, 62px);
+  }
+  .t-h2 {
+    font-size: clamp(44px, 2.86vw, 57px);
+  }
+  .t-h3 {
+    font-size: clamp(27px, 1.76vw, 32px);
+  }
+  .t-lead {
+    font-size: clamp(20px, 1.3vw, 24px);
+  }
+  .t-body {
+    font-size: clamp(16px, 1.04vw, 18px);
+  }
+  .t-body-sm {
+    font-size: clamp(14px, 0.91vw, 15.5px);
+  }
+  .t-stat {
+    font-size: clamp(26px, 1.69vw, 34px);
   }
 }
+
+/* Fraunces ships four axes; the site was loading two. SOFT rounds the terminals and WONK swaps in
+   the alternate letterforms, which is where the face stops looking like every other light serif.
+   opsz is deliberately NOT named here so font-optical-sizing: auto keeps scaling it with the type
+   size — naming an axis in font-variation-settings pins it, and a 144pt optical size on a 22px
+   wordmark is wrong. Leaving wght out for the same reason: font-weight keeps working normally. */
+.font-display {
+  font-variation-settings: "SOFT" 100, "WONK" 1;
+}
+
+@layer components {
+  /* ---- Surfaces ------------------------------------------------------------------------------
+     Cards used to be a flat cream-200 fill (#EFE7DD) on the cream ground (#FBF6EF) — a three
+     percent difference, no border and no shadow, which is why they read as stains on the page
+     rather than as objects sitting on it. A surface is offwhite with a real hairline plus two
+     shadows: a 1px contact shadow so the edge has somewhere to sit, and a wide, very faint one
+     for lift. Together they cost nothing and are the whole difference between "card" and "smudge". */
+  .surface {
+    background: var(--color-offwhite);
+    border: 1px solid rgba(36, 27, 20, 0.07);
+    box-shadow: 0 1px 2px rgba(36, 27, 20, 0.04), 0 16px 32px -24px rgba(36, 27, 20, 0.26);
+  }
+
+  .surface-lift {
+    transition: box-shadow 0.24s ease, transform 0.24s ease, border-color 0.24s ease;
+  }
+  .surface-lift:hover {
+    transform: translateY(-3px);
+    border-color: rgba(36, 27, 20, 0.12);
+    box-shadow: 0 1px 2px rgba(36, 27, 20, 0.05), 0 30px 48px -26px rgba(36, 27, 20, 0.36);
+  }
+  /* The icon warms with the card, so the same teal that rings the focused tile is what answers a
+     pointer everywhere else. One accent, one meaning. */
+  .surface-lift:hover .icon-tile {
+    background: rgba(79, 140, 128, 0.2);
+  }
+
+  /* ---- The focus row -------------------------------------------------------------------------
+     One tile in "Who it's for" holds the focus: a teal ring, its photograph pushed back, and its
+     content moved to the middle of the frame with the link that belongs to it. The focus walks the
+     row on a timer, and a pointer, the glyph row, or a Tab key takes it over.
+
+     Everything here is scoped to [data-focus-row], which React only sets once a tile is actually
+     focused — so the server-rendered row, and the row on a machine that never runs the effect, is
+     four photographs at full strength rather than three dimmed ones waiting for JS.
+
+     The face-swap is desktop-only. At two columns on a phone a tile is about 170x212, which is not
+     enough for a glyph, a title, a line of copy and a button without all four becoming unreadable;
+     below 1024px the resting face stays and the ring alone carries the focus. */
+  /* The ring. Below lg the label sits under the photograph rather than on it, so a ring on the
+     tile traces a rounded rectangle around picture *and* caption: tight along the top, then
+     floating around a line of cream with nothing to hug. At those widths the ring belongs to the
+     picture. From lg the label is overlaid and the tile *is* the picture, so it moves back out. */
+  .mg-tile,
+  .mg-tile-frame {
+    outline: 2px solid transparent;
+    outline-offset: 3px;
+    transition: outline-color 0.3s ease;
+  }
+  .mg-tile {
+    /* The crop per breakpoint. Photo writes aspect-ratio as an inline style, which no stylesheet
+       rule can override, so the tile hands it a custom property instead: a square thumbnail on a
+       phone, where the label sits underneath, and the original 4:5 portrait at lg, where the label
+       is overlaid and needs the height. */
+    --tile-ar: 1 / 1;
+  }
+  /* Below lg the label is not on the photograph, so there is nothing for a scrim to rescue. */
+  .mg-scrim {
+    display: none;
+  }
+  .mg-tile.is-focused .mg-tile-frame,
+  .mg-tile:hover .mg-tile-frame {
+    outline-color: var(--color-teal);
+  }
+  .mg-tile-photo {
+    transition: filter 0.5s ease, transform 0.75s cubic-bezier(0.22, 0.61, 0.36, 1);
+  }
+  [data-focus-row] .mg-tile:not(.is-focused) .mg-tile-photo {
+    filter: brightness(0.88) saturate(0.92);
+  }
+  .mg-tile.is-focused .mg-tile-photo {
+    transform: scale(1.05);
+  }
+  .mg-rest,
+  .mg-scrim {
+    transition: opacity 0.3s ease;
+  }
+  .mg-active {
+    display: none;
+  }
+
+  @media (min-width: 1024px) {
+    .mg-tile {
+      --tile-ar: 4 / 5;
+    }
+    .mg-scrim {
+      display: block;
+    }
+    .mg-tile.is-focused,
+    .mg-tile:hover {
+      outline-color: var(--color-teal);
+    }
+    .mg-tile.is-focused .mg-tile-frame,
+    .mg-tile:hover .mg-tile-frame {
+      outline-color: transparent;
+    }
+    .mg-active {
+      display: flex;
+      opacity: 0;
+      transform: translateY(8px);
+      pointer-events: none;
+      transition: opacity 0.35s ease, transform 0.4s ease;
+    }
+    .mg-tile.is-focused .mg-active {
+      opacity: 1;
+      transform: none;
+      pointer-events: auto;
+    }
+    /* The focused face needs its own scrim. The resting one is built for a label on the bottom
+       edge, so over centred copy the middle of the tile measured 3.16:1 — under AA at 22px. This
+       one is heaviest exactly where the words are and releases at the corners, so the photograph
+       is still doing something. */
+    .mg-active::before {
+      content: "";
+      position: absolute;
+      inset: 0;
+      pointer-events: none;
+      border-radius: inherit;
+      background: radial-gradient(
+        ellipse 82% 70% at 50% 50%,
+        rgba(10, 20, 18, 0.54) 0%,
+        rgba(10, 20, 18, 0.36) 68%,
+        rgba(10, 20, 18, 0.12) 100%
+      );
+    }
+    .mg-tile.is-focused .mg-rest {
+      opacity: 0;
+    }
+    /* The resting scrim is built for a label sitting on the bottom edge. The focused face is
+       centred over a photograph that is already blurred and dimmed, so the full scrim on top of
+       that is what turned the focused tile into a dark rectangle. */
+    .mg-tile.is-focused .mg-scrim {
+      opacity: 0.55;
+    }
+    /* Scaled past the blur radius, or the blur would feather the tile's own rounded edge. */
+    .mg-tile.is-focused .mg-tile-photo {
+      filter: blur(3px) brightness(0.78);
+      transform: scale(1.12);
+    }
+  }
+
+  /* The tinted tile every icon on the page sits in. Cream-on-cream made these near invisible; a
+     10% teal wash makes the icon read as an icon instead of as a stray glyph. */
+  .icon-tile {
+    transition: background-color 0.24s ease;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex: none;
+    border-radius: 13px;
+    background: rgba(79, 140, 128, 0.1);
+    color: var(--color-teal);
+  }
+
+  /* ---- Buttons -------------------------------------------------------------------------------
+     One recipe, three sizes, three tones. Before this there were six button shapes on the page
+     (radii 11/12/13/14/xl, heights 44/50/52/54, text 13/14/15/15.5/16) and the primary carried a
+     heavy brown drop shadow that made it look pasted on. Pill radius to match the eyebrows and
+     the language chip; no resting shadow; the shadow arrives on hover, which is the only moment
+     it means anything. */
+  .btn {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 9px;
+    border-radius: 999px;
+    /* Semibold, not medium. At 500 the label sat at the same weight as the body copy beside it,
+       so the pill read as a tinted panel with text in it rather than as the thing to press. */
+    font-weight: 600;
+    line-height: 1;
+    white-space: nowrap;
+    text-decoration: none;
+    cursor: pointer;
+    transition: background-color 0.2s ease, border-color 0.2s ease, box-shadow 0.24s ease, transform
+      0.16s ease;
+  }
+  .btn:active {
+    transform: translateY(0) scale(0.985);
+  }
+
+  /* Shorter on a phone. 54px was sized for the desktop pair; stacked full-width on mobile the
+     same height turns each pill into a slab. The MoeGo reference runs about 6.6:1 width to
+     height, which is what 50px gets us against the capped row width in the hero. */
+  .btn-lg {
+    min-height: 50px;
+    padding: 0 24px;
+    font-size: 15px;
+  }
+  @media (min-width: 640px) {
+    .btn-lg {
+      min-height: 54px;
+      font-size: 15.5px;
+    }
+  }
+  .btn-md {
+    min-height: 48px;
+    padding: 0 22px;
+    font-size: 14.5px;
+  }
+  .btn-sm {
+    min-height: 44px;
+    padding: 0 18px;
+    font-size: 13.5px;
+  }
+
+  .btn-primary {
+    background: var(--color-ink);
+    color: var(--color-cream);
+    border: 1px solid var(--color-ink);
+  }
+  .btn-primary:hover {
+    background: #33261c;
+    border-color: #33261c;
+    transform: translateY(-1px);
+    box-shadow: 0 16px 28px -18px rgba(36, 27, 20, 0.7);
+  }
+
+  /* Was border-ink/12 over a 60%-opaque offwhite: on cream that is a 4% edge, so the button read
+     as a ghost of itself next to the solid primary. Solid fill, a border you can actually see. */
+  .btn-secondary {
+    background: var(--color-offwhite);
+    color: var(--color-ink);
+    border: 1.5px solid rgba(36, 27, 20, 0.62);
+  }
+  .btn-secondary:hover {
+    border-color: rgba(36, 27, 20, 0.85);
+    transform: translateY(-1px);
+    box-shadow: 0 14px 26px -20px rgba(36, 27, 20, 0.4);
+  }
+
+  .btn-on-dark {
+    background: var(--color-cream);
+    color: var(--color-ink);
+    border: 1px solid var(--color-cream);
+  }
+  .btn-on-dark:hover {
+    background: #ffffff;
+    border-color: #ffffff;
+    transform: translateY(-1px);
+    box-shadow: 0 16px 30px -18px rgba(6, 18, 16, 0.55);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .btn,
+  .btn:hover,
+  .btn:active,
+  .surface-lift,
+  .surface-lift:hover,
+  .mg-tile.is-focused .mg-tile-photo,
+  .mg-active {
+    transform: none;
+    transition-duration: 0.01ms;
+  }
+}
+
+/* The hero's warm field. Replaces a 3.3 MB bokeh PNG with three radial washes the GPU paints for
+   free, fading to the page ground so the hero and the section under it read as one surface. */
+.hero-field {
+  position: absolute;
+  inset: -20% -10% auto -10%;
+  height: 150%;
+  pointer-events: none;
+  background: radial-gradient(
+      48% 42% at 76% 18%,
+      rgba(242, 186, 132, 0.34) 0%,
+      rgba(242, 186, 132, 0) 68%
+    ), radial-gradient(42% 38% at 14% 32%, rgba(126, 178, 168, 0.24) 0%, rgba(126, 178, 168, 0) 70%),
+    radial-gradient(60% 44% at 50% 78%, rgba(251, 246, 239, 0.9) 0%, rgba(251, 246, 239, 0) 72%);
+}
+
 @keyframes orbBreathe {
   0%,
   100% {
@@ -84,26 +531,6 @@ body {
     opacity: 1;
   }
 }
-@keyframes lineIn {
-  from {
-    opacity: 0;
-    transform: translateY(8px);
-  }
-  to {
-    opacity: 1;
-    transform: none;
-  }
-}
-@keyframes revealUp {
-  from {
-    opacity: 0;
-    transform: translateY(22px);
-  }
-  to {
-    opacity: 1;
-    transform: none;
-  }
-}
 @keyframes bloomDrift {
   0% {
     transform: scale(1.1) translate(0%, 0%);
@@ -119,28 +546,6 @@ body {
   }
   100% {
     transform: scale(1.1) translate(0%, 0%);
-  }
-}
-@keyframes bloomGlow {
-  0%,
-  100% {
-    opacity: 0.05;
-    transform: scale(0.95);
-  }
-  50% {
-    opacity: 0.24;
-    transform: scale(1.04);
-  }
-}
-@keyframes coolGlow {
-  0%,
-  100% {
-    transform: translate(0, 0) scale(1);
-    opacity: 0.28;
-  }
-  50% {
-    transform: translate(8%, -5%) scale(1.2);
-    opacity: 0.5;
   }
 }
 @keyframes gridDrift {
@@ -169,15 +574,6 @@ body {
     transform: translate(-54px, 28px);
   }
 }
-@keyframes orbC {
-  0%,
-  100% {
-    transform: translate(0, 0);
-  }
-  50% {
-    transform: translate(32px, 44px);
-  }
-}
 @keyframes marqueeScroll {
   from {
     transform: translateX(0);
@@ -187,13 +583,33 @@ body {
   }
 }
 .marquee-track {
-  animation: marqueeScroll 24s linear infinite;
+  animation: marqueeScroll 34s linear infinite;
 }
 
+/* The "answering now" dot on the hero call card. */
+@keyframes livePing {
+  0% {
+    transform: scale(1);
+    opacity: 0.55;
+  }
+  70%,
+  100% {
+    transform: scale(2.6);
+    opacity: 0;
+  }
+}
+.live-ping {
+  animation: livePing 2.4s cubic-bezier(0, 0, 0.2, 1) infinite;
+}
+
+/* Scroll reveals are an enhancement, never the thing that makes content visible. Two things hold
+   that up: the class is added by JS, so with JS slow or off every section is already painted, and
+   Reveal refuses to arm anything already inside the first screen — otherwise arming would fade out
+   content the reader is looking at. */
 [data-reveal].reveal-armed {
   opacity: 0;
-  transform: translateY(20px);
-  transition: opacity 0.6s cubic-bezier(0.22, 0.61, 0.36, 1), transform 0.6s
+  transform: translateY(18px);
+  transition: opacity 0.55s cubic-bezier(0.22, 0.61, 0.36, 1), transform 0.55s
     cubic-bezier(0.22, 0.61, 0.36, 1);
   transition-delay: var(--reveal-delay, 0ms);
   will-change: opacity, transform;
@@ -202,117 +618,7 @@ body {
   opacity: 1;
   transform: none;
 }
-.stat-grid {
-  position: relative;
-  z-index: 2;
-  display: grid;
-  grid-template-columns: repeat(3, 1fr);
-  justify-items: center;
-  gap: clamp(14px, 2vw, 22px);
-  padding: clamp(24px, 4vw, 40px);
-}
-.stat-card {
-  background: linear-gradient(
-    155deg,
-    rgba(255, 255, 255, 0.24) 0%,
-    rgba(255, 255, 255, 0.07) 55%,
-    rgba(255, 255, 255, 0.04) 100%
-  );
-  border: 1px solid rgba(255, 255, 255, 0.32);
-  border-top-color: rgba(255, 255, 255, 0.55);
-  backdrop-filter: blur(20px) saturate(150%);
-  border-radius: 22px;
-  box-shadow: inset 0 1px 1px rgba(255, 255, 255, 0.55), inset 0 -10px 24px
-    rgba(255, 255, 255, 0.06), 0 18px 38px -18px rgba(20, 16, 12, 0.5);
-  padding: 22px;
-  text-align: center;
-  width: 100%;
-  max-width: 186px;
-  aspect-ratio: 1 / 1;
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  justify-content: center;
-  gap: 14px;
-}
-.stat-dots {
-  display: none;
-}
 
-@media (max-width: 900px) {
-  .frontdesk-panel {
-    aspect-ratio: auto;
-  }
-  .frontdesk-caption {
-    display: none;
-  }
-  .stat-grid {
-    display: block;
-    height: auto;
-    min-height: 202px;
-    width: min(100%, 360px);
-    margin: 0 auto;
-    padding: clamp(20px, 5vw, 30px);
-    cursor: pointer;
-  }
-  .stat-card {
-    position: absolute;
-    left: clamp(20px, 5vw, 30px);
-    right: clamp(20px, 5vw, 30px);
-    top: 50%;
-    width: auto;
-    max-width: none;
-    aspect-ratio: auto;
-    height: auto;
-    min-height: 90px;
-    flex-direction: row;
-    align-items: center;
-    justify-content: flex-start;
-    gap: 16px;
-    padding: 16px 20px;
-    background: rgba(255, 255, 255, 0.16);
-    text-align: left;
-    transform-origin: center center;
-    transition: transform 0.72s cubic-bezier(0.16, 1, 0.3, 1), opacity 0.6s ease;
-    will-change: transform, opacity;
-  }
-  .stat-card > div:first-child {
-    font-size: clamp(30px, 7vw, 40px);
-    flex: none;
-    min-width: 66px;
-    text-align: center;
-  }
-  .stat-card > div:last-child {
-    margin-top: 0;
-    text-align: left;
-    max-width: none;
-    font-size: 13px;
-  }
-  .stat-grid[data-active="0"] .stat-card:nth-child(1),
-  .stat-grid[data-active="1"] .stat-card:nth-child(2),
-  .stat-grid[data-active="2"] .stat-card:nth-child(3) {
-    transform: translateY(calc(-50% - 16px)) scale(1);
-    opacity: 1;
-    z-index: 3;
-  }
-  .stat-grid[data-active="0"] .stat-card:nth-child(2),
-  .stat-grid[data-active="1"] .stat-card:nth-child(3),
-  .stat-grid[data-active="2"] .stat-card:nth-child(1) {
-    transform: translateY(calc(-50% + 4px)) scale(0.93);
-    opacity: 0.5;
-    z-index: 2;
-  }
-  .stat-grid[data-active="0"] .stat-card:nth-child(3),
-  .stat-grid[data-active="1"] .stat-card:nth-child(1),
-  .stat-grid[data-active="2"] .stat-card:nth-child(2) {
-    transform: translateY(calc(-50% + 24px)) scale(0.86);
-    opacity: 0.3;
-    z-index: 1;
-  }
-  .stat-dots {
-    display: flex;
-  }
-}
 @media (prefers-reduced-motion: reduce) {
   *,
   *::before,

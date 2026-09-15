@@ -2,7 +2,7 @@
 
 import { ParallaxLayer } from "@/components/motion/ParallaxLayer";
 import { DEFAULT_PERSONA, type DemoPersona, getDemoAgent } from "@/lib/demoAgents";
-import { type Dict, type Locale, onboardingHref } from "@/lib/i18n/dict";
+import type { Dict, Locale } from "@/lib/i18n/dict";
 import { fetchConversationToken } from "@/lib/startConversation";
 import { track } from "@/lib/track";
 import { ConversationProvider, useConversation } from "@elevenlabs/react";
@@ -155,7 +155,7 @@ function DemoStage({ t, personas, locale }: WidgetProps) {
             style={{
               position: "absolute",
               inset: 0,
-              backgroundImage: "url('/assets/stage-warm-bg.png')",
+              backgroundImage: "url('/assets/stage-warm-bg.webp')",
               backgroundSize: "cover",
               backgroundPosition: "center",
               animation: "bloomDrift 17s ease-in-out infinite",
@@ -165,7 +165,7 @@ function DemoStage({ t, personas, locale }: WidgetProps) {
             style={{
               position: "absolute",
               inset: 0,
-              backgroundImage: "url('/assets/stage-cool-bg.png')",
+              backgroundImage: "url('/assets/stage-cool-bg.webp')",
               backgroundSize: "cover",
               backgroundPosition: "center",
               opacity: cool ? 1 : 0,
@@ -187,7 +187,9 @@ function DemoStage({ t, personas, locale }: WidgetProps) {
           }}
         />
 
-        <div className="relative z-[3] flex items-start justify-between p-3 md:p-4">
+        {/* The status badge and the persona picker share one row, so the picker has to fit what is
+            left of a 350px stage: at the desktop chip size "Barbershop" ran off the right edge. */}
+        <div className="relative z-[3] flex items-start justify-between gap-2 p-3 md:p-4">
           <div className="flex items-center gap-[7px] rounded-full bg-ink/30 px-3 py-1.5 text-xs text-cream backdrop-blur-md md:py-[7px]">
             <span
               className="h-2 w-2 rounded-full"
@@ -195,7 +197,7 @@ function DemoStage({ t, personas, locale }: WidgetProps) {
             />
             {statusText}
           </div>
-          <fieldset className="m-0 flex flex-col gap-1 rounded-xl border-0 bg-cream/90 p-1 shadow-[0_6px_18px_-10px_rgba(36,27,20,0.5)]">
+          <fieldset className="m-0 flex flex-row gap-1 rounded-[13px] border-0 bg-cream/92 p-1 shadow-[0_8px_22px_-12px_rgba(36,27,20,0.55)] backdrop-blur-sm">
             <legend className="sr-only">{t.personaLegend}</legend>
             {(["grooming", "barbershop"] as const).map((p) => (
               <button
@@ -203,7 +205,7 @@ function DemoStage({ t, personas, locale }: WidgetProps) {
                 type="button"
                 aria-pressed={persona === p}
                 onClick={() => switchPersona(p)}
-                className={`min-h-9 whitespace-nowrap rounded-[9px] px-[13px] py-2 text-xs font-medium transition-all md:min-h-[44px] md:py-[10px] ${
+                className={`min-h-[44px] whitespace-nowrap rounded-[9px] px-[10px] py-[10px] t-caption font-medium transition-all md:px-[13px] ${
                   persona === p ? "bg-ink text-cream" : "bg-transparent text-muted"
                 }`}
               >
@@ -270,7 +272,7 @@ function DemoStage({ t, personas, locale }: WidgetProps) {
               type="button"
               onClick={start}
               disabled={busy}
-              className="inline-flex min-h-11 min-w-[200px] items-center justify-center gap-2 rounded-xl bg-ink px-6 py-3 text-sm font-medium text-cream shadow-[0_14px_30px_-12px_rgba(36,27,20,0.7)] disabled:opacity-90 md:min-h-[54px] md:gap-[9px] md:rounded-[14px] md:px-[30px] md:py-[15px] md:text-base"
+              className="btn btn-sm btn-primary min-w-[200px] disabled:opacity-90 md:min-h-[54px] md:px-[30px] md:text-base"
             >
               <span className="h-[9px] w-[9px] rounded-full" style={{ background: statusDot }} />
               {primaryLabel}
@@ -280,7 +282,7 @@ function DemoStage({ t, personas, locale }: WidgetProps) {
                 type="button"
                 onClick={end}
                 aria-label={t.endAria}
-                className="inline-flex min-h-11 items-center justify-center rounded-xl border border-ink/20 bg-ink/[0.16] px-[18px] text-sm font-medium text-ink md:min-h-[54px] md:rounded-[14px]"
+                className="btn btn-sm btn-secondary md:min-h-[54px]"
               >
                 {t.end}
               </button>
@@ -288,18 +290,16 @@ function DemoStage({ t, personas, locale }: WidgetProps) {
           </div>
           {ended && !busy && !error ? (
             <div className="flex flex-col items-center gap-1 text-center">
-              <span className="text-[12.5px] font-medium text-ink md:text-[13.5px]">
-                {t.endedTitle}
-              </span>
+              <span className="t-caption font-medium text-ink md:t-body-sm">{t.endedTitle}</span>
               <a
-                href={onboardingHref(locale)}
-                className="text-[12.5px] font-semibold text-ink underline underline-offset-2 md:text-[13.5px]"
+                href="#pricing"
+                className="t-caption font-semibold text-ink underline underline-offset-2 md:t-body-sm"
               >
                 {t.endedCta}
               </a>
             </div>
           ) : (
-            <div className="max-w-[30ch] text-center text-[10.5px] leading-[1.35] text-ink/[0.62] md:text-[11.5px] md:leading-[1.4]">
+            <div className="max-w-[30ch] t-caption text-center text-ink/[0.62]">
               {error ?? t.footnote}
             </div>
           )}
@@ -308,10 +308,8 @@ function DemoStage({ t, personas, locale }: WidgetProps) {
 
       <div className="flex h-[380px] flex-col rounded-[26px] bg-white p-[18px] shadow-[0_30px_70px_-55px_rgba(36,27,20,0.5)] md:h-[560px]">
         <div className="mb-[6px] flex items-center justify-between border-b border-cream-200 px-[6px] pb-[14px] pt-1">
-          <span className="text-xs font-semibold uppercase tracking-[0.14em] text-muted-2">
-            {t.transcript}
-          </span>
-          <span className="text-xs text-muted-3">{agent.shopLabel}</span>
+          <span className="t-eyebrow text-muted-2">{t.transcript}</span>
+          <span className="text-xs text-muted-2">{agent.shopLabel}</span>
         </div>
         <div
           ref={transcriptRef}
@@ -319,7 +317,7 @@ function DemoStage({ t, personas, locale }: WidgetProps) {
           className="flex min-h-0 flex-1 flex-col gap-[10px] overflow-y-auto px-1 py-2"
         >
           {lines.length === 0 ? (
-            <div className="m-auto flex max-w-[26ch] flex-col items-center gap-[10px] text-center text-muted-3">
+            <div className="m-auto flex max-w-[26ch] flex-col items-center gap-[10px] text-center text-muted-2">
               <svg
                 width="30"
                 height="30"
@@ -340,13 +338,11 @@ function DemoStage({ t, personas, locale }: WidgetProps) {
                 {t.emptyAfter}
               </span>
               <div className="mt-6 flex flex-col items-center gap-[6px]">
-                <span className="text-[11px] font-semibold uppercase tracking-[0.1em] text-muted-4">
-                  {t.tryAsking}
-                </span>
+                <span className="t-eyebrow text-muted-2">{t.tryAsking}</span>
                 {personas[persona].prompts.map((prompt) => (
                   <span
                     key={prompt}
-                    className="rounded-full bg-cream-100 px-[13px] py-[7px] text-[12.5px] leading-[1.4] text-muted"
+                    className="rounded-full bg-cream-100 px-[13px] py-[7px] t-caption leading-[1.4] text-muted"
                   >
                     “{prompt}”
                   </span>
@@ -362,14 +358,11 @@ function DemoStage({ t, personas, locale }: WidgetProps) {
                   className={`flex ${ai ? "justify-start" : "justify-end"}`}
                 >
                   <div className="flex max-w-[82%] flex-col gap-[3px]">
-                    <span
-                      className="px-1 text-[10.5px] font-semibold uppercase tracking-[0.08em]"
-                      style={{ color: ai ? "#B9A892" : "#c4a08a" }}
-                    >
+                    <span className="px-1 t-eyebrow" style={{ color: ai ? "#B9A892" : "#c4a08a" }}>
                       {ai ? t.speakerAi : t.speakerUser}
                     </span>
                     <div
-                      className={`px-[15px] py-[11px] text-[14.5px] leading-[1.45] ${
+                      className={`px-[15px] py-[11px] t-body-sm leading-[1.45] ${
                         ai
                           ? "rounded-[16px_16px_16px_5px] bg-cream-100 text-ink"
                           : "rounded-[16px_16px_5px_16px] bg-ink text-cream"

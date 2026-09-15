@@ -1,6 +1,6 @@
 "use client";
 
-import { LangMenuItem, LangSwitch } from "@/components/LangSwitch";
+import { LangMenuItem, LangToggle } from "@/components/LangSwitch";
 import { LogoMark } from "@/components/Logo";
 import { useAuthModal } from "@/components/auth/AuthModalProvider";
 import { type Dict, type Locale, appHref } from "@/lib/i18n/dict";
@@ -22,13 +22,12 @@ export function Nav({
   path?: string;
 }) {
   const { openSignup, openSignin } = useAuthModal();
-  const localeBase = locale === "es" ? "/es" : "";
+  const prefix = locale === "es" ? "/es" : "";
   const LINKS: { href: string; label: string; current?: boolean }[] = [
     { href: `${home}#demo`, label: t.demo },
     { href: `${home}#how`, label: t.how },
-    { href: `${home}#pricing`, label: t.pricing },
-    { href: `${localeBase}/referrals`, label: t.referrals, current: path === "/referrals" },
-    { href: `${home}#faq`, label: t.faq },
+    { href: `${prefix}/pricing`, label: t.pricing, current: path === "/pricing" },
+    { href: `${prefix}/referrals`, label: t.referrals, current: path === "/referrals" },
   ];
 
   const menuRef = useRef<HTMLDetailsElement>(null);
@@ -45,49 +44,45 @@ export function Nav({
 
   return (
     <>
-      <div className="relative z-[60] hidden justify-end px-[26px] pt-[14px] md:flex min-[1340px]:absolute min-[1340px]:inset-x-0 min-[1340px]:top-[14px] min-[1340px]:pt-0 min-[1340px]:pointer-events-none">
-        <LangSwitch locale={locale} t={lang} path={path} className="pointer-events-auto" />
-      </div>
-      <nav
-        id="top"
-        className="sticky top-0 z-50 mx-auto max-w-shell px-[22px] pt-[14px] md:pt-[8px] min-[1340px]:pt-[14px]"
-      >
-        <div className="flex w-full items-center justify-between gap-2 rounded-[18px] border border-ink/10 bg-cream/80 px-4 py-3 backdrop-blur-md sm:gap-5 sm:px-5">
+      <nav id="top" className="shell sticky top-0 z-50 pt-[14px]">
+        <div className="flex w-full items-center justify-between gap-2 rounded-[18px] border border-ink/[0.07] bg-cream/90 px-4 py-3 shadow-[inset_0_1px_0_rgba(255,255,255,0.85),0_1px_2px_rgba(36,27,20,0.04),0_18px_40px_-28px_rgba(36,27,20,0.5)] supports-[backdrop-filter]:bg-offwhite/55 supports-[backdrop-filter]:backdrop-blur-xl supports-[backdrop-filter]:backdrop-saturate-150 sm:gap-5 sm:px-5 lg:grid lg:grid-cols-[1fr_auto_1fr]">
           <a
             href={`${home}#top`}
-            className="flex items-center gap-[7px] whitespace-nowrap font-display text-[17px] font-medium tracking-tight no-underline sm:text-[19px] sm:font-normal"
+            className="flex min-h-[44px] items-center gap-[7px] whitespace-nowrap font-display text-[17px] font-medium tracking-tight no-underline sm:text-[19px] sm:font-normal lg:justify-self-start"
           >
             <LogoMark className="h-5 w-5 shrink-0 rounded-[3.5px]" />
             Marisol
           </a>
 
-          <div className="hidden items-center gap-6 text-sm text-muted md:flex lg:gap-8">
+          {/* Five items is what the row holds: at lg the Spanish labels ("Cómo funciona",
+              "Iniciar sesión") are wide enough that anything looser than gap-4 wraps them onto two
+              lines, so the comfortable gap only comes back at xl. Log in reads as a nav item here
+              rather than an action — that keeps the right cluster down to the language toggle and
+              the one button, which is what stops the row drifting left of centre. */}
+          <div className="hidden items-center text-sm text-muted lg:flex lg:gap-4 xl:gap-7">
             {LINKS.map((l) => (
               <a
                 key={l.href}
                 href={l.href}
                 aria-current={l.current ? "page" : undefined}
-                className={`no-underline ${l.current ? "text-ink" : ""}`}
+                className={`whitespace-nowrap no-underline ${l.current ? "text-ink" : ""}`}
               >
                 {l.label}
               </a>
             ))}
-          </div>
-
-          <div className="flex items-center gap-2 sm:gap-3">
             {!authed && (
-              <button
-                type="button"
-                onClick={openSignin}
-                className="order-4 hidden whitespace-nowrap px-1 text-sm text-muted md:order-none md:inline"
-              >
+              <button type="button" onClick={openSignin} className="whitespace-nowrap">
                 {t.logIn}
               </button>
             )}
-            <details ref={menuRef} className="relative order-2 md:hidden">
+          </div>
+
+          <div className="flex items-center gap-2 sm:gap-3 lg:justify-self-end">
+            <LangToggle locale={locale} t={lang} path={path} className="hidden lg:flex" />
+            <details ref={menuRef} className="relative order-2 lg:hidden">
               <summary
                 aria-label={t.openMenu}
-                className="flex h-10 w-10 cursor-pointer list-none items-center justify-center rounded-xl bg-cream-200 sm:h-11 sm:w-11 [&::-webkit-details-marker]:hidden"
+                className="flex h-11 w-11 cursor-pointer list-none items-center justify-center rounded-xl border border-ink/[0.07] bg-cream-200/70 shadow-[inset_0_1px_0_rgba(255,255,255,0.7)] [&::-webkit-details-marker]:hidden"
               >
                 <svg
                   width="20"
@@ -105,14 +100,17 @@ export function Nav({
                   <line x1="3" y1="18" x2="21" y2="18" />
                 </svg>
               </summary>
-              <div className="absolute right-0 top-[54px] z-[70] flex min-w-[184px] flex-col rounded-2xl border border-ink/10 bg-white p-2 shadow-[0_22px_44px_-22px_rgba(36,27,20,0.45)]">
+              {/* Opaque on purpose: the bar above owns the page's only backdrop-filter, and a
+                  filter root stops anything nested inside it from sampling what is behind — a
+                  translucent menu here would show the page through unblurred. */}
+              <div className="absolute right-0 top-[54px] z-[70] flex min-w-[184px] flex-col rounded-2xl border border-ink/[0.07] bg-offwhite p-2 shadow-[inset_0_1px_0_rgba(255,255,255,0.9),0_22px_44px_-22px_rgba(36,27,20,0.45)]">
                 {LINKS.map((l) => (
                   <a
                     key={l.href}
                     href={l.href}
                     onClick={closeMenu}
                     aria-current={l.current ? "page" : undefined}
-                    className="flex min-h-[44px] items-center rounded-[10px] px-[14px] py-3 text-[15px] text-ink no-underline"
+                    className="flex min-h-[44px] items-center rounded-[10px] px-[14px] py-3 t-body text-ink no-underline"
                   >
                     {l.label}
                   </a>
@@ -125,7 +123,7 @@ export function Nav({
                         closeMenu();
                         openSignin();
                       }}
-                      className="flex min-h-[44px] items-center rounded-[10px] px-[14px] py-3 text-left text-[15px] text-muted"
+                      className="flex min-h-[44px] items-center rounded-[10px] px-[14px] py-3 text-left t-body text-muted"
                     >
                       {t.logIn}
                     </button>
@@ -136,19 +134,16 @@ export function Nav({
             </details>
 
             {authed ? (
-              <a
-                href={appHref(locale, "/portal")}
-                className="order-1 inline-flex min-h-[40px] items-center justify-center whitespace-nowrap rounded-xl bg-ink px-[14px] py-[8px] text-[13px] font-medium text-cream no-underline sm:min-h-[44px] sm:px-[18px] sm:py-[11px] sm:text-sm"
-              >
+              <a href={appHref(locale, "/portal")} className="btn btn-sm btn-primary order-1">
                 {t.dashboard}
               </a>
             ) : (
               <button
                 type="button"
                 onClick={() => openSignup()}
-                className="order-1 inline-flex min-h-[40px] items-center justify-center whitespace-nowrap rounded-xl bg-ink px-[14px] py-[8px] text-[13px] font-medium text-cream sm:min-h-[44px] sm:px-[18px] sm:py-[11px] sm:text-sm"
+                className="btn btn-sm btn-primary order-1"
               >
-                {t.getStarted}
+                {t.trialCta}
               </button>
             )}
           </div>

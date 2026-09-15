@@ -16,7 +16,7 @@ module.exports = {
         success: "#2C7A4B",
         muted: {
           DEFAULT: "#6F6457",
-          2: "#8C8074",
+          2: "#796E61",
           3: "#B9A892",
           4: "#A99D8F",
         },

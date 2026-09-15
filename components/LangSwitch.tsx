@@ -145,7 +145,7 @@ export function LangSwitch({
             hrefLang={o.code}
             aria-label={o.aria}
             aria-current={o.code === locale ? "true" : undefined}
-            className={`flex min-h-[40px] items-center justify-between gap-3 rounded-[10px] px-[12px] py-2 text-[14px] no-underline ${
+            className={`flex min-h-[40px] items-center justify-between gap-3 rounded-[10px] px-[12px] py-2 t-body-sm no-underline ${
               o.code === locale ? "font-medium text-ink" : "text-muted"
             }`}
           >
@@ -155,6 +155,49 @@ export function LangSwitch({
         ))}
       </nav>
     </details>
+  );
+}
+
+// The segmented form used in the desktop navbar. Two locales, both one tap away, no menu to
+// open — a dropdown to choose between exactly two things costs a click to tell you what you
+// already know. The dropdown `LangSwitch` above stays for onboarding, where it sits alone in a
+// corner with no bar to sit inside.
+export function LangToggle({
+  locale,
+  t,
+  path = "",
+  className = "",
+}: { locale: Locale; t: Dict["lang"]; path?: string; className?: string }) {
+  const options = useLangOptions(t, path, false);
+
+  return (
+    <div
+      className={`flex items-center gap-[7px] whitespace-nowrap rounded-full border border-ink/[0.14] bg-cream-100/70 px-[11px] py-[6px] t-caption font-semibold tracking-[0.04em] ${className}`}
+    >
+      {options.map((o, i) => (
+        <span key={o.code} className="flex items-center gap-[7px]">
+          {i > 0 && (
+            <span aria-hidden="true" className="font-normal text-ink/25">
+              /
+            </span>
+          )}
+          {o.code === locale ? (
+            <span aria-current="true" className="text-ink">
+              {o.code.toUpperCase()}
+            </span>
+          ) : (
+            <a
+              href={o.href}
+              hrefLang={o.code}
+              aria-label={o.aria}
+              className="text-muted-2 no-underline transition-colors duration-200 hover:text-ink"
+            >
+              {o.code.toUpperCase()}
+            </a>
+          )}
+        </span>
+      ))}
+    </div>
   );
 }
 
@@ -172,7 +215,7 @@ export function LangMenuItem({
     <details className="group">
       <summary
         aria-label={t.label}
-        className="flex min-h-[44px] cursor-pointer list-none items-center gap-[8px] rounded-[10px] px-[14px] py-3 text-[15px] text-muted [&::-webkit-details-marker]:hidden"
+        className="flex min-h-[44px] cursor-pointer list-none items-center gap-[8px] rounded-[10px] px-[14px] py-3 t-body text-muted [&::-webkit-details-marker]:hidden"
       >
         <GlobeIcon />
         {current.label}
@@ -186,7 +229,7 @@ export function LangMenuItem({
             hrefLang={o.code}
             aria-label={o.aria}
             onClick={onSelect}
-            className="flex min-h-[44px] items-center rounded-[10px] py-3 pr-[14px] pl-[37px] text-[15px] text-muted no-underline"
+            className="flex min-h-[44px] items-center rounded-[10px] py-3 pr-[14px] pl-[37px] t-body text-muted no-underline"
           >
             {o.label}
           </a>

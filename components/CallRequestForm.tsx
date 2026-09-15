@@ -69,8 +69,8 @@ export function CallRequestForm({
   if (done) {
     return (
       <output className="block rounded-[24px] bg-cream-100 p-[clamp(20px,4vw,34px)] text-center">
-        <span className="block text-[15px] font-medium text-success">{t.doneTitle}</span>
-        <span className="mt-1 block text-[14px] text-muted">{t.doneBody}</span>
+        <span className="block t-body font-medium text-success">{t.doneTitle}</span>
+        <span className="mt-1 block t-body-sm text-muted">{t.doneBody}</span>
       </output>
     );
   }
@@ -78,7 +78,7 @@ export function CallRequestForm({
   return (
     <div className="rounded-[24px] bg-cream-100 p-[clamp(20px,4vw,34px)] text-left text-ink">
       <h3 className="m-0 font-display text-[20px] font-normal tracking-[-0.01em]">{t.title}</h3>
-      <p className="mt-1 text-[13.5px] text-muted">{t.subtitle}</p>
+      <p className="mt-1 t-body-sm text-muted">{t.subtitle}</p>
 
       <div className="mt-5 flex flex-col gap-4">
         <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
@@ -90,7 +90,7 @@ export function CallRequestForm({
             ] as const
           ).map((f) => (
             <div key={f.key} className="flex flex-col gap-[6px]">
-              <label htmlFor={`bc-${f.key}`} className="text-[13.5px] font-medium text-ink">
+              <label htmlFor={`bc-${f.key}`} className="t-body-sm font-medium text-ink">
                 {f.label}
               </label>
               <input
@@ -102,7 +102,7 @@ export function CallRequestForm({
                 onChange={(e) => patch({ [f.key]: e.target.value })}
               />
               {errors[f.key] && (
-                <span role="alert" className="text-[12.5px] font-medium text-[#B4452C]">
+                <span role="alert" className="t-caption font-medium text-[#B4452C]">
                   {errors[f.key]}
                 </span>
               )}
@@ -111,7 +111,7 @@ export function CallRequestForm({
         </div>
 
         <div className="flex flex-col gap-[6px]">
-          <label htmlFor="bc-time" className="text-[13.5px] font-medium text-ink">
+          <label htmlFor="bc-time" className="t-body-sm font-medium text-ink">
             {t.preferredTime}
           </label>
           <input
@@ -124,7 +124,7 @@ export function CallRequestForm({
         </div>
 
         <div className="flex flex-col gap-[6px]">
-          <label htmlFor="bc-question" className="text-[13.5px] font-medium text-ink">
+          <label htmlFor="bc-question" className="t-body-sm font-medium text-ink">
             {t.question}
           </label>
           <textarea
@@ -138,7 +138,7 @@ export function CallRequestForm({
         </div>
 
         {submitError && (
-          <p role="alert" className="text-[13.5px] font-medium text-[#B4452C]">
+          <p role="alert" className="t-body-sm font-medium text-[#B4452C]">
             {t.errSubmit}
           </p>
         )}
@@ -148,7 +148,7 @@ export function CallRequestForm({
             <button
               type="button"
               onClick={onCancel}
-              className="inline-flex min-h-[48px] items-center justify-center rounded-[13px] px-5 py-3 text-[15px] font-medium text-muted"
+              className="inline-flex min-h-[48px] items-center justify-center rounded-[13px] px-5 py-3 t-body font-medium text-muted"
             >
               {t.cancel}
             </button>
@@ -157,7 +157,7 @@ export function CallRequestForm({
             type="button"
             onClick={submit}
             disabled={submitting}
-            className="inline-flex min-h-[48px] items-center justify-center rounded-[13px] bg-ink px-6 py-3 text-[15px] font-medium text-cream disabled:opacity-60"
+            className="btn btn-md btn-primary disabled:opacity-60"
           >
             {submitting ? t.submitting : t.submit}
           </button>
