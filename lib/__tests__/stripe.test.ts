@@ -6,6 +6,7 @@ import {
   lookupCheckoutSession,
   resumeSubscription,
   scheduleSubscriptionCancellation,
+  swapSubscriptionPrice,
 } from "@/lib/stripe";
 
 const originalFetch = globalThis.fetch;
@@ -75,6 +76,27 @@ describe("subscription cancellation", () => {
     });
     expect((request?.headers as Record<string, string>)["Idempotency-Key"]).toBe("resume:sub_1");
     expect(String(request?.body)).toBe("cancel_at_period_end=false");
+  });
+});
+
+describe("plan changes", () => {
+  it("replaces the plan item without clearing the subscription's existing discount", async () => {
+    let request: RequestInit | undefined;
+    globalThis.fetch = (async (_input, init) => {
+      request = init;
+      return Response.json({ id: "sub_1", status: "trialing" });
+    }) as typeof fetch;
+
+    await swapSubscriptionPrice("sk_test", {
+      subscriptionId: "sub_1",
+      itemId: "si_plan",
+      priceId: "price_growth",
+      plan: "growth",
+    });
+    const body = new URLSearchParams(String(request?.body));
+    expect(body.get("items[0][id]")).toBe("si_plan");
+    expect(body.get("items[0][price]")).toBe("price_growth");
+    expect(body.has("discounts")).toBe(false);
   });
 });
 

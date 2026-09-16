@@ -2,6 +2,7 @@ import { env } from "cloudflare:workers";
 import { timingSafeEqualStr } from "@/lib/adminAuth";
 import { callbackUrl, exchangeCode, verifyIdToken } from "@/lib/googleLogin";
 import { appHref } from "@/lib/i18n/dict";
+import { getLeadIdForAccount } from "@/lib/leads";
 import { type PortalEnv, createAccount, findAccountByEmail, patchAccount } from "@/lib/portalApi";
 import {
   clearedStateCookie,
@@ -74,11 +75,13 @@ export async function GET(request: Request): Promise<Response> {
     last_login_at: new Date().toISOString(),
   });
 
+  const leadId = account.lead_id ?? (await getLeadIdForAccount(cfEnv.LEADS_KV, account.id));
+
   const sessionId = await createSession(cfEnv.RATE_LIMIT_KV, {
     accountId: account.id,
     email: account.email,
     shopId: account.shop_id ?? undefined,
-    leadId: account.lead_id ?? undefined,
+    leadId: leadId ?? undefined,
   });
   if (!sessionId) return toLogin(request, "session_failed");
 
@@ -87,7 +90,7 @@ export async function GET(request: Request): Promise<Response> {
   const headers = new Headers({
     Location: appHref(
       oauthState.lang === "es" ? "es" : "en",
-      !account.shop_id && !account.lead_id ? "/onboarding" : "/portal",
+      !account.shop_id && !leadId ? "/onboarding" : "/portal",
     ),
   });
   headers.append("Set-Cookie", sessionCookie(sessionId));

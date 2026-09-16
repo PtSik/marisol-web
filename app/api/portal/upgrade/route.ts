@@ -50,7 +50,7 @@ export async function POST(request: Request): Promise<Response> {
 
   const session = await getSession(cfEnv.RATE_LIMIT_KV, await sessionIdFromCookies());
   if (!session) return Response.redirect(new URL("/login", request.url).toString(), 303);
-  if (await portalAccessRedirect(cfEnv, session)) {
+  if (await portalAccessRedirect(cfEnv, session, { allowPending: true })) {
     return Response.json({ error: "service is not active" }, { status: 403 });
   }
 
@@ -88,7 +88,7 @@ export async function POST(request: Request): Promise<Response> {
   const listedShops = await listAccountShopsStrict(cfEnv, session.accountId);
   if (!listedShops) return back(request, "failed");
   const activeShops = listedShops.filter((shop) => shop.status !== "cancelled");
-  if (activeShops.length === 0 || (target === "basic" && activeShops.length > 1)) {
+  if (target === "basic" && activeShops.length > 1) {
     return back(request, "failed");
   }
 
@@ -129,7 +129,9 @@ export async function POST(request: Request): Promise<Response> {
   const reminderUpdates = await Promise.all(
     activeShops.map((shop) => patchShop(cfEnv, shop.id, { reminders_enabled: remindersEnabled })),
   );
-  const remindersUpdated = reminderUpdates.length > 0 && reminderUpdates.every(Boolean);
+  // Before activation there may be no shop yet. The chosen plan is stored on the lead and its
+  // reminder flag will be applied when provisioning creates the shop.
+  const remindersUpdated = reminderUpdates.length === 0 || reminderUpdates.every(Boolean);
 
   await notifyTeam(
     cfEnv,

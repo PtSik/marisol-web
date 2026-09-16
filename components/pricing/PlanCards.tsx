@@ -136,6 +136,8 @@ export function PlanCards({
   renderCta,
   detailsHref,
   showTerms = true,
+  showBillingToggle = true,
+  showFooter = true,
 }: {
   t: Dict["pricing"];
   billing: Billing;
@@ -143,49 +145,57 @@ export function PlanCards({
   detailsHref?: string;
   /** Off inside the checkout picker, where the full cancellation terms are a detour, not a help. */
   showTerms?: boolean;
+  /** Portal plan changes keep the subscription's existing monthly or annual billing interval. */
+  showBillingToggle?: boolean;
+  /** Existing subscribers need plan-change terms, not new-customer trial terms. */
+  showFooter?: boolean;
   renderCta: (tier: Plan) => ReactNode;
 }) {
   return (
     <>
-      <fieldset className="m-0 inline-flex items-center gap-1 rounded-[14px] border border-ink/[0.07] bg-cream-200 p-1 shadow-[inset_0_1px_2px_rgba(36,27,20,0.06)]">
-        <legend className="sr-only">{t.billingLegend}</legend>
-        {(["monthly", "annual"] as const).map((period) => {
-          const isActive = period === billing;
-          return (
-            <button
-              key={period}
-              type="button"
-              aria-pressed={isActive}
-              onClick={() => onBillingChange(period)}
-              className={`min-h-[44px] rounded-[10px] px-4 py-[11px] t-caption font-medium transition-all ${
-                isActive ? "bg-ink text-cream" : "bg-transparent text-muted"
-              }`}
-            >
-              {period === "annual" ? fill(t.annual, { amount: maxAnnualSaving() }) : t.monthly}
-            </button>
-          );
-        })}
-      </fieldset>
+      {showBillingToggle && (
+        <fieldset className="m-0 inline-flex items-center gap-1 rounded-[14px] border border-ink/[0.07] bg-cream-200 p-1 shadow-[inset_0_1px_2px_rgba(36,27,20,0.06)]">
+          <legend className="sr-only">{t.billingLegend}</legend>
+          {(["monthly", "annual"] as const).map((period) => {
+            const isActive = period === billing;
+            return (
+              <button
+                key={period}
+                type="button"
+                aria-pressed={isActive}
+                onClick={() => onBillingChange(period)}
+                className={`min-h-[44px] rounded-[10px] px-4 py-[11px] t-caption font-medium transition-all ${
+                  isActive ? "bg-ink text-cream" : "bg-transparent text-muted"
+                }`}
+              >
+                {period === "annual" ? fill(t.annual, { amount: maxAnnualSaving() }) : t.monthly}
+              </button>
+            );
+          })}
+        </fieldset>
+      )}
 
       <div className="mx-auto mt-[clamp(28px,4vw,40px)] grid grid-cols-1 items-stretch gap-4 text-left lg:grid-cols-3">
         {PLAN_OPTIONS.map((tier) => (
           <PlanCard key={tier} t={t} tier={tier} billing={billing} renderCta={renderCta} />
         ))}
       </div>
-      <div className="mx-auto mt-5 max-w-[80ch] text-center t-caption leading-[1.55] text-muted-2">
-        <p>{fill(t.trialNote, { days: TRIAL_DAYS })}</p>
-        {!showTerms ? null : detailsHref ? (
-          <a
-            href={detailsHref}
-            className="mt-1 inline-flex min-h-[44px] items-center text-teal underline underline-offset-4"
-          >
-            {t.detailsLink}
-          </a>
-        ) : (
-          <p className="mt-2">{t.billingNote}</p>
-        )}
-        <p className="mt-1 t-caption">{t.smsNote}</p>
-      </div>
+      {showFooter && (
+        <div className="mx-auto mt-5 max-w-[80ch] text-center t-caption leading-[1.55] text-muted-2">
+          <p>{fill(t.trialNote, { days: TRIAL_DAYS })}</p>
+          {!showTerms ? null : detailsHref ? (
+            <a
+              href={detailsHref}
+              className="mt-1 inline-flex min-h-[44px] items-center text-teal underline underline-offset-4"
+            >
+              {t.detailsLink}
+            </a>
+          ) : (
+            <p className="mt-2">{t.billingNote}</p>
+          )}
+          <p className="mt-1 t-caption">{t.smsNote}</p>
+        </div>
+      )}
     </>
   );
 }

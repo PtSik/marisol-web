@@ -1,14 +1,9 @@
 import { env } from "cloudflare:workers";
+import { CancelSubscriptionButton } from "@/components/portal/CancelSubscriptionButton";
 import { PortalHeading, PortalNotice } from "@/components/portal/PortalHeading";
+import { PortalPlanCards } from "@/components/portal/PortalPlanCards";
 import { getLead, getLeadIdForAccount } from "@/lib/leads";
-import {
-  PLAN_LABELS,
-  PLAN_OPTIONS,
-  PRICE,
-  type Plan,
-  TRIAL_DAYS,
-  normalizePlan,
-} from "@/lib/plans";
+import { PLAN_LABELS, PRICE, TRIAL_DAYS, normalizePlan } from "@/lib/plans";
 import type { PortalEnv } from "@/lib/portalApi";
 import { requirePortalSession } from "@/lib/session";
 import { CUSTOMER_PORTAL_URL, SALES_EMAIL_HREF } from "@/lib/site";
@@ -42,14 +37,6 @@ const PLAN_CHANGE_NOTICE: Record<string, string> = {
   failed: "That plan change didn't go through. Try again, or email us and we'll switch you over.",
 };
 
-const PLAN_PITCH: Record<Plan, string> = {
-  basic: "24/7 calls, Google Calendar booking, call summaries and transfers.",
-  complete:
-    "Carrier-approved SMS appointment reminders, rescheduling messages, missed-call follow-up and a monthly results report.",
-  growth:
-    "Everything in Complete, plus win-back outreach, no-show follow-up and client memory that refills your calendar.",
-};
-
 export default async function PortalBillingPage({
   searchParams,
 }: {
@@ -71,10 +58,7 @@ export default async function PortalBillingPage({
   const status = subscription?.status ?? "";
   const trialEnds = fmtDate(subscription?.trial_end);
   const renews = fmtDate(subscription?.current_period_end);
-  const planChoices =
-    UPGRADABLE_STATUSES.has(status) && !subscription?.cancel_at_period_end
-      ? PLAN_OPTIONS.filter((candidate) => candidate !== plan)
-      : [];
+  const canChangePlan = UPGRADABLE_STATUSES.has(status) && !subscription?.cancel_at_period_end;
 
   return (
     <>
@@ -176,11 +160,9 @@ export default async function PortalBillingPage({
                 Your subscription will stop at the end of the current trial or billing period.
                 Marisol will keep working until then.
               </p>
-              <form method="post" action="/api/portal/cancel-subscription" className="mt-4">
-                <button type="submit" className="btn btn-md btn-secondary text-danger">
-                  Cancel my subscription
-                </button>
-              </form>
+              <div className="mt-4">
+                <CancelSubscriptionButton endDate={trialEnds ?? renews} />
+              </div>
             </div>
           )}
 
@@ -201,41 +183,9 @@ export default async function PortalBillingPage({
         </p>
       </div>
 
-      {planChoices.map((target) => (
-        <div
-          key={target}
-          className="mt-3 rounded-[24px] border border-teal/25 bg-teal/[0.07] p-[clamp(20px,4vw,34px)]"
-        >
-          <p className="text-[11.5px] font-semibold uppercase tracking-[0.16em] text-teal">
-            {PLAN_OPTIONS.indexOf(target) > PLAN_OPTIONS.indexOf(plan) ? "Upgrade" : "Downgrade"}
-          </p>
-          <p className="mt-1.5 font-display text-[clamp(21px,3vw,27px)] tracking-[-0.02em]">
-            {PLAN_LABELS[target]} — ${PRICE[target][billing]}/mo
-          </p>
-          <p className="mt-2 max-w-[54ch] text-[15px] leading-[1.55] text-muted">
-            {PLAN_PITCH[target]}
-          </p>
-          <p className="mt-2 max-w-[54ch] text-[14px] leading-[1.55] text-muted-2">
-            {status === "trialing"
-              ? `${PLAN_LABELS[target]} starts right away and your trial is untouched — nothing is charged${
-                  trialEnds ? ` before ${trialEnds}` : " before it ends"
-                }.`
-              : PLAN_OPTIONS.indexOf(target) > PLAN_OPTIONS.indexOf(plan)
-                ? `${PLAN_LABELS[target]} starts right away. You're only charged the difference for the days left in this period.`
-                : `${PLAN_LABELS[target]} starts right away. Stripe applies the prorated credit to your account.`}
-          </p>
-
-          <form method="post" action="/api/portal/upgrade" className="mt-5">
-            <input type="hidden" name="plan" value={target} />
-            <button
-              type="submit"
-              className="inline-flex min-h-[50px] w-full items-center justify-center rounded-[13px] bg-teal px-7 py-[14px] text-[15px] font-medium text-cream sm:w-auto"
-            >
-              Change to {PLAN_LABELS[target]}
-            </button>
-          </form>
-        </div>
-      ))}
+      {canChangePlan && (
+        <PortalPlanCards current={plan} billing={billing} trialing={status === "trialing"} />
+      )}
     </>
   );
 }

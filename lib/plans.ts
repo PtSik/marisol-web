@@ -53,8 +53,8 @@ export const extraLocationCount = (plan: Plan, totalSalons: number): number =>
 
 const PLAN_RANK: Record<Plan, number> = { basic: 0, complete: 1, growth: 2 };
 
-// Only upward moves are prorated cleanly by the swap in stripe.ts; a downgrade has to go through
-// support so the extra-location quantity and the shop flags can be unwound by hand.
+// Used for labels and sales choices. The portal supports both directions by swapping the existing
+// Stripe item and reconciling the shop flags and extra-location quantity in the same request.
 export const isUpgrade = (from: Plan, to: Plan): boolean => PLAN_RANK[to] > PLAN_RANK[from];
 
 export const upgradesFrom = (plan: Plan): Plan[] =>

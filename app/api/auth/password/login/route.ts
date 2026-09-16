@@ -1,4 +1,5 @@
 import { env } from "cloudflare:workers";
+import { getLeadIdForAccount } from "@/lib/leads";
 import { EMAIL_RE } from "@/lib/onboarding";
 import { type PortalEnv, verifyAccountPassword } from "@/lib/portalApi";
 import { bumpRateLimit, clearRateLimit, rateLimited } from "@/lib/rateLimit";
@@ -56,18 +57,23 @@ export async function POST(request: Request): Promise<Response> {
   // hour must not count against the owner who then gets it right.
   await clearRateLimit(kv, accountKey);
 
+  // Checkout links the account to its lead immediately in KV; the operational account row gains
+  // lead_id later when its shop is prepared. A returning paid client must still enter the portal
+  // during that gap instead of reopening their completed onboarding draft.
+  const leadId = account.lead_id ?? (await getLeadIdForAccount(cfEnv.LEADS_KV, account.id));
+
   const sessionId = await createSession(cfEnv.RATE_LIMIT_KV, {
     accountId: account.id,
     email: account.email,
     shopId: account.shop_id ?? undefined,
-    leadId: account.lead_id ?? undefined,
+    leadId: leadId ?? undefined,
   });
   if (!sessionId) {
     return Response.json({ error: "could not create session" }, { status: 502 });
   }
 
   const response = Response.json({
-    redirect: !account.shop_id && !account.lead_id ? "/onboarding" : "/portal",
+    redirect: !account.shop_id && !leadId ? "/onboarding" : "/portal",
   });
   response.headers.append("Set-Cookie", sessionCookie(sessionId));
   return response;
