@@ -185,7 +185,12 @@ export async function POST(
   try {
     const result = prepared
       ? {
-          ok: await patchShop(cfEnv, lead.shopId as string, { status: "active" }),
+          ok: await patchShop(cfEnv, lead.shopId as string, {
+            status: "active",
+            ...(lead.setup?.calendar === "google_calendar"
+              ? { integration: "google_calendar" }
+              : {}),
+          }),
           shopId: lead.shopId,
           number: lead.assignedNumber,
           numberSid: lead.twilioNumberSid,
