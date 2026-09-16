@@ -3,7 +3,7 @@ import { en } from "@/lib/i18n/en";
 import type { CheckoutLead } from "@/lib/leads";
 import type { DayId, ServiceEntry, SetupDetails, WeekHours } from "@/lib/onboarding";
 import { normalizePlan } from "@/lib/plans";
-import { SITE_URL } from "@/lib/site";
+import { APP_URL, SITE_URL } from "@/lib/site";
 
 export interface NotifyEnv {
   RESEND_API_KEY?: string;
@@ -244,6 +244,13 @@ export interface ClientWelcome {
   referralCode?: string;
 }
 
+export interface ReviewReceived {
+  email: string;
+  businessName: string;
+  ownerName: string;
+  locale?: "en" | "es";
+}
+
 function clientFrom({ CLIENT_EMAIL_FROM, RESEND_FROM }: NotifyEnv): string {
   return CLIENT_EMAIL_FROM ?? RESEND_FROM ?? "Marisol <hello@getmarisol.com>";
 }
@@ -269,6 +276,34 @@ function referralBlock(code: string | undefined): string {
 
 function portalFooter(): string {
   return `<p style="margin:24px 0 0;font-size:13px;color:#6F6457">Your hours, services, staff and billing live in <a href="${SITE_URL}/portal" style="color:#4F8C80">your portal</a> — sign in with Google whenever something changes.</p>`;
+}
+
+export async function sendReviewReceived(env: NotifyEnv, r: ReviewReceived): Promise<boolean> {
+  if (!env.RESEND_API_KEY) return false;
+  const es = r.locale === "es";
+  const html = `<div style="font-family:Inter,Helvetica,Arial,sans-serif;max-width:560px;margin:0 auto;color:#241B14;line-height:1.55">
+  <p style="font-size:16px">${es ? "Hola" : "Hi"} ${esc(firstNameOf(r.ownerName))},</p>
+  <p style="font-size:16px">${es ? `Recibimos la configuración de <strong>${esc(r.businessName)}</strong>.` : `We received the setup for <strong>${esc(r.businessName)}</strong>.`}</p>
+  <div style="background:#F6EFE6;border-radius:12px;padding:18px 22px;margin:20px 0">
+    <p style="margin:0;font-size:15px;font-weight:600">${es ? "Qué ocurre ahora" : "What happens next"}</p>
+    <ol style="margin:10px 0 0;padding-left:20px;font-size:14px;color:#6F6457">
+      <li style="margin-bottom:7px">${es ? "Nuestro equipo revisa los datos y prepara tu número de Marisol." : "Our team reviews the details and prepares your Marisol number."}</li>
+      <li style="margin-bottom:7px">${es ? "Te avisamos cuando puedas conectar Google Calendar." : "We let you know when Google Calendar is ready to connect."}</li>
+      <li>${es ? "Comprobamos la configuración antes de activar las llamadas." : "We verify the setup before activating calls."}</li>
+    </ol>
+  </div>
+  <p style="font-size:15px"><a href="${APP_URL}/portal" style="color:#4F8C80">${es ? "Ver el estado y la facturación en Marisol" : "View status and billing in Marisol"}</a></p>
+  <p style="font-size:15px;margin:24px 0 0">${es ? "¿Tienes alguna pregunta? Responde a este correo y te ayudaremos." : "Questions? Reply to this email and we'll help."}</p>
+</div>`;
+  return sendEmail(
+    env.RESEND_API_KEY,
+    clientFrom(env),
+    r.email,
+    es
+      ? `Recibimos la configuración de ${r.businessName}`
+      : `We received your setup for ${r.businessName}`,
+    { html },
+  );
 }
 
 export async function sendClientWelcome(env: NotifyEnv, w: ClientWelcome): Promise<boolean> {

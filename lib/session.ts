@@ -134,7 +134,10 @@ export async function shopIdFromCookies(): Promise<string | undefined> {
 // Every /portal page starts here: no session (or one KV expired out from under the cookie)
 // means the visitor is a stranger, not a client with a broken page. A gate session minted before
 // provisioning finished has no shopId yet — resolve it from the account so the portal isn't empty.
-export async function requirePortalSession(env: PortalEnv): Promise<PortalSession> {
+export async function requirePortalSession(
+  env: PortalEnv,
+  options: { allowPending?: boolean } = {},
+): Promise<PortalSession> {
   const kv = env.RATE_LIMIT_KV;
   const id = await sessionIdFromCookies();
   let session = await getSession(kv, id);
@@ -151,7 +154,7 @@ export async function requirePortalSession(env: PortalEnv): Promise<PortalSessio
       if (refreshed) session = refreshed;
     }
   }
-  const blocked = await portalAccessRedirect(env, session);
+  const blocked = await portalAccessRedirect(env, session, options);
   if (blocked) redirect(blocked);
   return session;
 }

@@ -2,7 +2,7 @@ import { env } from "cloudflare:workers";
 import { enqueueSubscriptionCancellation } from "@/lib/cancellation";
 import { settleCheckout } from "@/lib/checkoutSettlement";
 import { type CheckoutLead, checkoutCompletionCanAdvance, getLead, putLead } from "@/lib/leads";
-import { notifyTeam } from "@/lib/notify";
+import { notifyTeam, sendReviewReceived } from "@/lib/notify";
 import {
   type ReferralEnv,
   maybeSendReferralInvite,
@@ -118,6 +118,19 @@ async function cancelSubscriptionSalons(
   await enqueueSubscriptionCancellation(cfEnv, { leadId, reason, subscriptionId });
 }
 
+async function maybeSendReviewReceived(cfEnv: WebhookEnv, lead: CheckoutLead): Promise<void> {
+  if (lead.flowVersion !== 2 || lead.reviewEmailSentAt) return;
+  const sent = await sendReviewReceived(cfEnv, {
+    email: lead.basics.email,
+    businessName: lead.basics.businessName,
+    ownerName: lead.basics.ownerName,
+    locale: lead.locale,
+  });
+  if (!sent) throw new Error("review confirmation email failed");
+  lead.reviewEmailSentAt = new Date().toISOString();
+  await putLead(cfEnv.LEADS_KV, lead);
+}
+
 export async function POST(request: Request) {
   const cfEnv = env as unknown as WebhookEnv;
   if (!cfEnv.STRIPE_WEBHOOK_SECRET) {
@@ -223,6 +236,7 @@ export async function POST(request: Request) {
     return Response.json({ error: "lead not found" }, { status: 500 });
   }
   if (!checkoutCompletionCanAdvance(lead.status)) {
+    if (lead.status === "pending_review") await maybeSendReviewReceived(cfEnv, lead);
     return received(cfEnv);
   }
 
@@ -232,6 +246,7 @@ export async function POST(request: Request) {
     `${settled.status === "pending_review" ? "Setup ready for review" : "PAID — start setup"}: ${settled.basics.businessName}`,
     settled,
   );
+  await maybeSendReviewReceived(cfEnv, settled);
 
   return received(cfEnv);
 }

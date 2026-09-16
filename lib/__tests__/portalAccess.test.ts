@@ -30,6 +30,17 @@ describe("portal lifecycle access", () => {
       expect(await portalAccessRedirect(env(status), session)).toBe("/account-status");
     }
   });
+  it("opens the limited portal during review without opening cancelled accounts", async () => {
+    expect(
+      await portalAccessRedirect(env("pending_review"), session, { allowPending: true }),
+    ).toBeNull();
+    expect(
+      await portalAccessRedirect(env("activation_failed"), session, { allowPending: true }),
+    ).toBeNull();
+    expect(await portalAccessRedirect(env("cancelled"), session, { allowPending: true })).toBe(
+      "/account-status",
+    );
+  });
   it("does not turn missing data or a KV outage into access", async () => {
     expect(
       await portalAccessRedirect(

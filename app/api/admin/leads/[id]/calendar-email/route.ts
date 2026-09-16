@@ -2,7 +2,7 @@ import { env } from "cloudflare:workers";
 import { ADMIN_COOKIE, isAdminCookieValid } from "@/lib/adminAuth";
 import { getLead, isPreparedLead, putLead } from "@/lib/leads";
 import { sendCalendarInvite } from "@/lib/notify";
-import { buildCalendarConnectUrl } from "@/lib/provisioning";
+import { buildCalendarConnectUrl, patchShop } from "@/lib/provisioning";
 import { cookies } from "next/headers";
 
 export const dynamic = "force-dynamic";
@@ -41,6 +41,13 @@ export async function POST(
   const form = await request.formData();
   if (form.get("accessConfirmed") !== "yes") return back(request, "failed");
   const grantedAt = lead.calendarAccessGrantedAt ?? new Date().toISOString();
+
+  // The calendar OAuth worker authorizes against the operational shop, not this checkout lead.
+  // Keep both records in sync before sending a link; otherwise a prepared (suspended) shop receives
+  // a correctly signed URL that the voice worker must reject because it cannot see the grant.
+  if (!(await patchShop(cfEnv, lead.shopId, { calendar_access_granted_at: grantedAt }))) {
+    return back(request, "failed");
+  }
   lead.calendarAccessGrantedAt = grantedAt;
   await putLead(cfEnv.LEADS_KV, lead);
   if (lead.calendarEmailSentAt) return back(request, "already-sent");

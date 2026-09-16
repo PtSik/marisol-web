@@ -10,7 +10,13 @@ export const dynamic = "force-dynamic";
 
 export default async function PortalCalendarPage() {
   const cfEnv = env as unknown as PortalEnv;
-  const { activeShop: shop, activeShopId, activeLeadId } = await getPortalContext(cfEnv);
+  const {
+    activeShop: shop,
+    activeShopId,
+    activeLeadId,
+  } = await getPortalContext(cfEnv, {
+    allowPending: true,
+  });
   const lead = activeLeadId ? await getLead(cfEnv.LEADS_KV, activeLeadId) : null;
   const accessGranted = Boolean(
     lead?.calendarAccessGrantedAt ||

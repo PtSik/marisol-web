@@ -59,11 +59,16 @@ function SalonSwitcher({ shops, activeShopId }: { shops: NavShop[]; activeShopId
 export function PortalNav({
   shops = [],
   activeShopId,
+  pending = false,
 }: {
   shops?: NavShop[];
   activeShopId?: string;
+  pending?: boolean;
 }) {
   const pathname = usePathname();
+  const links = pending
+    ? LINKS.filter((link) => ["/portal", "/portal/calendar", "/portal/billing"].includes(link.href))
+    : LINKS;
 
   return (
     <nav className="mx-auto max-w-shell px-[22px] pt-[14px]">
@@ -76,7 +81,7 @@ export function PortalNav({
           Marisol
         </a>
         <ul className="order-3 flex w-full list-none flex-wrap items-center gap-x-1 gap-y-1 p-0 sm:order-none sm:w-auto">
-          {LINKS.map((link) => {
+          {links.map((link) => {
             const active = pathname === link.href;
             return (
               <li key={link.href}>

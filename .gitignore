@@ -26,7 +26,10 @@ scripts/*
 # The masters build-photos.mjs cuts those renditions from. ~40MB of JPGs that nothing at
 # runtime reads, so they stay out of the repo and live alongside it instead.
 ph/
-docs/
+docs/*
+!docs/onboarding/
+docs/onboarding/*
+!docs/onboarding/README.md
 # d1/ holds migrations and nothing else. Everything else written there is generator output —
 # seeds, requeues, rescans — carrying real businesses' phone numbers and addresses, so the rule
 # admits the migrations directory rather than naming each generated family and missing the next one.

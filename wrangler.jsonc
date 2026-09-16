@@ -44,7 +44,7 @@
   ],
   "services": [{ "binding": "VOICE_AGENT_API", "service": "voice-agent-api" }],
   "vars": {
-    "VOICE_AGENT_API_URL": "https://voice-agent-api.patrykgniewek9.workers.dev",
+    "VOICE_AGENT_API_URL": "https://api.callmarisol.com",
     "STRIPE_PRICE_BASIC_MONTHLY": "price_1TzG5B8DgPA5sdCxq7KZXQ5i",
     "STRIPE_PRICE_BASIC_ANNUAL": "price_1TzG5B8DgPA5sdCxYbBK9dzp",
     "STRIPE_PRICE_COMPLETE_MONTHLY": "price_1TzBYY8DgPA5sdCxCFeUMtHP",
@@ -94,7 +94,7 @@
       ],
       "services": [{ "binding": "VOICE_AGENT_API", "service": "voice-agent-api" }],
       "vars": {
-        "VOICE_AGENT_API_URL": "https://voice-agent-api.patrykgniewek9.workers.dev",
+        "VOICE_AGENT_API_URL": "https://api.callmarisol.com",
         "STRIPE_PRICE_BASIC_MONTHLY": "price_1TzG5B8DgPA5sdCxq7KZXQ5i",
         "STRIPE_PRICE_BASIC_ANNUAL": "price_1TzG5B8DgPA5sdCxYbBK9dzp",
         "STRIPE_PRICE_COMPLETE_MONTHLY": "price_1TzBYY8DgPA5sdCxCFeUMtHP",

@@ -4,6 +4,7 @@ import {
   expireCheckoutSession,
   findPlanItem,
   lookupCheckoutSession,
+  scheduleSubscriptionCancellation,
 } from "@/lib/stripe";
 
 const originalFetch = globalThis.fetch;
@@ -40,6 +41,25 @@ describe("findPlanItem", () => {
   it("returns undefined when there is nothing but extra locations, or no subscription", () => {
     expect(findPlanItem(subscription(["price_extra_annual"]), EXTRA)).toBeUndefined();
     expect(findPlanItem(null, EXTRA)).toBeUndefined();
+  });
+});
+
+describe("subscription cancellation", () => {
+  it("schedules the end once through Stripe with a stable idempotency key", async () => {
+    let request: RequestInit | undefined;
+    globalThis.fetch = (async (_input, init) => {
+      request = init;
+      return Response.json({ id: "sub_1", cancel_at_period_end: true });
+    }) as typeof fetch;
+
+    await expect(scheduleSubscriptionCancellation("sk_test", "sub_1")).resolves.toMatchObject({
+      cancel_at_period_end: true,
+    });
+    expect(request?.method).toBe("POST");
+    expect((request?.headers as Record<string, string>)["Idempotency-Key"]).toBe(
+      "cancel-at-period-end:sub_1",
+    );
+    expect(String(request?.body)).toBe("cancel_at_period_end=true");
   });
 });
 

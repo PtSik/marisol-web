@@ -53,12 +53,12 @@ const UPGRADE_PITCH: Record<Plan, string> = {
 export default async function PortalBillingPage({
   searchParams,
 }: {
-  searchParams: Promise<{ upgrade?: string }>;
+  searchParams: Promise<{ upgrade?: string; cancel?: string }>;
 }) {
   const cfEnv = env as unknown as PortalEnv;
-  const session = await requirePortalSession(cfEnv);
+  const session = await requirePortalSession(cfEnv, { allowPending: true });
   const lead = session.leadId ? await getLead(cfEnv.LEADS_KV, session.leadId) : null;
-  const { upgrade } = await searchParams;
+  const { upgrade, cancel } = await searchParams;
 
   const subscription =
     cfEnv.STRIPE_SECRET_KEY && lead?.stripeSubscriptionId
@@ -84,6 +84,15 @@ export default async function PortalBillingPage({
           {UPGRADE_NOTICE[upgrade]}
         </PortalNotice>
       )}
+      {cancel === "scheduled" || cancel === "already" ? (
+        <PortalNotice tone="good">
+          Cancellation is scheduled. Your service stays available through the date shown below.
+        </PortalNotice>
+      ) : cancel === "failed" ? (
+        <PortalNotice tone="warn">
+          We couldn't schedule the cancellation. Try again or email us and we'll handle it.
+        </PortalNotice>
+      ) : null}
 
       <div className="mt-7 rounded-[24px] bg-cream-100 p-[clamp(20px,4vw,34px)]">
         <p className="text-[11.5px] font-semibold uppercase tracking-[0.16em] text-muted-2">
@@ -123,7 +132,7 @@ export default async function PortalBillingPage({
               type="submit"
               className="inline-flex min-h-[50px] w-full items-center justify-center rounded-[13px] bg-ink px-7 py-[14px] text-[15px] font-medium text-cream sm:w-auto"
             >
-              Manage billing in Stripe
+              Payment method and invoices
             </button>
           </form>
         ) : (
@@ -131,9 +140,27 @@ export default async function PortalBillingPage({
             href={CUSTOMER_PORTAL_URL}
             className="mt-6 inline-flex min-h-[50px] items-center justify-center rounded-[13px] bg-ink px-7 py-[14px] text-[15px] font-medium text-cream no-underline"
           >
-            Manage billing in Stripe
+            Payment method and invoices
           </a>
         )}
+
+        {!subscription?.cancel_at_period_end &&
+          ["trialing", "active", "past_due"].includes(status) && (
+            <details className="mt-6 border-t border-ink/10 pt-5">
+              <summary className="cursor-pointer text-[14px] font-medium text-muted">
+                Cancel subscription
+              </summary>
+              <p className="mt-3 max-w-[52ch] text-[13.5px] leading-[1.5] text-muted-2">
+                Your subscription will stop at the end of the current trial or billing period.
+                Marisol will keep working until then.
+              </p>
+              <form method="post" action="/api/portal/cancel-subscription" className="mt-4">
+                <button type="submit" className="btn btn-md btn-secondary text-danger">
+                  Confirm cancellation
+                </button>
+              </form>
+            </details>
+          )}
 
         <p className="mt-4 text-[13.5px] leading-[1.5] text-muted-2">
           Downgrading or adding a location?{" "}

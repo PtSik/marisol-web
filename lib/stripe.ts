@@ -68,6 +68,26 @@ export async function getSubscription(
   return (await res.json()) as StripeSubscription;
 }
 
+export async function scheduleSubscriptionCancellation(
+  secretKey: string,
+  subscriptionId: string,
+): Promise<StripeSubscription | null> {
+  const res = await fetch(
+    `https://api.stripe.com/v1/subscriptions/${encodeURIComponent(subscriptionId)}`,
+    {
+      method: "POST",
+      headers: {
+        Authorization: `Bearer ${secretKey}`,
+        "Content-Type": "application/x-www-form-urlencoded",
+        "Idempotency-Key": `cancel-at-period-end:${subscriptionId}`,
+      },
+      body: new URLSearchParams({ cancel_at_period_end: "true" }),
+    },
+  ).catch(() => null);
+  if (!res?.ok) return null;
+  return (await res.json().catch(() => null)) as StripeSubscription | null;
+}
+
 // A cancelled or never-paid subscription has nothing to prorate against, so it can't be upgraded.
 export const UPGRADABLE_STATUSES: ReadonlySet<string> = new Set(["trialing", "active", "past_due"]);
 

@@ -6,6 +6,7 @@ import type { PortalSession } from "@/lib/session";
 export async function portalAccessRedirect(
   env: PortalEnv,
   session: PortalSession,
+  options: { allowPending?: boolean } = {},
 ): Promise<string | null> {
   if (!env.LEADS_KV) throw new Error("LEADS_KV is not configured");
   const leadId = session.leadId ?? (await env.LEADS_KV.get(accountLeadKey(session.accountId)));
@@ -21,10 +22,17 @@ export async function portalAccessRedirect(
   const lead = await getLeadStrict(env.LEADS_KV, leadId);
   if (!lead) return "/account-status";
   if (lead.status === "created" && !session.shopId) return "/onboarding";
+  if (options.allowPending && isWaitingForPortal(lead.status)) return null;
   if (!isDashboardLocked(lead.status)) return null;
   if (lead.stripeSessionId) {
     const lang = lead.locale === "es" ? "&lang=es" : "";
     return `/onboarding/thanks?session_id=${encodeURIComponent(lead.stripeSessionId)}${lang}`;
   }
   return "/account-status";
+}
+
+function isWaitingForPortal(status: string): boolean {
+  return ["paid", "setup_complete", "pending_review", "activating", "activation_failed"].includes(
+    status,
+  );
 }

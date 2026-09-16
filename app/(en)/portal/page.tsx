@@ -31,7 +31,14 @@ export default async function PortalOverviewPage({
   searchParams: Promise<{ plan?: string; billing?: string; lang?: string }>;
 }) {
   const cfEnv = env as unknown as PortalEnv;
-  const { session, shops, activeShop: shop, activeLeadId } = await getPortalContext(cfEnv);
+  const {
+    session,
+    shops,
+    activeShop: shop,
+    activeLeadId,
+  } = await getPortalContext(cfEnv, {
+    allowPending: true,
+  });
 
   // An account with no salon yet hasn't finished first-salon onboarding — send it back to the
   // wizard instead of rendering an empty dashboard.
@@ -40,40 +47,45 @@ export default async function PortalOverviewPage({
     // is fixing by hand), and the wizard would invite a second subscription. Back to setup instead.
     const paidLeadId = await getLeadIdForAccount(cfEnv.LEADS_KV, session.accountId);
     const paid = paidLeadId ? await getLead(cfEnv.LEADS_KV, paidLeadId) : null;
-    if (paid?.stripeSessionId && paid.status !== "created" && paid.status !== "cancelled") {
-      redirect(`/onboarding/thanks?session_id=${paid.stripeSessionId}`);
+    if (!paid?.stripeSessionId || paid.status === "created" || paid.status === "cancelled") {
+      // `lang` rides along too: this redirect is the last hop of the Spanish funnel, and the wizard
+      // reads its locale from the query alone.
+      const { plan, billing, lang } = await searchParams;
+      const params: Record<string, string> = {};
+      if (plan) params.plan = plan;
+      if (billing) params.billing = billing;
+      redirect(onboardingHref(parseLocale(lang), params));
     }
-
-    // `lang` rides along too: this redirect is the last hop of the Spanish funnel, and the wizard
-    // reads its locale from the query alone.
-    const { plan, billing, lang } = await searchParams;
-    const params: Record<string, string> = {};
-    if (plan) params.plan = plan;
-    if (billing) params.billing = billing;
-    redirect(onboardingHref(parseLocale(lang), params));
   }
 
-  const lead = activeLeadId ? await getLead(cfEnv.LEADS_KV, activeLeadId) : null;
+  const leadId = activeLeadId ?? session.leadId;
+  const lead = leadId ? await getLead(cfEnv.LEADS_KV, leadId) : null;
 
   const businessName = lead?.basics.businessName ?? shop?.name ?? "your shop";
   const number = lead?.assignedNumber ?? shop?.twilio_number;
   const calendarConnected = shop?.integration === "google_calendar";
+  const pending = Boolean(lead && lead.status !== "provisioned");
 
   return (
     <>
       <PortalHeading
         title={
           <>
-            {businessName}. <span className="text-teal">All set.</span>
+            {businessName}.{" "}
+            <span className="text-teal">{pending ? "Setup in progress." : "All set."}</span>
           </>
         }
-        lead="Change your hours, services or staff whenever they change — Marisol picks it up on the next call."
+        lead={
+          pending
+            ? "Your checkout is complete. Track review, calendar connection and activation here."
+            : "Change your hours, services or staff whenever they change — Marisol picks it up on the next call."
+        }
       />
 
       <div className="mt-7 grid gap-3 sm:grid-cols-2">
         <Tile
           label="Receptionist"
-          value={shop?.status === "active" ? "Answering calls" : (shop?.status ?? "Setting up")}
+          value={shop?.status === "active" ? "Answering calls" : "Waiting for activation"}
           hint={number}
         />
         <Tile
@@ -98,19 +110,24 @@ export default async function PortalOverviewPage({
           label="Staff"
           value={String(lead?.setup?.staff.filter((m) => m.name.trim()).length ?? 0)}
           hint={
-            <a href="/portal/setup" className="font-medium text-teal">
-              Edit your setup
-            </a>
+            pending ? (
+              "Confirmed during onboarding"
+            ) : (
+              <a href="/portal/setup" className="font-medium text-teal">
+                Edit your setup
+              </a>
+            )
           }
         />
       </div>
 
-      {number ? (
+      {number && !pending ? (
         <ForwardingCard twilioNumber={number} carrier={lead?.setup?.carrier} t={en.forwarding} />
       ) : (
         <PortalNotice tone="warn">
-          Your Marisol number isn't assigned yet. If you finished checkout more than a few minutes
-          ago,{" "}
+          {number
+            ? "Your number is prepared but remains inactive until our checks are complete. "
+            : "Your Marisol number is being prepared. "}
           <a href={SALES_EMAIL_HREF} className="font-medium underline">
             email us
           </a>{" "}

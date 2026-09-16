@@ -85,7 +85,7 @@ describe("provisionLead launch validation", () => {
     await expect(provisionLead(env, candidate, { areaCodeOverride: "786" })).resolves.toMatchObject(
       {
         ok: false,
-        reason: "number purchase failed",
+        reason: "no US local number available (tried area code 786)",
         cleanupComplete: true,
       },
     );

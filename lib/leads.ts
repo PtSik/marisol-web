@@ -99,6 +99,8 @@ export interface CheckoutLead {
   cancellationPendingAt?: string;
   /* first past_due notice; keeps every Stripe retry from re-alerting the team */
   pastDueAlertedAt?: string;
+  /* checkout confirmation sent to the owner; Stripe retries must not duplicate it */
+  reviewEmailSentAt?: string;
   /* referral invite went out on the first paid invoice; every later invoice must stay silent */
   referralEmailSentAt?: string;
 }

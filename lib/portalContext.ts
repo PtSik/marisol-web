@@ -26,6 +26,7 @@ export function pickActiveShopId(
 export async function resolveAccountShops(
   env: PortalEnv,
   session: PortalSession,
+  options: { includeSuspended?: boolean } = {},
 ): Promise<Omit<PortalContext, "session">> {
   let shops = await listAccountShops(env, session.accountId);
   // An account whose shops predate the account_id backfill, or a salon provisioned before it was
@@ -35,7 +36,10 @@ export async function resolveAccountShops(
     if (only) shops = [only];
   }
 
-  shops = shops.filter((shop) => shop.status !== "cancelled" && shop.status !== "suspended");
+  shops = shops.filter(
+    (shop) =>
+      shop.status !== "cancelled" && (options.includeSuspended || shop.status !== "suspended"),
+  );
 
   const activeShopId = pickActiveShopId(shops, await shopIdFromCookies(), session.shopId);
   const activeShop = shops.find((s) => s.id === activeShopId);
@@ -48,7 +52,13 @@ export async function resolveAccountShops(
   return { shops, activeShopId, activeShop, activeLeadId };
 }
 
-export async function getPortalContext(env: PortalEnv): Promise<PortalContext> {
-  const session = await requirePortalSession(env);
-  return { session, ...(await resolveAccountShops(env, session)) };
+export async function getPortalContext(
+  env: PortalEnv,
+  options: { allowPending?: boolean } = {},
+): Promise<PortalContext> {
+  const session = await requirePortalSession(env, options);
+  return {
+    session,
+    ...(await resolveAccountShops(env, session, { includeSuspended: options.allowPending })),
+  };
 }

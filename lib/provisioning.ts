@@ -346,12 +346,9 @@ export async function provisionLead(
     voiceUrl,
   );
   if (!bought) {
-    await sendProvisionAlert(
-      env,
-      lead,
-      `no US local number available (tried area code ${areaCode})`,
-    );
-    return { ok: false, reason: "number purchase failed", cleanupComplete: true };
+    const reason = `no US local number available (tried area code ${areaCode})`;
+    await sendProvisionAlert(env, lead, reason);
+    return { ok: false, reason, cleanupComplete: true };
   }
 
   if ("uncertain" in bought) {
