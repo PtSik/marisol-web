@@ -36,7 +36,7 @@ export default async function PortalSetupPage() {
     <>
       <PortalHeading
         title="Your setup"
-        lead="Hours, services, staff and forwarding. Save and Marisol uses the new details on the very next call."
+        lead="Services, hours, staff and business notes. Save and Marisol uses the new details on the very next call."
       />
       <PortalSetupForm
         initialSetup={lead.setup ?? defaultSetup(vertical, en.setup.servicePresets[vertical])}

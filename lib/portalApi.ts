@@ -115,6 +115,28 @@ export async function getShop(env: VoiceAgentEnv, shopId: string): Promise<Shop 
   return jsonOf<Shop>(res, "shop");
 }
 
+export interface ActivitySummary {
+  calls30d: number;
+  bookings30d: number;
+}
+
+export async function getActivitySummary(
+  env: VoiceAgentEnv,
+  shopId: string,
+): Promise<ActivitySummary | null> {
+  const res = await voiceAgentFetch(env, `/admin/shops/${shopId}/activity-summary`).catch(
+    () => null,
+  );
+  if (!res?.ok) return null;
+  const body = (await res.json().catch(() => null)) as {
+    calls_30d?: unknown;
+    bookings_30d?: unknown;
+  } | null;
+  return typeof body?.calls_30d === "number" && typeof body.bookings_30d === "number"
+    ? { calls30d: body.calls_30d, bookings30d: body.bookings_30d }
+    : null;
+}
+
 // The set of salons an account owns — the authority for which shop_id a signed-in client is
 // allowed to act on. Anything not in this list is someone else's, so never honour it.
 export async function listAccountShops(env: VoiceAgentEnv, accountId: string): Promise<Shop[]> {

@@ -81,6 +81,8 @@ export interface CheckoutLead {
   flowVersion?: 2;
   preparedAt?: string;
   readinessReviewedAt?: string;
+  /* owner acknowledgement; carrier forwarding cannot be queried reliably across providers */
+  forwardingConfirmedAt?: string;
   setupCompletedAt?: string;
   shopId?: string;
   assignedNumber?: string;

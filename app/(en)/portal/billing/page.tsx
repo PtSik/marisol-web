@@ -3,11 +3,11 @@ import { PortalHeading, PortalNotice } from "@/components/portal/PortalHeading";
 import { getLead } from "@/lib/leads";
 import {
   PLAN_LABELS,
+  PLAN_OPTIONS,
   PRICE,
   type Plan,
   TRIAL_DAYS,
   normalizePlan,
-  upgradesFrom,
 } from "@/lib/plans";
 import type { PortalEnv } from "@/lib/portalApi";
 import { requirePortalSession } from "@/lib/session";
@@ -34,16 +34,16 @@ const STATUS_LABEL: Record<string, string> = {
   incomplete: "Awaiting payment",
 };
 
-const UPGRADE_NOTICE: Record<string, string> = {
-  done: "Your new plan is live. We will confirm separately when carrier-approved SMS is enabled.",
+const PLAN_CHANGE_NOTICE: Record<string, string> = {
+  done: "Your new plan is live.",
   partial:
     "Your new plan is live. One step needs finishing on our side — we're on it and will email you.",
   already: "You're already on that plan.",
-  failed: "That upgrade didn't go through. Try again, or email us and we'll switch you over.",
+  failed: "That plan change didn't go through. Try again, or email us and we'll switch you over.",
 };
 
-const UPGRADE_PITCH: Record<Plan, string> = {
-  basic: "",
+const PLAN_PITCH: Record<Plan, string> = {
+  basic: "24/7 calls, Google Calendar booking, call summaries and transfers.",
   complete:
     "Carrier-approved SMS appointment reminders, rescheduling messages, missed-call follow-up and a monthly results report.",
   growth:
@@ -53,12 +53,12 @@ const UPGRADE_PITCH: Record<Plan, string> = {
 export default async function PortalBillingPage({
   searchParams,
 }: {
-  searchParams: Promise<{ upgrade?: string; cancel?: string }>;
+  searchParams: Promise<{ upgrade?: string; cancel?: string; resume?: string }>;
 }) {
   const cfEnv = env as unknown as PortalEnv;
   const session = await requirePortalSession(cfEnv, { allowPending: true });
   const lead = session.leadId ? await getLead(cfEnv.LEADS_KV, session.leadId) : null;
-  const { upgrade, cancel } = await searchParams;
+  const { upgrade, cancel, resume } = await searchParams;
 
   const subscription =
     cfEnv.STRIPE_SECRET_KEY && lead?.stripeSubscriptionId
@@ -70,7 +70,10 @@ export default async function PortalBillingPage({
   const status = subscription?.status ?? "";
   const trialEnds = fmtDate(subscription?.trial_end);
   const renews = fmtDate(subscription?.current_period_end);
-  const upgrades = UPGRADABLE_STATUSES.has(status) ? upgradesFrom(plan) : [];
+  const planChoices =
+    UPGRADABLE_STATUSES.has(status) && !subscription?.cancel_at_period_end
+      ? PLAN_OPTIONS.filter((candidate) => candidate !== plan)
+      : [];
 
   return (
     <>
@@ -79,9 +82,9 @@ export default async function PortalBillingPage({
         lead="Manage your plan and cancellation here. Stripe securely handles payment methods and invoices."
       />
 
-      {upgrade && UPGRADE_NOTICE[upgrade] && (
+      {upgrade && PLAN_CHANGE_NOTICE[upgrade] && (
         <PortalNotice tone={upgrade === "done" || upgrade === "already" ? "good" : "warn"}>
-          {UPGRADE_NOTICE[upgrade]}
+          {PLAN_CHANGE_NOTICE[upgrade]}
         </PortalNotice>
       )}
       {cancel === "scheduled" || cancel === "already" ? (
@@ -91,6 +94,13 @@ export default async function PortalBillingPage({
       ) : cancel === "failed" ? (
         <PortalNotice tone="warn">
           We couldn't schedule the cancellation. Try again or email us and we'll handle it.
+        </PortalNotice>
+      ) : null}
+      {resume === "done" || resume === "already" ? (
+        <PortalNotice tone="good">Your subscription will continue.</PortalNotice>
+      ) : resume === "failed" ? (
+        <PortalNotice tone="warn">
+          We couldn't resume the subscription. Try again or email us and we'll handle it.
         </PortalNotice>
       ) : null}
 
@@ -103,20 +113,33 @@ export default async function PortalBillingPage({
         </p>
         <p className="mt-1 text-[14px] text-muted">
           {billing === "annual" ? "Billed annually" : "Billed monthly"}
-          {status && ` · ${STATUS_LABEL[status] ?? status}`}
+          {subscription?.cancel_at_period_end
+            ? " · Cancellation scheduled"
+            : status && ` · ${STATUS_LABEL[status] ?? status}`}
         </p>
 
         {status === "trialing" && trialEnds && (
           <p className="mt-4 text-[15px] leading-[1.55] text-muted">
-            Your {TRIAL_DAYS}-day trial runs until{" "}
-            <span className="font-medium text-ink">{trialEnds}</span>. Cancel before then and you're
-            never charged.
+            {subscription?.cancel_at_period_end ? (
+              <>
+                Your plan stays available until{" "}
+                <span className="font-medium text-ink">{trialEnds}</span>. Your subscription will
+                end automatically and you will not be charged.
+              </>
+            ) : (
+              <>
+                Your {TRIAL_DAYS}-day trial runs until{" "}
+                <span className="font-medium text-ink">{trialEnds}</span>. Cancel before then and
+                you're never charged.
+              </>
+            )}
           </p>
         )}
         {status === "active" && renews && (
           <p className="mt-4 text-[15px] leading-[1.55] text-muted">
-            Renews on <span className="font-medium text-ink">{renews}</span>
-            {subscription?.cancel_at_period_end && " — cancellation already scheduled"}.
+            {subscription?.cancel_at_period_end ? "Your plan ends" : "Renews"} on{" "}
+            <span className="font-medium text-ink">{renews}</span>
+            {subscription?.cancel_at_period_end ? ". It will not renew." : "."}
           </p>
         )}
         {status === "past_due" && (
@@ -162,8 +185,16 @@ export default async function PortalBillingPage({
             </details>
           )}
 
+        {subscription?.cancel_at_period_end && ["trialing", "active"].includes(status) && (
+          <form method="post" action="/api/portal/resume-subscription" className="mt-6">
+            <button type="submit" className="btn btn-md btn-secondary">
+              Keep my subscription
+            </button>
+          </form>
+        )}
+
         <p className="mt-4 text-[13.5px] leading-[1.5] text-muted-2">
-          Downgrading or adding a location?{" "}
+          Need help changing your plan or adding a location?{" "}
           <a href={SALES_EMAIL_HREF} className="font-medium text-teal">
             Email us
           </a>{" "}
@@ -171,26 +202,28 @@ export default async function PortalBillingPage({
         </p>
       </div>
 
-      {upgrades.map((target) => (
+      {planChoices.map((target) => (
         <div
           key={target}
           className="mt-3 rounded-[24px] border border-teal/25 bg-teal/[0.07] p-[clamp(20px,4vw,34px)]"
         >
           <p className="text-[11.5px] font-semibold uppercase tracking-[0.16em] text-teal">
-            Upgrade
+            {PLAN_OPTIONS.indexOf(target) > PLAN_OPTIONS.indexOf(plan) ? "Upgrade" : "Downgrade"}
           </p>
           <p className="mt-1.5 font-display text-[clamp(21px,3vw,27px)] tracking-[-0.02em]">
             {PLAN_LABELS[target]} — ${PRICE[target][billing]}/mo
           </p>
           <p className="mt-2 max-w-[54ch] text-[15px] leading-[1.55] text-muted">
-            {UPGRADE_PITCH[target]}
+            {PLAN_PITCH[target]}
           </p>
           <p className="mt-2 max-w-[54ch] text-[14px] leading-[1.55] text-muted-2">
             {status === "trialing"
               ? `${PLAN_LABELS[target]} starts right away and your trial is untouched — nothing is charged${
                   trialEnds ? ` before ${trialEnds}` : " before it ends"
                 }.`
-              : `${PLAN_LABELS[target]} starts right away. You're only charged the difference for the days left in this period.`}
+              : PLAN_OPTIONS.indexOf(target) > PLAN_OPTIONS.indexOf(plan)
+                ? `${PLAN_LABELS[target]} starts right away. You're only charged the difference for the days left in this period.`
+                : `${PLAN_LABELS[target]} starts right away. Stripe applies the prorated credit to your account.`}
           </p>
 
           <form method="post" action="/api/portal/upgrade" className="mt-5">
@@ -199,7 +232,7 @@ export default async function PortalBillingPage({
               type="submit"
               className="inline-flex min-h-[50px] w-full items-center justify-center rounded-[13px] bg-teal px-7 py-[14px] text-[15px] font-medium text-cream sm:w-auto"
             >
-              Upgrade to {PLAN_LABELS[target]}
+              Change to {PLAN_LABELS[target]}
             </button>
           </form>
         </div>

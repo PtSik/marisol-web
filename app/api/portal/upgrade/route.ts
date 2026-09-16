@@ -11,7 +11,7 @@ import {
   normalizePlan,
 } from "@/lib/plans";
 import { portalAccessRedirect } from "@/lib/portalAccess";
-import { type PortalEnv, listAccountShops } from "@/lib/portalApi";
+import { type PortalEnv, listAccountShopsStrict } from "@/lib/portalApi";
 import { patchShop } from "@/lib/provisioning";
 import { overRateLimit } from "@/lib/rateLimit";
 import { getSession, sessionIdFromCookies } from "@/lib/session";
@@ -68,9 +68,6 @@ export async function POST(request: Request): Promise<Response> {
 
   const current = normalizePlan(lead.plan);
   if (current === target) return back(request, "already");
-  // Downgrades unwind extra locations and shop flags, so they stay a support conversation.
-  if (!isUpgrade(current, target)) return back(request, "failed");
-
   const { STRIPE_PRICE_EXTRA_LOCATION_MONTHLY, STRIPE_PRICE_EXTRA_LOCATION_ANNUAL } = cfEnv;
   const extraPriceIds = new Set(
     [STRIPE_PRICE_EXTRA_LOCATION_MONTHLY, STRIPE_PRICE_EXTRA_LOCATION_ANNUAL].filter(
@@ -80,7 +77,17 @@ export async function POST(request: Request): Promise<Response> {
 
   const subscription = await getSubscription(cfEnv.STRIPE_SECRET_KEY, lead.stripeSubscriptionId);
   const item = findPlanItem(subscription, extraPriceIds);
-  if (!item || !UPGRADABLE_STATUSES.has(subscription?.status ?? "")) {
+  if (
+    !item ||
+    !UPGRADABLE_STATUSES.has(subscription?.status ?? "") ||
+    subscription?.cancel_at_period_end
+  ) {
+    return back(request, "failed");
+  }
+  const listedShops = await listAccountShopsStrict(cfEnv, session.accountId);
+  if (!listedShops) return back(request, "failed");
+  const activeShops = listedShops.filter((shop) => shop.status !== "cancelled");
+  if (activeShops.length === 0 || (target === "basic" && activeShops.length > 1)) {
     return back(request, "failed");
   }
 
@@ -104,10 +111,7 @@ export async function POST(request: Request): Promise<Response> {
 
   // Re-derived absolutely, like add and remove do — every plan covers one salon, so this is a no-op
   // on a single-salon account and keeps the quantity honest on a multi-salon one.
-  const activeSalons = (await listAccountShops(cfEnv, session.accountId)).filter(
-    (s) => s.status !== "cancelled",
-  ).length;
-  const quantity = extraLocationCount(target, activeSalons);
+  const quantity = extraLocationCount(target, activeShops.length);
   const rebilled =
     STRIPE_PRICE_EXTRA_LOCATION_MONTHLY && STRIPE_PRICE_EXTRA_LOCATION_ANNUAL
       ? await setSubscriptionExtraLocations(cfEnv.STRIPE_SECRET_KEY, {
@@ -120,19 +124,31 @@ export async function POST(request: Request): Promise<Response> {
 
   // Reminders are what the paid tiers are bought for, so a failed PATCH is a paid-for feature that
   // never switched on — the client sees it, and the team gets told to fix the shop by hand.
-  const remindersOn = session.shopId
-    ? await patchShop(cfEnv, session.shopId, { reminders_enabled: true })
-    : false;
+  const remindersEnabled = target !== "basic";
+  const reminderUpdates = await Promise.all(
+    activeShops.map((shop) => patchShop(cfEnv, shop.id, { reminders_enabled: remindersEnabled })),
+  );
+  const remindersUpdated = reminderUpdates.length > 0 && reminderUpdates.every(Boolean);
 
-  await notifyTeam(cfEnv, `⬆️ Upgraded to ${PLAN_LABELS[target]} — ${lead.basics.businessName}`, {
-    leadId: lead.id,
-    email: session.email,
-    plan: target,
-    billing,
-    subscription: lead.stripeSubscriptionId,
-    reminders: remindersOn ? "enabled" : "FAILED — turn on reminders_enabled by hand",
-    extraLocations: rebilled ? quantity : `FAILED — set the extra-location quantity to ${quantity}`,
-  });
+  await notifyTeam(
+    cfEnv,
+    `${isUpgrade(current, target) ? "⬆️" : "⬇️"} Plan changed to ${PLAN_LABELS[target]} — ${lead.basics.businessName}`,
+    {
+      leadId: lead.id,
+      email: session.email,
+      plan: target,
+      billing,
+      subscription: lead.stripeSubscriptionId,
+      reminders: remindersUpdated
+        ? remindersEnabled
+          ? "enabled"
+          : "disabled"
+        : `FAILED — set reminders_enabled=${remindersEnabled} by hand`,
+      extraLocations: rebilled
+        ? quantity
+        : `FAILED — set the extra-location quantity to ${quantity}`,
+    },
+  );
 
-  return back(request, remindersOn && rebilled ? "done" : "partial");
+  return back(request, remindersUpdated && rebilled ? "done" : "partial");
 }

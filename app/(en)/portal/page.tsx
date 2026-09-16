@@ -5,7 +5,7 @@ import { onboardingHref, parseLocale } from "@/lib/i18n/dict";
 import { en } from "@/lib/i18n/en";
 import { getLead, getLeadIdForAccount } from "@/lib/leads";
 import { PLAN_LABELS, normalizePlan } from "@/lib/plans";
-import type { PortalEnv } from "@/lib/portalApi";
+import { type PortalEnv, getActivitySummary } from "@/lib/portalApi";
 import { getPortalContext } from "@/lib/portalContext";
 import { SALES_EMAIL_HREF } from "@/lib/site";
 import { redirect } from "next/navigation";
@@ -66,6 +66,7 @@ export default async function PortalOverviewPage({
   const calendarConnected = shop?.integration === "google_calendar";
   const calendarRequested = lead?.setup?.calendar === "google_calendar";
   const pending = Boolean(lead && lead.status !== "provisioned");
+  const activity = !pending && shop ? await getActivitySummary(cfEnv, shop.id) : null;
 
   return (
     <>
@@ -124,10 +125,41 @@ export default async function PortalOverviewPage({
             )
           }
         />
+        {activity && (
+          <>
+            <Tile label="Calls handled" value={String(activity.calls30d)} hint="Last 30 days" />
+            <Tile
+              label="Appointments booked"
+              value={String(activity.bookings30d)}
+              hint="Last 30 days"
+            />
+          </>
+        )}
       </div>
 
       {number && !pending ? (
-        <ForwardingCard twilioNumber={number} carrier={lead?.setup?.carrier} t={en.forwarding} />
+        lead?.forwardingConfirmedAt ? (
+          <PortalNotice tone="good">
+            Call forwarding is marked as set up. Calls you don't answer can reach Marisol.{" "}
+            <a href="/portal/forwarding" className="font-medium underline">
+              View or change forwarding
+            </a>
+            .
+          </PortalNotice>
+        ) : (
+          <div>
+            <ForwardingCard
+              twilioNumber={number}
+              carrier={lead?.setup?.carrier}
+              t={en.forwarding}
+            />
+            <form method="post" action="/api/portal/forwarding-confirmed" className="mt-3">
+              <button type="submit" className="btn btn-md btn-secondary">
+                I've turned on forwarding
+              </button>
+            </form>
+          </div>
+        )
       ) : (
         <PortalNotice tone="warn">
           {number
@@ -138,6 +170,15 @@ export default async function PortalOverviewPage({
           </a>{" "}
           and we'll sort it out.
         </PortalNotice>
+      )}
+
+      {!pending && (
+        <p className="mt-6 text-[14px] text-muted">
+          Running another location?{" "}
+          <a href="/portal/salons" className="font-medium text-teal">
+            Add a location
+          </a>
+        </p>
       )}
     </>
   );

@@ -4,6 +4,7 @@ import {
   expireCheckoutSession,
   findPlanItem,
   lookupCheckoutSession,
+  resumeSubscription,
   scheduleSubscriptionCancellation,
 } from "@/lib/stripe";
 
@@ -60,6 +61,20 @@ describe("subscription cancellation", () => {
       "cancel-at-period-end:sub_1",
     );
     expect(String(request?.body)).toBe("cancel_at_period_end=true");
+  });
+
+  it("resumes a scheduled cancellation through Stripe", async () => {
+    let request: RequestInit | undefined;
+    globalThis.fetch = (async (_input, init) => {
+      request = init;
+      return Response.json({ id: "sub_1", cancel_at_period_end: false });
+    }) as typeof fetch;
+
+    await expect(resumeSubscription("sk_test", "sub_1")).resolves.toMatchObject({
+      cancel_at_period_end: false,
+    });
+    expect((request?.headers as Record<string, string>)["Idempotency-Key"]).toBe("resume:sub_1");
+    expect(String(request?.body)).toBe("cancel_at_period_end=false");
   });
 });
 

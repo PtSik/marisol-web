@@ -126,7 +126,7 @@ export function SetupFields({
   patch,
   section,
 }: {
-  section?: "hours" | "services" | "staff" | "calendar" | "calls";
+  section?: "hours" | "services" | "staff" | "calendar" | "calls" | "notes";
   setup: SetupDetails;
   vertical: Vertical;
   errors: FieldErrors;
@@ -471,18 +471,20 @@ export function SetupFields({
               </select>
             </Field>
           )}
-
-          <Field label={t.notes} htmlFor="ob-notes">
-            <textarea
-              id="ob-notes"
-              rows={3}
-              className={`${inputCls} min-h-[88px] resize-y`}
-              value={setup.notes}
-              onChange={(e) => patch({ notes: e.target.value })}
-              placeholder={t.notesPlaceholder}
-            />
-          </Field>
         </>
+      )}
+
+      {(!section || section === "calls" || section === "notes") && (
+        <Field label={t.notes} htmlFor="ob-notes">
+          <textarea
+            id="ob-notes"
+            rows={3}
+            className={`${inputCls} min-h-[88px] resize-y`}
+            value={setup.notes}
+            onChange={(e) => patch({ notes: e.target.value })}
+            placeholder={t.notesPlaceholder}
+          />
+        </Field>
       )}
     </div>
   );
