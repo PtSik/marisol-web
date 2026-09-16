@@ -34,7 +34,11 @@ export default async function PortalCalendarPage({
   const connectUrl =
     activeShopId && accessGranted ? await buildCalendarConnectUrl(cfEnv, activeShopId) : undefined;
 
-  const connected = shop?.integration === "google_calendar";
+  const connected = Boolean(
+    shop?.integration === "google_calendar" &&
+      shop.integration_credentials_encrypted &&
+      shop.calendar_routing?.write_calendar_id,
+  );
   const requested = lead?.setup?.calendar === "google_calendar" || connected;
   const active = shop?.status === "active";
   const writeCalendar = shop?.calendar_routing?.write_calendar_id;
@@ -47,15 +51,15 @@ export default async function PortalCalendarPage({
         lead={
           connected
             ? "Every booking Marisol takes appears in your calendar, and blocked time stays unavailable."
-            : requested
-              ? "You selected Google Calendar during setup. Connect it here after activation."
+              : requested
+                ? "You selected Google Calendar during setup. Connect it here to start accepting appointments."
               : "Google Calendar was not selected during setup. You can connect it here after activation."
         }
       />
 
       {connect === "pending" && (
         <PortalNotice tone="warn">
-          Google Calendar can be connected here once your service is activated.
+              Google Calendar can be connected here once your service is activated.
         </PortalNotice>
       )}
       {connect === "failed" && (

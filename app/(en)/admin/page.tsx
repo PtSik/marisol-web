@@ -96,7 +96,7 @@ const ACTIVATION_NOTICE: Record<string, string> = {
   prepared:
     "Number and suspended shop prepared. Grant Google access, connect the calendar, then verify and activate.",
   "calendar-not-ready":
-    "Calendar verification failed. Finish Google connection and calendar selection before activation.",
+    "Calendar is not connected yet. The receptionist is active; finish Google connection and calendar selection from the client portal before booking appointments.",
   activated: "Receptionist activated and the client welcome email was triggered.",
   "already-active": "That receptionist is already active.",
   "in-progress": "Activation already started. Reconcile external state before doing anything else.",

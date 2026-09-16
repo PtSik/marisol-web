@@ -122,19 +122,6 @@ export async function POST(
       shop.twilio_number !== lead.assignedNumber
     )
       return back(request, "reconcile");
-    if (lead.setup.calendar === "google_calendar") {
-      const health = await voiceAgentFetch(cfEnv, `/admin/shops/${lead.shopId}/calendar-check`);
-      if (!health?.ok) {
-        let reason = "Calendar access could not be verified";
-        if (health) {
-          const body = (await health.json().catch(() => null)) as { error?: unknown } | null;
-          if (typeof body?.error === "string" && body.error.trim()) reason = body.error.trim();
-        }
-        lead.provisionError = `Calendar check failed: ${reason}`;
-        await putLead(cfEnv.LEADS_KV, lead).catch(() => {});
-        return back(request, "calendar-not-ready");
-      }
-    }
   }
   const rawAreaCode = form.get("areaCodeOverride");
   if (rawAreaCode !== null && typeof rawAreaCode !== "string") {

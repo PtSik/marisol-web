@@ -25,6 +25,8 @@ export interface Shop {
   id: string;
   status?: string;
   integration?: string;
+  integration_credentials_encrypted?: string | null;
+  calendar_routing?: { write_calendar_id?: string } | null;
   reminders_enabled?: boolean;
 }
 
@@ -64,7 +66,10 @@ export function leadNeedsAction(lead: CheckoutLead): boolean {
 }
 
 function isCalendarConnected(shop?: Shop): boolean {
-  return shop?.integration === "google_calendar";
+  return Boolean(
+    shop?.integration === "google_calendar" &&
+      shop.calendar_routing?.write_calendar_id,
+  );
 }
 
 function lastEvent(lead: CheckoutLead): string {
@@ -356,7 +361,7 @@ function CalendarInviteAction({ lead, shop }: { lead: CheckoutLead; shop?: Shop 
             I added {lead.basics.email} as a Google test user or verified production access.
           </span>
         </label>
-        <SubmitButton>Send calendar invite</SubmitButton>
+        <SubmitButton>Send calendar setup invite</SubmitButton>
       </form>
     </ActionPanel>
   );
@@ -426,7 +431,11 @@ export function LeadRow({
             {shop && (
               <>
                 <Field label="Calendar">
-                  {shop.integration === "google_calendar" ? "Google Calendar ✓" : "not connected"}
+                  {isCalendarConnected(shop)
+                    ? "Google Calendar ✓"
+                    : shop.integration === "google_calendar"
+                      ? "Google Calendar · setup pending"
+                      : "not connected"}
                 </Field>
                 <Field label="Reminders">{shop.reminders_enabled ? "on (premium)" : "off"}</Field>
               </>

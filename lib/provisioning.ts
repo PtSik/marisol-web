@@ -156,7 +156,10 @@ export function buildShopPayload(
     // agent escalated on questions the owner had already answered for us.
     address: basics.address?.trim() || null,
     notes: setup.notes.trim() || null,
-    integration: "none",
+    // Google-selected customers are activated before OAuth, but remain booking-blocked until
+    // credentials and calendar routing are saved. The voice worker uses this marker to fail closed
+    // for appointment tools while still allowing the receptionist to answer calls.
+    integration: setup.calendar === "google_calendar" ? "google_calendar" : "none",
     // The shop is not callable until every critical account/linking step succeeds below. The
     // voice-agent launch guard only serves active shops; a failed provisioning run stays suspended.
     status: "suspended",

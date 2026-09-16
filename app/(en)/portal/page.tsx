@@ -65,7 +65,9 @@ export default async function PortalOverviewPage({
 
   const businessName = lead?.basics.businessName ?? shop?.name ?? "your shop";
   const number = lead?.assignedNumber ?? shop?.twilio_number;
-  const calendarConnected = shop?.integration === "google_calendar";
+  const calendarConnected = Boolean(
+    shop?.integration === "google_calendar" && shop.calendar_routing?.write_calendar_id,
+  );
   const calendarRequested = lead?.setup?.calendar === "google_calendar";
   const pending = Boolean(lead && lead.status !== "provisioned");
   const activity = !pending && shop ? await getActivitySummary(cfEnv, shop.id) : null;

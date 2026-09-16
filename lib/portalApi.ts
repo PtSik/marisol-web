@@ -26,6 +26,7 @@ export interface Shop {
   status?: string;
   timezone?: string;
   integration?: string;
+  integration_credentials_encrypted?: string | null;
   twilio_number?: string;
   reminders_enabled?: boolean;
   calendar_access_granted_at?: string | null;
