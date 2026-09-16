@@ -308,8 +308,9 @@ function ActivationAction({ lead }: { lead: CheckoutLead }) {
               className="mt-0.5"
             />
             <span>
-              I verified calendar ownership, a known busy appointment, team assignments, time zone
-              and existing bookings with the owner. We are ready for the phone connection test.
+              {lead.setup.calendar === "google_calendar"
+                ? "I verified calendar ownership, a known busy appointment, team assignments, time zone and existing bookings with the owner. We are ready for the phone connection test."
+                : "I verified team assignments, time zone and existing bookings with the owner. We are ready for the phone connection test."}
             </span>
           </label>
         )}
@@ -331,7 +332,8 @@ function ActivationAction({ lead }: { lead: CheckoutLead }) {
 }
 
 function CalendarInviteAction({ lead, shop }: { lead: CheckoutLead; shop?: Shop }) {
-  if (!lead.shopId || isCalendarConnected(shop)) return null;
+  if (!lead.shopId || lead.setup?.calendar !== "google_calendar" || isCalendarConnected(shop))
+    return null;
   if (lead.calendarEmailSentAt && lead.calendarAccessGrantedAt) {
     return (
       <ActionPanel title="Calendar">
@@ -403,7 +405,7 @@ export function LeadRow({
     >
       {lead.provisionError && (
         <p className="mb-4 rounded-[10px] bg-[#B3261E]/10 px-3 py-2 text-sm text-[#B3261E]">
-          Provisioning failed: {lead.provisionError}
+          Setup issue: {lead.provisionError}
         </p>
       )}
       <div className="grid gap-5 lg:grid-cols-[minmax(0,1fr)_300px]">

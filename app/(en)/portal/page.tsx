@@ -64,6 +64,7 @@ export default async function PortalOverviewPage({
   const businessName = lead?.basics.businessName ?? shop?.name ?? "your shop";
   const number = lead?.assignedNumber ?? shop?.twilio_number;
   const calendarConnected = shop?.integration === "google_calendar";
+  const calendarRequested = lead?.setup?.calendar === "google_calendar";
   const pending = Boolean(lead && lead.status !== "provisioned");
 
   return (
@@ -90,10 +91,14 @@ export default async function PortalOverviewPage({
         />
         <Tile
           label="Calendar"
-          value={calendarConnected ? "Google Calendar" : "Not connected"}
+          value={
+            calendarConnected ? "Google Calendar" : calendarRequested ? "Not connected" : "None"
+          }
           hint={
             calendarConnected ? (
               "Bookings land in it automatically"
+            ) : !calendarRequested ? (
+              "Using Marisol's booking schedule"
             ) : (
               <a href="/portal/calendar" className="font-medium text-teal">
                 Connect it now

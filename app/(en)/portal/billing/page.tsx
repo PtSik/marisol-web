@@ -76,7 +76,7 @@ export default async function PortalBillingPage({
     <>
       <PortalHeading
         title="Billing"
-        lead="Your plan, and everything else — card, invoices, cancellation — in Stripe."
+        lead="Manage your plan and cancellation here. Stripe securely handles payment methods and invoices."
       />
 
       {upgrade && UPGRADE_NOTICE[upgrade] && (

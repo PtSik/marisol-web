@@ -27,13 +27,18 @@ export default async function PortalCalendarPage() {
     activeShopId && accessGranted ? await buildCalendarConnectUrl(cfEnv, activeShopId) : undefined;
 
   const connected = shop?.integration === "google_calendar";
+  const requested = lead?.setup?.calendar === "google_calendar" || connected;
   const writeCalendar = shop?.calendar_routing?.write_calendar_id;
 
   return (
     <>
       <PortalHeading
         title="Google Calendar"
-        lead="Connected, every booking Marisol takes appears in your calendar — and anything you block out there stops her offering that slot."
+        lead={
+          requested
+            ? "Connected, every booking Marisol takes appears in your calendar — and anything you block out there stops her offering that slot."
+            : "You chose to use Marisol without Google Calendar. You can ask us to add it later."
+        }
       />
 
       <div className="mt-7 rounded-[24px] bg-cream-100 p-[clamp(20px,4vw,34px)]">
@@ -50,8 +55,9 @@ export default async function PortalCalendarPage() {
         )}
         {!connected && (
           <p className="mt-2 text-[15px] leading-[1.55] text-muted">
-            Marisol still takes bookings — connecting your calendar means your team does not have to
-            copy them across by hand.
+            {requested
+              ? "Marisol still takes bookings — connecting your calendar means your team does not have to copy them across by hand."
+              : "Marisol keeps appointments in its own booking schedule. Your team will need to manage other calendars separately."}
           </p>
         )}
 
@@ -62,7 +68,7 @@ export default async function PortalCalendarPage() {
           >
             {connected ? "Reconnect or change calendars" : "Connect Google Calendar"}
           </a>
-        ) : (
+        ) : requested ? (
           <PortalNotice tone="warn">
             {accessGranted
               ? "We couldn’t build your connect link. "
@@ -72,12 +78,22 @@ export default async function PortalCalendarPage() {
             </a>{" "}
             and we'll send you one.
           </PortalNotice>
+        ) : (
+          <p className="mt-6 text-[14px] leading-[1.55] text-muted">
+            Want to connect Google Calendar?{" "}
+            <a href={SALES_EMAIL_HREF} className="font-medium text-teal">
+              Email us
+            </a>{" "}
+            and we'll enable it for you.
+          </p>
         )}
 
-        <p className="mt-4 text-[13.5px] leading-[1.5] text-muted-2">
-          You'll be asked to sign in with Google and pick which calendar bookings go into. Choosing
-          a different calendar later is the same button.
-        </p>
+        {requested && (
+          <p className="mt-4 text-[13.5px] leading-[1.5] text-muted-2">
+            You'll be asked to sign in with Google and pick which calendar bookings go into.
+            Choosing a different calendar later is the same button.
+          </p>
+        )}
       </div>
     </>
   );
