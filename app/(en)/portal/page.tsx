@@ -4,10 +4,9 @@ import { PortalHeading, PortalNotice } from "@/components/portal/PortalHeading";
 import { onboardingHref, parseLocale } from "@/lib/i18n/dict";
 import { en } from "@/lib/i18n/en";
 import { getLead, getLeadIdForAccount } from "@/lib/leads";
-import { PLAN_LABELS, normalizePlan } from "@/lib/plans";
+import { PLAN_LABELS, TRIAL_DAYS, normalizePlan } from "@/lib/plans";
 import { type PortalEnv, getActivitySummary } from "@/lib/portalApi";
 import { getPortalContext } from "@/lib/portalContext";
-import { SALES_EMAIL_HREF } from "@/lib/site";
 import { redirect } from "next/navigation";
 import type { ReactNode } from "react";
 
@@ -58,7 +57,10 @@ export default async function PortalOverviewPage({
     }
   }
 
-  const leadId = activeLeadId ?? session.leadId;
+  const leadId =
+    activeLeadId ??
+    session.leadId ??
+    (await getLeadIdForAccount(cfEnv.LEADS_KV, session.accountId));
   const lead = leadId ? await getLead(cfEnv.LEADS_KV, leadId) : null;
 
   const businessName = lead?.basics.businessName ?? shop?.name ?? "your shop";
@@ -67,6 +69,58 @@ export default async function PortalOverviewPage({
   const calendarRequested = lead?.setup?.calendar === "google_calendar";
   const pending = Boolean(lead && lead.status !== "provisioned");
   const activity = !pending && shop ? await getActivitySummary(cfEnv, shop.id) : null;
+
+  if (pending) {
+    return (
+      <>
+        <PortalHeading
+          title={
+            <>
+              Your setup is <span className="text-teal">ready for review</span>
+            </>
+          }
+          lead="Your details are saved. Marisol starts answering after we complete the checks and activate your service."
+        />
+
+        <ol className="mt-8 space-y-4">
+          <li className="rounded-[18px] bg-cream-100 p-5">
+            <h2 className="font-semibold">1. Business review</h2>
+            <p className="mt-2 text-[15px] leading-[1.55] text-muted">
+              {lead?.preparedAt
+                ? "Your business details have been reviewed and your service is being prepared for activation."
+                : "Our team is checking your services, hours, team and phone numbers."}
+            </p>
+          </li>
+          <li className="rounded-[18px] bg-cream-100 p-5">
+            <h2 className="font-semibold">2. Calendar and existing appointments</h2>
+            <p className="mt-2 text-[15px] leading-[1.55] text-muted">
+              {calendarConnected
+                ? "Google Calendar is connected. We’ll verify existing appointments and staff assignments with you."
+                : calendarRequested
+                  ? "You selected Google Calendar. You can connect it from the Calendar page as soon as activation is complete."
+                  : "You selected Marisol’s booking schedule. You can add Google Calendar from the Calendar page after activation."}
+            </p>
+            <a
+              href="/portal/calendar"
+              className="mt-3 inline-block text-[14px] font-medium text-teal"
+            >
+              View calendar setup
+            </a>
+          </li>
+          <li className="rounded-[18px] bg-cream-100 p-5">
+            <h2 className="font-semibold">3. Activation and phone connection test</h2>
+            <p className="mt-2 text-[15px] leading-[1.55] text-muted">
+              After the checks, we’ll activate Marisol and guide you through forwarding your calls
+              and making a test call.
+            </p>
+          </li>
+        </ol>
+        <p className="mt-6 text-[14px] text-muted">
+          Your {TRIAL_DAYS}-day trial started at checkout, including time spent in setup review.
+        </p>
+      </>
+    );
+  }
 
   return (
     <>
@@ -137,7 +191,7 @@ export default async function PortalOverviewPage({
         )}
       </div>
 
-      {number && !pending ? (
+      {number ? (
         lead?.forwardingConfirmedAt ? (
           <PortalNotice tone="good">
             Call forwarding is marked as set up. Calls you don't answer can reach Marisol.{" "}
@@ -160,17 +214,7 @@ export default async function PortalOverviewPage({
             </form>
           </div>
         )
-      ) : (
-        <PortalNotice tone="warn">
-          {number
-            ? "Your number is prepared but remains inactive until our checks are complete. "
-            : "Your Marisol number is being prepared. "}
-          <a href={SALES_EMAIL_HREF} className="font-medium underline">
-            email us
-          </a>{" "}
-          and we'll sort it out.
-        </PortalNotice>
-      )}
+      ) : null}
 
       {!pending && (
         <p className="mt-6 text-[14px] text-muted">

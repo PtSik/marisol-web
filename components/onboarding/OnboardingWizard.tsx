@@ -449,9 +449,8 @@ export function OnboardingWizard({
   // facts it gets on step 0, under a heading promising the finished setup.
   const setupComplete =
     !Object.keys(basicsErrors()).length && !validateSetupPayload(normalizeSetup(setup));
-  // Only where the call can honestly reflect the draft. `previewVariables` withholds services,
-  // hours and team until Review, so offering it on the steps in between would promise that edits
-  // made there are already audible.
+  // Offer the first preview after business confirmation, where it can at least greet with the
+  // imported name and address. It returns on Review with the completed setup.
   const preview = (
     <Suspense
       fallback={<div className="my-5 h-[228px] animate-pulse rounded-[18px] bg-cream-200" />}
@@ -538,7 +537,7 @@ export function OnboardingWizard({
             </div>
           </div>
           <div className="order-3 2xl:order-none 2xl:mt-7">
-            {(step === 0 || (step === REVIEW && setupComplete)) && preview}
+            {(step === 1 || (step === REVIEW && setupComplete)) && preview}
           </div>
         </div>
 

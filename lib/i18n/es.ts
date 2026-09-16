@@ -494,6 +494,11 @@ export const es: Dict = {
       noMatch: "No encontramos una coincidencia. A\u00f1ade los datos abajo.",
       error: "No pudimos cargar los datos. Puedes introducirlos abajo.",
       loadingDetails: "Cargando datos\u2026",
+      preparationSteps: [
+        "Identificando tu negocio",
+        "Cargando los datos encontrados",
+        "Organizando servicios y horarios",
+      ],
       importedTitle: "Datos a\u00f1adidos desde",
       importedNote: "Revisa que sigan siendo correctos. No se han inventado precios ni servicios.",
       undo: "Deshacer",

@@ -234,6 +234,11 @@ export default async function ThanksPage({ searchParams }: ThanksProps) {
     t = getDict(locale).thanks;
   }
 
+  // Checkout is the last onboarding-owned screen. Once Stripe has settled the subscription,
+  // account status belongs in the portal so the client always has Overview, Calendar and Billing.
+  if (lead?.flowVersion === 2 && isWaitingForActivation(lead.status)) redirect("/portal");
+  if (lead?.flowVersion === 2 && lead.status === "provisioned") redirect("/portal");
+
   if (lead?.status && isCancellationState(lead.status)) {
     const pending = lead.status === "cancellation_pending";
     return (

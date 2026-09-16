@@ -1,6 +1,6 @@
 import { env } from "cloudflare:workers";
 import { PortalHeading, PortalNotice } from "@/components/portal/PortalHeading";
-import { getLead } from "@/lib/leads";
+import { getLead, getLeadIdForAccount } from "@/lib/leads";
 import {
   PLAN_LABELS,
   PLAN_OPTIONS,
@@ -57,7 +57,8 @@ export default async function PortalBillingPage({
 }) {
   const cfEnv = env as unknown as PortalEnv;
   const session = await requirePortalSession(cfEnv, { allowPending: true });
-  const lead = session.leadId ? await getLead(cfEnv.LEADS_KV, session.leadId) : null;
+  const leadId = session.leadId ?? (await getLeadIdForAccount(cfEnv.LEADS_KV, session.accountId));
+  const lead = leadId ? await getLead(cfEnv.LEADS_KV, leadId) : null;
   const { upgrade, cancel, resume } = await searchParams;
 
   const subscription =
@@ -155,7 +156,7 @@ export default async function PortalBillingPage({
               type="submit"
               className="inline-flex min-h-[50px] w-full items-center justify-center rounded-[13px] bg-ink px-7 py-[14px] text-[15px] font-medium text-cream sm:w-auto"
             >
-              Payment method and invoices
+              Manage card and invoices in Stripe
             </button>
           </form>
         ) : (
@@ -163,26 +164,24 @@ export default async function PortalBillingPage({
             href={CUSTOMER_PORTAL_URL}
             className="mt-6 inline-flex min-h-[50px] items-center justify-center rounded-[13px] bg-ink px-7 py-[14px] text-[15px] font-medium text-cream no-underline"
           >
-            Payment method and invoices
+            Manage card and invoices in Stripe
           </a>
         )}
 
         {!subscription?.cancel_at_period_end &&
           ["trialing", "active", "past_due"].includes(status) && (
-            <details className="mt-6 border-t border-ink/10 pt-5">
-              <summary className="cursor-pointer text-[14px] font-medium text-muted">
-                Cancel subscription
-              </summary>
-              <p className="mt-3 max-w-[52ch] text-[13.5px] leading-[1.5] text-muted-2">
+            <div className="mt-6 border-t border-ink/10 pt-5">
+              <p className="text-[14px] font-medium text-ink">Cancel subscription</p>
+              <p className="mt-2 max-w-[52ch] text-[13.5px] leading-[1.5] text-muted-2">
                 Your subscription will stop at the end of the current trial or billing period.
                 Marisol will keep working until then.
               </p>
               <form method="post" action="/api/portal/cancel-subscription" className="mt-4">
                 <button type="submit" className="btn btn-md btn-secondary text-danger">
-                  Confirm cancellation
+                  Cancel my subscription
                 </button>
               </form>
-            </details>
+            </div>
           )}
 
         {subscription?.cancel_at_period_end && ["trialing", "active"].includes(status) && (

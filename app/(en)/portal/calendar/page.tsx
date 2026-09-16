@@ -1,23 +1,31 @@
 import { env } from "cloudflare:workers";
 import { PortalHeading, PortalNotice } from "@/components/portal/PortalHeading";
-import { getLead } from "@/lib/leads";
+import { getLead, getLeadIdForAccount } from "@/lib/leads";
 import type { PortalEnv } from "@/lib/portalApi";
 import { getPortalContext } from "@/lib/portalContext";
 import { buildCalendarConnectUrl } from "@/lib/provisioning";
-import { SALES_EMAIL_HREF } from "@/lib/site";
 
 export const dynamic = "force-dynamic";
 
-export default async function PortalCalendarPage() {
+export default async function PortalCalendarPage({
+  searchParams,
+}: {
+  searchParams: Promise<{ connect?: string }>;
+}) {
   const cfEnv = env as unknown as PortalEnv;
   const {
     activeShop: shop,
     activeShopId,
     activeLeadId,
+    session,
   } = await getPortalContext(cfEnv, {
     allowPending: true,
   });
-  const lead = activeLeadId ? await getLead(cfEnv.LEADS_KV, activeLeadId) : null;
+  const leadId =
+    activeLeadId ??
+    session.leadId ??
+    (await getLeadIdForAccount(cfEnv.LEADS_KV, session.accountId));
+  const lead = leadId ? await getLead(cfEnv.LEADS_KV, leadId) : null;
   const accessGranted = Boolean(
     lead?.calendarAccessGrantedAt ||
       shop?.calendar_access_granted_at ||
@@ -28,18 +36,33 @@ export default async function PortalCalendarPage() {
 
   const connected = shop?.integration === "google_calendar";
   const requested = lead?.setup?.calendar === "google_calendar" || connected;
+  const active = shop?.status === "active";
   const writeCalendar = shop?.calendar_routing?.write_calendar_id;
+  const { connect } = await searchParams;
 
   return (
     <>
       <PortalHeading
         title="Google Calendar"
         lead={
-          requested
-            ? "Connected, every booking Marisol takes appears in your calendar — and anything you block out there stops her offering that slot."
-            : "You chose to use Marisol without Google Calendar. You can ask us to add it later."
+          connected
+            ? "Every booking Marisol takes appears in your calendar, and blocked time stays unavailable."
+            : requested
+              ? "You selected Google Calendar during setup. Connect it here after activation."
+              : "Google Calendar was not selected during setup. You can connect it here after activation."
         }
       />
+
+      {connect === "pending" && (
+        <PortalNotice tone="warn">
+          Google Calendar can be connected here once your service is activated.
+        </PortalNotice>
+      )}
+      {connect === "failed" && (
+        <PortalNotice tone="warn">
+          We couldn’t start Google authorization. Please try again in a moment.
+        </PortalNotice>
+      )}
 
       <div className="mt-7 rounded-[24px] bg-cream-100 p-[clamp(20px,4vw,34px)]">
         <p className="text-[11.5px] font-semibold uppercase tracking-[0.16em] text-muted-2">
@@ -55,9 +78,9 @@ export default async function PortalCalendarPage() {
         )}
         {!connected && (
           <p className="mt-2 text-[15px] leading-[1.55] text-muted">
-            {requested
-              ? "Marisol still takes bookings — connecting your calendar means your team does not have to copy them across by hand."
-              : "Marisol keeps appointments in its own booking schedule. Your team will need to manage other calendars separately."}
+            {active
+              ? "Connect Google Calendar so bookings appear automatically and busy times cannot be offered."
+              : "Calendar connection becomes available after Marisol is activated."}
           </p>
         )}
 
@@ -68,27 +91,19 @@ export default async function PortalCalendarPage() {
           >
             {connected ? "Reconnect or change calendars" : "Connect Google Calendar"}
           </a>
-        ) : requested ? (
-          <PortalNotice tone="warn">
-            {accessGranted
-              ? "We couldn’t build your connect link. "
-              : "We’re preparing your Google Calendar access. We’ll email you when it’s ready. "}
-            <a href={SALES_EMAIL_HREF} className="font-medium underline">
-              Email us
-            </a>{" "}
-            and we'll send you one.
-          </PortalNotice>
+        ) : active && activeShopId ? (
+          <form method="post" action="/api/portal/calendar-connect" className="mt-6">
+            <button type="submit" className="btn btn-md btn-primary">
+              Connect Google Calendar
+            </button>
+          </form>
         ) : (
-          <p className="mt-6 text-[14px] leading-[1.55] text-muted">
-            Want to connect Google Calendar?{" "}
-            <a href={SALES_EMAIL_HREF} className="font-medium text-teal">
-              Email us
-            </a>{" "}
-            and we'll enable it for you.
-          </p>
+          <PortalNotice tone="warn">
+            Google Calendar can be connected here once your service is activated.
+          </PortalNotice>
         )}
 
-        {requested && (
+        {(requested || active) && (
           <p className="mt-4 text-[13.5px] leading-[1.5] text-muted-2">
             You'll be asked to sign in with Google and pick which calendar bookings go into.
             Choosing a different calendar later is the same button.

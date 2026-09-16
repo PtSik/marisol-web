@@ -1,5 +1,5 @@
 import { env } from "cloudflare:workers";
-import { getLead } from "@/lib/leads";
+import { getLead, getLeadIdForAccount } from "@/lib/leads";
 import { portalAccessRedirect } from "@/lib/portalAccess";
 import type { PortalEnv } from "@/lib/portalApi";
 import { overRateLimit } from "@/lib/rateLimit";
@@ -24,7 +24,8 @@ export async function POST(request: Request): Promise<Response> {
   if (await overRateLimit(cfEnv.RATE_LIMIT_KV, `resume:${session.accountId}`, 5)) {
     return back(request, "failed");
   }
-  const lead = session.leadId ? await getLead(cfEnv.LEADS_KV, session.leadId) : null;
+  const leadId = session.leadId ?? (await getLeadIdForAccount(cfEnv.LEADS_KV, session.accountId));
+  const lead = leadId ? await getLead(cfEnv.LEADS_KV, leadId) : null;
   if (!cfEnv.STRIPE_SECRET_KEY || !lead?.stripeSubscriptionId) return back(request, "failed");
   const current = await getSubscription(cfEnv.STRIPE_SECRET_KEY, lead.stripeSubscriptionId);
   if (!current || (current.metadata?.lead_id && current.metadata.lead_id !== lead.id)) {

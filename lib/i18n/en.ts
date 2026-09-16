@@ -487,6 +487,11 @@ export const en = {
       noMatch: "No match found. Add your details below.",
       error: "We couldn\u2019t load those details. You can enter them below.",
       loadingDetails: "Loading business details\u2026",
+      preparationSteps: [
+        "Matching your business",
+        "Loading the details we found",
+        "Organizing services and opening hours",
+      ],
       importedTitle: "Details added from",
       importedNote:
         "Please check they\u2019re still correct. Missing services and prices are left for you to fill in.",

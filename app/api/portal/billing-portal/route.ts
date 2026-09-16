@@ -1,5 +1,5 @@
 import { env } from "cloudflare:workers";
-import { getLead } from "@/lib/leads";
+import { getLead, getLeadIdForAccount } from "@/lib/leads";
 import type { PortalEnv } from "@/lib/portalApi";
 import { getSession, sessionIdFromCookies } from "@/lib/session";
 import { CUSTOMER_PORTAL_URL } from "@/lib/site";
@@ -13,7 +13,8 @@ export async function POST(request: Request): Promise<Response> {
   const session = await getSession(cfEnv.RATE_LIMIT_KV, await sessionIdFromCookies());
   if (!session) return Response.redirect(new URL("/login", request.url).toString(), 303);
 
-  const lead = session.leadId ? await getLead(cfEnv.LEADS_KV, session.leadId) : null;
+  const leadId = session.leadId ?? (await getLeadIdForAccount(cfEnv.LEADS_KV, session.accountId));
+  const lead = leadId ? await getLead(cfEnv.LEADS_KV, leadId) : null;
   const url =
     cfEnv.STRIPE_SECRET_KEY && lead?.stripeCustomerId
       ? await createBillingPortalSession(

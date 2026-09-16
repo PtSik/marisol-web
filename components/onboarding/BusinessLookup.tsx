@@ -18,6 +18,7 @@ export function BusinessLookup({
   const [matches, setMatches] = useState<BusinessMatch[]>([]);
   const [status, setStatus] = useState<"idle" | "loading" | "found" | "error">("idle");
   const [importingId, setImportingId] = useState<string | null>(null);
+  const [preparationStep, setPreparationStep] = useState(0);
   const [imported, setImported] = useState<BusinessMatch | null>(null);
   useEffect(() => {
     if (imported || query.trim().length < 3) {
@@ -52,8 +53,18 @@ export function BusinessLookup({
   }, [query, imported]);
   const choose = async (match: BusinessMatch) => {
     setImportingId(match.id);
+    setPreparationStep(0);
+    const progress = window.setInterval(
+      () => setPreparationStep((step) => Math.min(step + 1, t.preparationSteps.length - 1)),
+      450,
+    );
     try {
-      const res = await fetch(`/api/onboarding/business?id=${encodeURIComponent(match.id)}`);
+      // Keep the preparation state visible long enough to explain what was imported. The data
+      // comes from existing sales research; this does not claim to scan the web live.
+      const [res] = await Promise.all([
+        fetch(`/api/onboarding/business?id=${encodeURIComponent(match.id)}`),
+        new Promise((resolve) => window.setTimeout(resolve, 1000)),
+      ]);
       if (!res.ok) throw new Error("import failed");
       const { profile } = (await res.json()) as { profile: BusinessImport };
       onImport(profile);
@@ -64,6 +75,7 @@ export function BusinessLookup({
     } catch {
       setStatus("error");
     } finally {
+      window.clearInterval(progress);
       setImportingId(null);
     }
   };
@@ -135,6 +147,17 @@ export function BusinessLookup({
             </li>
           ))}
         </ul>
+      )}
+      {importingId && (
+        <output className="mt-4 block rounded-xl bg-teal/[0.08] p-4" aria-live="polite">
+          <p className="t-body-sm font-medium text-ink">{t.preparationSteps[preparationStep]}</p>
+          <div className="mt-3 h-1.5 overflow-hidden rounded-full bg-ink/10">
+            <span
+              className="block h-full rounded-full bg-teal transition-[width] duration-300"
+              style={{ width: `${((preparationStep + 1) / t.preparationSteps.length) * 100}%` }}
+            />
+          </div>
+        </output>
       )}
     </div>
   );
