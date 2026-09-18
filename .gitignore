@@ -30,6 +30,9 @@ docs/*
 !docs/onboarding/
 docs/onboarding/*
 !docs/onboarding/README.md
+# Living documentation: the Mermaid sources are meant to be reviewed alongside the code they draw.
+# Everything else under docs/ (research, outreach CSVs, dated proposals) stays local.
+!docs/diagrams/
 # d1/ holds migrations and nothing else. Everything else written there is generator output —
 # seeds, requeues, rescans — carrying real businesses' phone numbers and addresses, so the rule
 # admits the migrations directory rather than naming each generated family and missing the next one.
