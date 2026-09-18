@@ -67,8 +67,7 @@ export function leadNeedsAction(lead: CheckoutLead): boolean {
 
 function isCalendarConnected(shop?: Shop): boolean {
   return Boolean(
-    shop?.integration === "google_calendar" &&
-      shop.calendar_routing?.write_calendar_id,
+    shop?.integration === "google_calendar" && shop.calendar_routing?.write_calendar_id,
   );
 }
 

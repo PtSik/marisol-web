@@ -261,9 +261,9 @@ export default async function ThanksPage({ searchParams }: ThanksProps) {
     const cfEnv = env as unknown as ThanksEnv;
     const shop = lead.shopId ? await getShop(cfEnv, lead.shopId) : null;
     const connected =
-        shop?.integration === "google_calendar" &&
-        Boolean(shop.integration_credentials_encrypted) &&
-        Boolean(shop.calendar_routing?.write_calendar_id);
+      shop?.integration === "google_calendar" &&
+      Boolean(shop.integration_credentials_encrypted) &&
+      Boolean(shop.calendar_routing?.write_calendar_id);
     const connectUrl =
       lead.shopId && lead.calendarAccessGrantedAt
         ? await buildCalendarConnectUrl(cfEnv, lead.shopId)

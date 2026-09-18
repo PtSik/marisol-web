@@ -51,15 +51,15 @@ export default async function PortalCalendarPage({
         lead={
           connected
             ? "Every booking Marisol takes appears in your calendar, and blocked time stays unavailable."
-              : requested
-                ? "You selected Google Calendar during setup. Connect it here to start accepting appointments."
+            : requested
+              ? "You selected Google Calendar during setup. Connect it here to start accepting appointments."
               : "Google Calendar was not selected during setup. You can connect it here after activation."
         }
       />
 
       {connect === "pending" && (
         <PortalNotice tone="warn">
-              Google Calendar can be connected here once your service is activated.
+          Google Calendar can be connected here once your service is activated.
         </PortalNotice>
       )}
       {connect === "failed" && (
