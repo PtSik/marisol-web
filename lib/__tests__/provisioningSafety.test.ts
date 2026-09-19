@@ -368,6 +368,25 @@ describe("deprovisionLead", () => {
     expect(urls.some((url) => url.includes("twilio.com"))).toBe(false);
   });
 
+  it("refuses a salon whose shop id was lost rather than reporting a clean teardown", async () => {
+    let called = false;
+    globalThis.fetch = (async (_input: unknown) => {
+      called = true;
+      return new Response(null, { status: 204 });
+    }) as unknown as typeof fetch;
+
+    const result = await deprovisionShop(env, "", "+13055550124");
+
+    expect(result).toEqual({
+      suspendedShop: false,
+      releasedNumber: false,
+      cancelledShop: false,
+      complete: false,
+    });
+    // An empty id must never reach Twilio: releasing the number is the irreversible half.
+    expect(called).toBe(false);
+  });
+
   it("looks a salon's SID up by number when only the shop row is known", async () => {
     const urls: string[] = [];
     globalThis.fetch = (async (input) => {

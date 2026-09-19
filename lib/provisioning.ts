@@ -487,12 +487,16 @@ async function releaseLeadNumber(
   }
 }
 
-// A salon with no shop row was never provisioned far enough to have one; it still has to release
-// a number that may have been bought before the failure.
+// `shopId: null` is a lead that never got far enough to have a shop row; it still has to release
+// a number bought before the failure. An empty string is not that case — it is a lost id, and
+// treating it as "no shop" would report a complete teardown that released nothing.
 async function teardownSalon(
   env: ProvisioningEnv,
-  salon: { shopId?: string; twilioNumber?: string; numberSid?: string },
+  salon: { shopId: string | null; twilioNumber?: string; numberSid?: string },
 ): Promise<DeprovisionResult> {
+  if (salon.shopId === "") {
+    return { releasedNumber: false, suspendedShop: false, cancelledShop: false, complete: false };
+  }
   // Suspend service first. If Twilio is temporarily down the number remains attached to us, but an
   // active-only inbound gate prevents the cancelled client from continuing to use the agent.
   const suspendedShop = salon.shopId
@@ -520,7 +524,7 @@ export async function deprovisionLead(
   lead: CheckoutLead,
 ): Promise<DeprovisionResult> {
   return teardownSalon(env, {
-    shopId: lead.shopId,
+    shopId: lead.shopId ?? null,
     twilioNumber: lead.assignedNumber,
     numberSid: lead.twilioNumberSid,
   });
