@@ -199,7 +199,6 @@ export async function POST(
         }
       : await provisionLead(cfEnv, lead, {
           activate: lead.flowVersion !== 2,
-          sendWelcome: false,
           areaCodeOverride,
           checkpoint: async (resources) => {
             lead.assignedNumber = resources.number;

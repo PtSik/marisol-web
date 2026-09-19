@@ -297,7 +297,6 @@ export async function provisionLead(
   env: ProvisioningEnv,
   lead: CheckoutLead,
   options: {
-    sendWelcome?: boolean;
     // Preparation creates/link resources but keeps the shop suspended for calendar setup.
     activate?: boolean;
     areaCodeOverride?: string;
@@ -408,14 +407,6 @@ export async function provisionLead(
     if (options.activate !== false && !(await patchShop(env, shop.id, { status: "active" }))) {
       throw new Error("shop activation failed");
     }
-
-    if (options.activate !== false && options.sendWelcome !== false) {
-      await sendProvisionedWelcome(env, lead, {
-        number: bought.number,
-        shopId: shop.id,
-        referralCode: account?.referral_code,
-      });
-    }
     return {
       ok: true,
       shopId: shop.id,
@@ -496,24 +487,26 @@ async function releaseLeadNumber(
   }
 }
 
-export async function deprovisionLead(
+// A salon with no shop row was never provisioned far enough to have one; it still has to release
+// a number that may have been bought before the failure.
+async function teardownSalon(
   env: ProvisioningEnv,
-  lead: CheckoutLead,
+  salon: { shopId?: string; twilioNumber?: string; numberSid?: string },
 ): Promise<DeprovisionResult> {
   // Suspend service first. If Twilio is temporarily down the number remains attached to us, but an
   // active-only inbound gate prevents the cancelled client from continuing to use the agent.
-  const suspendedShop = lead.shopId
-    ? await patchShop(env, lead.shopId, { status: "suspended" })
+  const suspendedShop = salon.shopId
+    ? await patchShop(env, salon.shopId, { status: "suspended" })
     : true;
   // Never hand the phone number back while the shop may still be active. The voice worker's status
   // gate only protects us after this PATCH is confirmed.
   const releasedNumber = suspendedShop
-    ? await releaseLeadNumber(env, lead.assignedNumber, lead.twilioNumberSid)
+    ? await releaseLeadNumber(env, salon.twilioNumber, salon.numberSid)
     : false;
   const cancelledShop =
-    suspendedShop && releasedNumber && lead.shopId
-      ? await patchShop(env, lead.shopId, { status: "cancelled" })
-      : !lead.shopId;
+    suspendedShop && releasedNumber && salon.shopId
+      ? await patchShop(env, salon.shopId, { status: "cancelled" })
+      : !salon.shopId;
   return {
     releasedNumber,
     suspendedShop,
@@ -522,22 +515,24 @@ export async function deprovisionLead(
   };
 }
 
+export async function deprovisionLead(
+  env: ProvisioningEnv,
+  lead: CheckoutLead,
+): Promise<DeprovisionResult> {
+  return teardownSalon(env, {
+    shopId: lead.shopId,
+    twilioNumber: lead.assignedNumber,
+    numberSid: lead.twilioNumberSid,
+  });
+}
+
 // Tear down a salon we know only as a shop row — a location whose lead we can't resolve (its
-// shopLead index is missing). Mirrors deprovisionLead so a shared subscription's cancellation can
-// release every salon's number, not just the ones still keyed to a lead.
+// shopLead index is missing), so a shared subscription's cancellation can release every salon's
+// number, not just the ones still keyed to a lead. No stored SID: it lives on the lead.
 export async function deprovisionShop(
   env: ProvisioningEnv,
   shopId: string,
   twilioNumber?: string,
 ): Promise<DeprovisionResult> {
-  const suspendedShop = await patchShop(env, shopId, { status: "suspended" });
-  const releasedNumber = suspendedShop ? await releaseLeadNumber(env, twilioNumber) : false;
-  const cancelledShop =
-    suspendedShop && releasedNumber ? await patchShop(env, shopId, { status: "cancelled" }) : false;
-  return {
-    releasedNumber,
-    suspendedShop,
-    cancelledShop,
-    complete: releasedNumber && cancelledShop,
-  };
+  return teardownSalon(env, { shopId, twilioNumber });
 }

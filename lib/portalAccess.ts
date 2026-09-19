@@ -1,4 +1,9 @@
-import { accountLeadKey, getLeadStrict, isDashboardLocked } from "@/lib/leads";
+import {
+  accountLeadKey,
+  getLeadStrict,
+  isDashboardLocked,
+  isWaitingForActivation,
+} from "@/lib/leads";
 import { type PortalEnv, getShop } from "@/lib/portalApi";
 import type { PortalSession } from "@/lib/session";
 
@@ -22,17 +27,13 @@ export async function portalAccessRedirect(
   const lead = await getLeadStrict(env.LEADS_KV, leadId);
   if (!lead) return "/account-status";
   if (lead.status === "created" && !session.shopId) return "/onboarding";
-  if (options.allowPending && isWaitingForPortal(lead.status)) return null;
+  // "paid" is the one waiting state activation does not accept yet: the setup is not reviewed.
+  if (options.allowPending && (isWaitingForActivation(lead.status) || lead.status === "paid"))
+    return null;
   if (!isDashboardLocked(lead.status)) return null;
   if (lead.stripeSessionId) {
     const lang = lead.locale === "es" ? "&lang=es" : "";
     return `/onboarding/thanks?session_id=${encodeURIComponent(lead.stripeSessionId)}${lang}`;
   }
   return "/account-status";
-}
-
-function isWaitingForPortal(status: string): boolean {
-  return ["paid", "setup_complete", "pending_review", "activating", "activation_failed"].includes(
-    status,
-  );
 }

@@ -16,8 +16,7 @@ import {
 import { getLead, isCancellationState, isWaitingForActivation } from "@/lib/leads";
 import { VERTICAL_IDS, type Vertical } from "@/lib/onboarding";
 import { TRIAL_DAYS } from "@/lib/plans";
-import { type PortalEnv, getShop } from "@/lib/portalApi";
-import { buildCalendarConnectUrl } from "@/lib/provisioning";
+import type { PortalEnv } from "@/lib/portalApi";
 import { getSession, sessionIdFromCookies } from "@/lib/session";
 import { CUSTOMER_PORTAL_URL, SALES_EMAIL_HREF, siteHref } from "@/lib/site";
 import { SESSION_ID_RE, checkoutSettled, getCheckoutSession } from "@/lib/stripe";
@@ -253,96 +252,6 @@ export default async function ThanksPage({ searchParams }: ThanksProps) {
           </button>
         </form>
         <ContactLine t={t} locale={locale} />
-      </Shell>
-    );
-  }
-
-  if (lead?.flowVersion === 2 && isWaitingForActivation(lead.status)) {
-    const cfEnv = env as unknown as ThanksEnv;
-    const shop = lead.shopId ? await getShop(cfEnv, lead.shopId) : null;
-    const connected =
-      shop?.integration === "google_calendar" &&
-      Boolean(shop.integration_credentials_encrypted) &&
-      Boolean(shop.calendar_routing?.write_calendar_id);
-    const connectUrl =
-      lead.shopId && lead.calendarAccessGrantedAt
-        ? await buildCalendarConnectUrl(cfEnv, lead.shopId)
-        : undefined;
-    const es = locale === "es";
-    return (
-      <Shell locale={locale} email={email}>
-        <ThanksHeading
-          title={{
-            before: es ? "Tu configuración está " : "Your setup is ",
-            accent: es ? "en revisión" : "ready for review",
-          }}
-          lead={
-            es
-              ? "Tus datos están guardados. Marisol empezará a atender cuando terminemos las comprobaciones y activemos el servicio."
-              : "Your details are saved. Marisol starts answering after we complete the checks and activate your service."
-          }
-        />
-        <ol className="mt-8 space-y-4">
-          <li className="rounded-2xl bg-cream-100 p-5">
-            <h2 className="font-semibold">1. {es ? "Revisión del negocio" : "Business review"}</h2>
-            <p className="mt-2 t-body-sm text-muted">
-              {lead.preparedAt
-                ? es
-                  ? "Datos revisados. Número preparado; el teléfono sigue sin activarse."
-                  : "Details reviewed. Your number is prepared; the phone is still inactive."
-                : es
-                  ? "Nuestro equipo está revisando tus servicios, horario, equipo y teléfonos."
-                  : "Our team is checking your services, hours, team and phone numbers."}
-            </p>
-          </li>
-          <li className="rounded-2xl bg-cream-100 p-5">
-            <h2 className="font-semibold">
-              2. {es ? "Calendario y citas existentes" : "Calendar and existing appointments"}
-            </h2>
-            <p className="mt-2 t-body-sm text-muted">
-              {connected
-                ? es
-                  ? "Calendario conectado. Verificaremos las citas y las asignaciones contigo."
-                  : "Calendar connected. We’ll verify existing appointments and staff assignments with you."
-                : es
-                  ? "Te ayudaremos a conectar tu calendario y comprobar las citas antes de activar el servicio."
-                  : "We’ll help connect your calendar and check existing appointments before activation."}
-            </p>
-            {connectUrl && (
-              <a className="btn btn-md btn-primary mt-4" href={connectUrl}>
-                {connected
-                  ? es
-                    ? "Revisar calendarios"
-                    : "Review calendars"
-                  : es
-                    ? "Conectar Google Calendar"
-                    : "Connect Google Calendar"}
-              </a>
-            )}
-          </li>
-          <li className="rounded-2xl bg-cream-100 p-5">
-            <h2 className="font-semibold">
-              3. {es ? "Activación y prueba del teléfono" : "Activation and phone connection test"}
-            </h2>
-            <p className="mt-2 t-body-sm text-muted">
-              {es
-                ? "Después de verificar la configuración, activaremos Marisol y te guiaremos para conectar tu número y realizar una llamada de prueba."
-                : "After the setup checks, we’ll activate Marisol and guide you through connecting your existing number and making a test call."}
-            </p>
-          </li>
-        </ol>
-        <p className="mt-5 t-body-sm text-muted">
-          {es
-            ? `Tu prueba de ${TRIAL_DAYS} días empieza al completar el pago, también durante la revisión.`
-            : `Your ${TRIAL_DAYS}-day trial starts at checkout, including time spent in setup review.`}
-        </p>
-        <a
-          href={`/onboarding/thanks?session_id=${encodeURIComponent(session.id)}${es ? "&lang=es" : ""}`}
-          className="mt-4 inline-block t-body-sm text-teal underline"
-        >
-          {es ? "Actualizar estado" : "Refresh status"}
-        </a>
-        <ContactLine t={t} locale={locale} portal />
       </Shell>
     );
   }

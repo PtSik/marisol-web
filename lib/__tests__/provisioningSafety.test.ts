@@ -182,7 +182,6 @@ describe("provisionLead launch validation", () => {
       },
       lead({ accountId: "account-1" }),
       {
-        sendWelcome: false,
         checkpoint: async (resource) => {
           const value = resource.shopId ? "checkpoint:shop" : "checkpoint:number";
           checkpoints.push(value);
@@ -243,7 +242,6 @@ describe("provisionLead launch validation", () => {
       candidate,
       {
         activate: false,
-        sendWelcome: false,
         checkpoint: async (resource) => {
           checkpoints.push(resource.shopId ? "shop" : "number");
         },
@@ -333,6 +331,58 @@ describe("deprovisionLead", () => {
     expect(result.complete).toBe(false);
     expect(result.releasedNumber).toBe(false);
     expect(patches).toEqual(['{"status":"suspended"}']);
+  });
+
+  it("reports a complete teardown for a lead that never got a shop row", async () => {
+    const urls: string[] = [];
+    globalThis.fetch = (async (input) => {
+      urls.push(String(input));
+      return new Response(null, { status: 204 });
+    }) as typeof fetch;
+
+    const result = await deprovisionLead(env, {
+      ...lead(),
+      assignedNumber: "+13055550123",
+      twilioNumberSid: "PN123",
+    });
+
+    expect(result).toEqual({
+      suspendedShop: true,
+      releasedNumber: true,
+      cancelledShop: true,
+      complete: true,
+    });
+    expect(urls.some((url) => url.startsWith("https://voice.test/"))).toBe(false);
+  });
+
+  it("cancels a shop that has no number without calling Twilio", async () => {
+    const urls: string[] = [];
+    globalThis.fetch = (async (input) => {
+      urls.push(String(input));
+      return Response.json({ shop: { id: "shop-1" } });
+    }) as typeof fetch;
+
+    const result = await deprovisionLead(env, { ...lead(), shopId: "shop-1" });
+
+    expect(result.complete).toBe(true);
+    expect(urls.some((url) => url.includes("twilio.com"))).toBe(false);
+  });
+
+  it("looks a salon's SID up by number when only the shop row is known", async () => {
+    const urls: string[] = [];
+    globalThis.fetch = (async (input) => {
+      const url = String(input);
+      urls.push(url);
+      if (url.includes("IncomingPhoneNumbers.json?"))
+        return Response.json({ incoming_phone_numbers: [{ sid: "PN999" }] });
+      return Response.json({ shop: { id: "shop-2" } });
+    }) as typeof fetch;
+
+    const result = await deprovisionShop(env, "shop-2", "+13055550124");
+
+    expect(result.complete).toBe(true);
+    expect(urls.some((url) => url.includes("IncomingPhoneNumbers.json?"))).toBe(true);
+    expect(urls.some((url) => url.includes("/IncomingPhoneNumbers/PN999.json"))).toBe(true);
   });
 });
 
