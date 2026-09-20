@@ -1,14 +1,5 @@
 import { env } from "cloudflare:workers";
-import { type DemoPoolEnv, assignNumber, releaseForLead } from "@/lib/sales/demoPool";
-import {
-  RESEARCH_MAX,
-  cancelDemo,
-  getLead,
-  isOutcome,
-  recordOutcome,
-  requestDemo,
-  saveResearch,
-} from "@/lib/sales/leads";
+import { RESEARCH_MAX, isOutcome, recordOutcome, saveResearch } from "@/lib/sales/leads";
 import {
   SALES_COOKIE,
   SALES_REP_COOKIE,
@@ -20,7 +11,8 @@ import { cookies } from "next/headers";
 
 export const dynamic = "force-dynamic";
 
-interface SalesEnv extends DemoPoolEnv {
+interface SalesEnv {
+  OUTREACH_DB?: D1Database;
   SALES_DASH_KEY?: string;
 }
 
@@ -56,33 +48,12 @@ export async function POST(
   const actor = normaliseRep(cookieRep && decodeURIComponent(cookieRep)) ?? "unknown";
 
   const intent = form.get("intent");
-  if (intent === "demo") {
-    const lang = form.get("demo_lang");
-    if (lang !== "en" && lang !== "es") return redirect(request, form, "failed");
-    const lead = await getLead(cfEnv.OUTREACH_DB, id);
-    if (!lead) return redirect(request, form, "failed");
-
-    // The intent is recorded even when no number is free, so a full pool loses the demo, not the
-    // record of who asked for one.
-    await requestDemo(cfEnv.OUTREACH_DB, id, lang, actor);
-    const assigned = await assignNumber(cfEnv, lead, lang);
-    if (!assigned.ok) {
-      return redirect(request, form, assigned.reason === "pool_full" ? "pool-full" : "demo-failed");
-    }
-    return redirect(request, form, `demo-${lang}`);
-  }
   if (intent === "research") {
     const research = form.get("research");
     if (typeof research !== "string") return redirect(request, form, "failed");
     await saveResearch(cfEnv.OUTREACH_DB, id, research.slice(0, RESEARCH_MAX), actor);
     return redirect(request, form, "research-saved");
   }
-  if (intent === "demo_cancel") {
-    await releaseForLead(cfEnv, id);
-    await cancelDemo(cfEnv.OUTREACH_DB, id, actor);
-    return redirect(request, form, "demo-cancelled");
-  }
-
   const outcome = form.get("outcome");
   if (!isOutcome(outcome)) return redirect(request, form, "failed");
 

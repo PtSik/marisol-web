@@ -273,9 +273,9 @@ function parseDayValue(value: string): Interval[] | null {
 // Places writes hours as "Monday: 9:00 AM – 5:00 PM | Tuesday: Closed | …", with an en dash and
 // occasionally "Open 24 hours" or several ranges in one day.
 //
-// The whole week is parsed in one pass because `openNow`, `hook` and `demoKnowledge` all want the
-// same shop's hours: per-day parsing re-split and re-scanned this string 16 times per lead, which
-// on its own put the /sales render over the Worker's CPU budget.
+// The whole week is parsed in one pass because `openNow` and `hook` both want the same shop's
+// hours: per-day parsing re-split and re-scanned this string 16 times per lead, which on its own
+// put the /sales render over the Worker's CPU budget.
 export function parseWeekHours(hours: string | null | undefined): ParsedWeek | null {
   if (!hours?.trim()) return null;
 

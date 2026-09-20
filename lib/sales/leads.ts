@@ -96,11 +96,6 @@ export interface LeadRow {
   last_contact_at: string | null;
   next_followup: string | null;
   note: string | null;
-  demo_lang: string | null;
-  demo_requested_at: string | null;
-  demo_called_at: string | null;
-  demo_number: string | null;
-  demo_expires_at: string | null;
   /** The rep's write-up of this location — pasted in from wherever they research it. */
   research: string | null;
 }
@@ -138,12 +133,9 @@ export interface LeadPage {
 }
 
 const SELECT = `
-  SELECT l.*, s.outcome, s.attempts, s.owner, s.last_contact_at, s.next_followup, s.note,
-         s.research, s.demo_lang, s.demo_requested_at, s.demo_called_at,
-         d.phone_e164 AS demo_number, COALESCE(d.grace_until, d.expires_at) AS demo_expires_at
+  SELECT l.*, s.outcome, s.attempts, s.owner, s.last_contact_at, s.next_followup, s.note, s.research
   FROM leads l
   JOIN lead_state s ON s.lead_id = l.id
-  LEFT JOIN demo_numbers d ON d.lead_id = l.id AND d.state IN ('assigned', 'grace')
 `;
 
 const FROM = "FROM leads l JOIN lead_state s ON s.lead_id = l.id";
@@ -430,8 +422,6 @@ export async function neighbours(
 export interface Counters {
   queue: number;
   calledToday: number;
-  demoRequested: number;
-  demosHeard: number;
 }
 
 // Counted over the same area and tiers the rep is looking at — a header saying 119 above a list of
@@ -459,27 +449,15 @@ export async function counters(
       `SELECT
          SUM(CASE WHEN s.outcome = 'new'
                    OR (s.outcome = 'callback' AND s.next_followup <= ?1) THEN 1 ELSE 0 END) AS queue,
-         SUM(CASE WHEN substr(s.last_contact_at, 1, 10) = ?1 THEN 1 ELSE 0 END) AS calledToday,
-         SUM(CASE WHEN s.demo_requested_at IS NOT NULL THEN 1 ELSE 0 END) AS demoRequested,
-         SUM(CASE WHEN s.demo_called_at IS NOT NULL THEN 1 ELSE 0 END) AS demosHeard
+         SUM(CASE WHEN substr(s.last_contact_at, 1, 10) = ?1 THEN 1 ELSE 0 END) AS calledToday
        FROM lead_state s
        JOIN leads l ON l.id = s.lead_id
        WHERE (?2 IS NULL OR l.neighborhood = ?2)${tierClause}${doorClause}`,
     )
     .bind(day, scope.neighborhood ?? null, ...tiers)
-    .first<{
-      queue: number | null;
-      calledToday: number | null;
-      demoRequested: number | null;
-      demosHeard: number | null;
-    }>();
+    .first<{ queue: number | null; calledToday: number | null }>();
 
-  return {
-    queue: row?.queue ?? 0,
-    calledToday: row?.calledToday ?? 0,
-    demoRequested: row?.demoRequested ?? 0,
-    demosHeard: row?.demosHeard ?? 0,
-  };
+  return { queue: row?.queue ?? 0, calledToday: row?.calledToday ?? 0 };
 }
 
 export async function neighborhoods(db: D1Database): Promise<string[]> {
@@ -556,55 +534,6 @@ export async function recordOutcome(
          VALUES (?, ?, ?, ?, ?)`,
       )
       .bind(leadId, update.actor, update.outcome, update.note ?? null, iso),
-  ]);
-}
-
-// Records the rep's intent; leasing the number itself lives in `demoPool.assignNumber`, so a full
-// pool still leaves a trace of who asked for what.
-export async function requestDemo(
-  db: D1Database,
-  leadId: string,
-  lang: "en" | "es",
-  actor: string,
-  now = new Date(),
-): Promise<void> {
-  const iso = now.toISOString();
-  await db.batch([
-    db
-      .prepare(
-        "UPDATE lead_state SET demo_lang = ?, demo_requested_at = ?, updated_at = ? WHERE lead_id = ?",
-      )
-      .bind(lang, iso, iso, leadId),
-    db
-      .prepare(
-        `INSERT INTO lead_events (lead_id, actor, outcome, note, created_at)
-         VALUES (?, ?, NULL, ?, ?)`,
-      )
-      .bind(leadId, actor, `demo requested (${lang})`, iso),
-  ]);
-}
-
-// "This one's dead" from the rep frees a number faster than any timer, so the cancel button is
-// worth more throughput than tuning the TTL.
-export async function cancelDemo(
-  db: D1Database,
-  leadId: string,
-  actor: string,
-  now = new Date(),
-): Promise<void> {
-  const iso = now.toISOString();
-  await db.batch([
-    db
-      .prepare(
-        "UPDATE lead_state SET demo_lang = NULL, demo_requested_at = NULL, updated_at = ? WHERE lead_id = ?",
-      )
-      .bind(iso, leadId),
-    db
-      .prepare(
-        `INSERT INTO lead_events (lead_id, actor, outcome, note, created_at)
-         VALUES (?, ?, NULL, 'demo cancelled', ?)`,
-      )
-      .bind(leadId, actor, iso),
   ]);
 }
 

@@ -4,7 +4,6 @@ import { buildQuery } from "@/components/sales/FilterBar";
 import { LeadCard } from "@/components/sales/LeadCard";
 import { LoginForm } from "@/components/sales/LoginForm";
 import { ResearchDoc } from "@/components/sales/ResearchDoc";
-import { type DemoPoolEnv, sweepDemoPool } from "@/lib/sales/demoPool";
 import {
   type LeadNeighbours,
   getLeadBySlug,
@@ -28,18 +27,14 @@ export async function generateMetadata({ params }: { params: Promise<{ slug: str
   };
 }
 
-interface SalesEnv extends DemoPoolEnv {
+interface SalesEnv {
+  OUTREACH_DB?: D1Database;
   SALES_DASH_KEY?: string;
 }
 
 const NOTICE: Record<string, string> = {
   saved: "Result saved.",
-  "demo-en": "Demo is live — text them the number below.",
-  "demo-es": "Demo en español listo — envíales el número de abajo.",
-  "demo-cancelled": "Demo cancelled, number back in the pool.",
   "research-saved": "Doc saved.",
-  "pool-full": "Every demo number is in use — cancel a dead one, or wait for the next to free up.",
-  "demo-failed": "Couldn't set up the demo — nothing was leased, try again.",
   failed: "Nothing was saved — try again.",
 };
 
@@ -165,10 +160,6 @@ export default async function LeadPage({
       </Shell>
     );
   }
-
-  // The panel a rep keeps open is this Worker's only tick, and on a route that panel is this page —
-  // without the sweep here, demos generated on foot would never expire. `claimSweepLock` throttles it.
-  await sweepDemoPool(cfEnv);
 
   const channel = channelFor(query);
   const [steps, history] = await Promise.all([

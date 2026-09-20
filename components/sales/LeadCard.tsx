@@ -136,9 +136,6 @@ export function LeadCard({
             </Chip>
           )}
           {lead.is_chain === 1 && <Chip className="bg-[#B3261E]/10 text-[#B3261E]">chain</Chip>}
-          {lead.demo_lang && (
-            <Chip className="bg-teal/15 text-teal">demo {lead.demo_lang.toUpperCase()}</Chip>
-          )}
           {lead.research?.trim() && <Chip className="bg-ink/5 text-muted">doc</Chip>}
         </div>
       </div>
@@ -245,69 +242,6 @@ export function LeadCard({
         </div>
       </form>
 
-      <form method="post" action={action} className="mt-3 border-t border-ink/10 pt-3">
-        <input type="hidden" name="back" value={back} />
-        {stay}
-        <input type="hidden" name="intent" value="demo" />
-        <p className="text-xs font-medium uppercase tracking-wide text-muted-2">Generate demo</p>
-        <div className="mt-2 flex flex-wrap items-center gap-1.5">
-          <button
-            type="submit"
-            name="demo_lang"
-            value="en"
-            className="rounded-[10px] border border-teal/30 bg-teal/10 px-3 py-2 text-sm font-medium text-teal focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-teal"
-          >
-            English
-          </button>
-          <button
-            type="submit"
-            name="demo_lang"
-            value="es"
-            className="rounded-[10px] border border-teal/30 bg-teal/10 px-3 py-2 text-sm font-medium text-teal focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-teal"
-          >
-            Español
-          </button>
-        </div>
-      </form>
-
-      {lead.demo_number && (
-        <div className="mt-2 rounded-[12px] border border-teal/25 bg-teal/5 px-3 py-2.5">
-          <a
-            href={`tel:${lead.demo_number}`}
-            className="font-display text-[19px] tracking-tight text-teal no-underline"
-          >
-            {formatUsPhone(lead.demo_number)}
-          </a>
-          {/* The rep texts this from their own phone: an SMS blast from our Twilio numbers is
-              cold outreach under A2P 10DLC, and a reply should reach the human who just called. */}
-          <p className="mt-1.5 select-all text-sm text-ink">
-            Marisol demo for {lead.shop_name} — call {formatUsPhone(lead.demo_number)}, it answers
-            as your shop.
-          </p>
-          <p className="mt-1 text-xs text-muted-2">
-            {lead.demo_called_at
-              ? `they called ${lead.demo_called_at.slice(0, 16).replace("T", " ")}`
-              : lead.demo_expires_at
-                ? `free again ${lead.demo_expires_at.slice(0, 16).replace("T", " ")} if nobody calls`
-                : null}
-          </p>
-        </div>
-      )}
-
-      {lead.demo_requested_at && (
-        <form method="post" action={action} className="mt-2">
-          <input type="hidden" name="back" value={back} />
-          {stay}
-          <input type="hidden" name="intent" value="demo_cancel" />
-          <button
-            type="submit"
-            className="rounded-[10px] border border-ink/10 px-3 py-1.5 text-xs text-muted hover:border-ink/25 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-teal"
-          >
-            {lead.demo_number ? "This one's dead — free the number" : "Cancel demo"}
-          </button>
-        </form>
-      )}
-
       <details open={detailsOpen} className="mt-3">
         <summary className="cursor-pointer text-sm text-muted focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-teal">
           Details
@@ -341,7 +275,6 @@ export function LeadCard({
           )}
           {lead.instagram && <Row label="Instagram">{lead.instagram}</Row>}
           {lead.owner && <Row label="Last touched by">{lead.owner}</Row>}
-          {lead.demo_lang && <Row label="Demo language">{lead.demo_lang}</Row>}
         </dl>
         {history && history.length > 0 && (
           <ul className="mt-3 space-y-1 text-xs text-muted">

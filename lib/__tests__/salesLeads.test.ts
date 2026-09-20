@@ -4,7 +4,6 @@ import type { Tier } from "@/lib/sales/derive";
 import {
   LEADS_PAGE_SIZE,
   type LeadFilters,
-  cancelDemo,
   countLeads,
   counters,
   getLead,
@@ -14,7 +13,6 @@ import {
   neighbours,
   parsePageParam,
   recordOutcome,
-  requestDemo,
   saveResearch,
   zipsIn,
 } from "@/lib/sales/leads";
@@ -44,7 +42,6 @@ function d1(db: Database): D1Database {
 }
 
 const SCHEMA = `${await Bun.file("d1/migrations/0001_outreach.sql").text()}
-${await Bun.file("d1/migrations/0002_demo_pool.sql").text()}
 ${await Bun.file("d1/migrations/0003_lead_enrichment.sql").text()}
 ${await Bun.file("d1/migrations/0004_walk_route.sql").text()}
 ${await Bun.file("d1/migrations/0005_lead_research.sql").text()}`;
@@ -927,35 +924,18 @@ describe("recordOutcome", () => {
   });
 });
 
-describe("requestDemo", () => {
-  it("stores the language the rep picked without touching the call outcome", async () => {
-    seed({ id: "3051110001", name: "Shop" });
-
-    await recordOutcome(db, "3051110001", { outcome: "interested", actor: "Marco" });
-    await requestDemo(db, "3051110001", "es", "Marco");
-
-    const lead = await getLead(db, "3051110001");
-    expect(lead?.demo_lang).toBe("es");
-    expect(lead?.demo_requested_at).not.toBeNull();
-    expect(lead?.outcome).toBe("interested");
-    expect(lead?.attempts).toBe(1);
-  });
-});
-
 describe("counters", () => {
-  it("counts the queue, today's calls and queued demos", async () => {
+  it("counts the queue and today's calls", async () => {
     seed({ id: "3051110001", name: "One" });
     seed({ id: "3051110002", name: "Two" });
     seed({ id: "3051110003", name: "Three" });
     const now = new Date("2026-08-03T18:00:00Z");
 
     await recordOutcome(db, "3051110001", { outcome: "interested", actor: "Marco" }, now);
-    await requestDemo(db, "3051110001", "en", "Marco", now);
 
     const stats = await counters(db, now);
     expect(stats.queue).toBe(2);
     expect(stats.calledToday).toBe(1);
-    expect(stats.demoRequested).toBe(1);
   });
 
   it("counts only the area and tiers the rep is looking at", async () => {
@@ -981,24 +961,6 @@ describe("counters", () => {
 
     expect((await counters(db, new Date())).queue).toBe(3);
     expect((await counters(db, new Date(), { channel: "walk" })).queue).toBe(1);
-  });
-});
-
-describe("cancelDemo", () => {
-  it("clears the request and leaves the call outcome alone", async () => {
-    seed({ id: "3051110001", name: "Shop" });
-
-    await recordOutcome(db, "3051110001", { outcome: "interested", actor: "Marco" });
-    await requestDemo(db, "3051110001", "en", "Marco");
-    await cancelDemo(db, "3051110001", "Marco");
-
-    const lead = await getLead(db, "3051110001");
-    expect(lead?.demo_lang).toBeNull();
-    expect(lead?.demo_requested_at).toBeNull();
-    expect(lead?.outcome).toBe("interested");
-
-    const history = await leadHistory(db, "3051110001");
-    expect(history.some((e) => e.note === "demo cancelled")).toBe(true);
   });
 });
 

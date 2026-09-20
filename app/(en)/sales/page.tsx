@@ -4,7 +4,6 @@ import { FilterBar, buildQuery } from "@/components/sales/FilterBar";
 import { LeadCard } from "@/components/sales/LeadCard";
 import { LoginForm } from "@/components/sales/LoginForm";
 import { Pager } from "@/components/sales/Pager";
-import { type DemoPoolEnv, poolStatus, sweepDemoPool } from "@/lib/sales/demoPool";
 import { routeHref } from "@/lib/sales/derive";
 import {
   type LeadFilters,
@@ -27,18 +26,14 @@ export const metadata = {
   robots: { index: false, follow: false },
 };
 
-interface SalesEnv extends DemoPoolEnv {
+interface SalesEnv {
+  OUTREACH_DB?: D1Database;
   SALES_DASH_KEY?: string;
 }
 
 const NOTICE: Record<string, string> = {
   saved: "Result saved.",
-  "demo-en": "Demo is live — text them the number below.",
-  "demo-es": "Demo en español listo — envíales el número de abajo.",
-  "demo-cancelled": "Demo cancelled, number back in the pool.",
   "research-saved": "Doc saved.",
-  "pool-full": "Every demo number is in use — cancel a dead one, or wait for the next to free up.",
-  "demo-failed": "Couldn't set up the demo — nothing was leased, try again.",
   failed: "Nothing was saved — try again.",
 };
 
@@ -86,16 +81,12 @@ export default async function SalesPage({
   const channel = channelFor(query);
   const filters = filtersFor(query, channel);
 
-  // This Worker has no cron triggers, so the panel the reps keep open is the tick that expires
-  // demos and notices that an owner called back. Same trade the referral settlement makes.
-  await sweepDemoPool(cfEnv);
-
   const showLow = query.low === "1";
   const lowFilters: LeadFilters = { ...filters, tiers: ["X"] };
 
   const now = new Date();
 
-  const [queue, lowQueue, lowCount, openNowCount, areas, blocks, stats, pool] = await Promise.all([
+  const [queue, lowQueue, lowCount, openNowCount, areas, blocks, stats] = await Promise.all([
     listLeads(db, filters, now, parsePageParam(query.page)),
     showLow ? listLeads(db, lowFilters, now, parsePageParam(query.lowPage)) : null,
     showLow ? null : countLeads(db, lowFilters, now),
@@ -109,7 +100,6 @@ export default async function SalesPage({
       channel,
       mobile: filters.mobile,
     }),
-    poolStatus(db),
   ]);
 
   const leads = queue.leads;
@@ -149,9 +139,6 @@ export default async function SalesPage({
           <div className="flex flex-wrap items-center gap-x-4 gap-y-2 sm:gap-x-6">
             <Counter label={walking ? "to visit" : "to call"} value={stats.queue} />
             <Counter label={walking ? "visited today" : "called today"} value={stats.calledToday} />
-            <Counter label="demos queued" value={stats.demoRequested} />
-            <Counter label="demos heard" value={stats.demosHeard} />
-            <Counter label="numbers free" value={`${pool.free}/${pool.free + pool.busy}`} />
           </div>
           {rep && (
             <a href="/sales?switch=1" className="text-sm text-muted no-underline">

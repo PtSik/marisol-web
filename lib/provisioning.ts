@@ -47,9 +47,7 @@ const DAY_KEY: Record<DayId, string> = {
 };
 
 // voice-agent's parseTime only accepts am/pm, never 24h.
-// Exported for `lib/sales/demoKnowledge.ts`, which builds a demo shop's hours from scraped Places
-// text and has to clear the same server-side validator this does.
-export function to12h(hhmm: string): string {
+function to12h(hhmm: string): string {
   const [h, m] = hhmm.split(":").map(Number);
   const period = h >= 12 ? "pm" : "am";
   const h12 = h % 12 || 12;
