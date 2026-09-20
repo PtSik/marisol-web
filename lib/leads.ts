@@ -4,8 +4,6 @@ import { type Billing, type Plan, normalizePlan } from "@/lib/plans";
 
 export type LeadStatus =
   | "created"
-  | "paid"
-  | "setup_complete"
   | "pending_review"
   | "activating"
   | "activation_failed"
@@ -14,7 +12,6 @@ export type LeadStatus =
   | "cancelled";
 
 export const ACTIVATABLE_LEAD_STATUSES: ReadonlySet<LeadStatus> = new Set([
-  "setup_complete",
   "pending_review",
   "activation_failed",
 ]);
@@ -24,18 +21,11 @@ export function checkoutCompletionCanAdvance(status: LeadStatus): boolean {
 }
 
 export function isWaitingForActivation(status: LeadStatus): boolean {
-  return (
-    status === "setup_complete" ||
-    status === "pending_review" ||
-    status === "activating" ||
-    status === "activation_failed"
-  );
+  return status === "pending_review" || status === "activating" || status === "activation_failed";
 }
 
 export function isDashboardLocked(status: LeadStatus): boolean {
   return (
-    status === "paid" ||
-    status === "setup_complete" ||
     status === "pending_review" ||
     status === "activating" ||
     status === "activation_failed" ||
@@ -76,9 +66,8 @@ export interface CheckoutLead {
   stripeCustomerId?: string;
   stripeSubscriptionId?: string;
   paidAt?: string;
+  /* Submitted before payment and frozen for that checkout: the team reviews this exact setup. */
   setup?: SetupDetails;
-  /* Version 2 submits the reviewed setup before payment. It is frozen for that checkout. */
-  flowVersion?: 2;
   preparedAt?: string;
   readinessReviewedAt?: string;
   /* owner acknowledgement; carrier forwarding cannot be queried reliably across providers */
@@ -109,7 +98,6 @@ export interface CheckoutLead {
 
 export function isPreparedLead(lead: CheckoutLead): boolean {
   return (
-    lead.flowVersion === 2 &&
     lead.status === "pending_review" &&
     Boolean(lead.preparedAt && lead.shopId && lead.assignedNumber && lead.twilioNumberSid) &&
     !lead.activationLockToken
@@ -157,8 +145,7 @@ export function checkoutRequestMatchesLead(
     (lead.checkoutPromotionId ?? undefined) === requested.promotionId &&
     (lead.checkoutReferralCode ?? undefined) === requested.referralCode &&
     basicFields.every((field) => lead.basics[field] === requested.basics[field]) &&
-    JSON.stringify(lead.flowVersion === 2 ? lead.setup : undefined) ===
-      JSON.stringify(requested.setup)
+    JSON.stringify(lead.setup) === JSON.stringify(requested.setup)
   );
 }
 

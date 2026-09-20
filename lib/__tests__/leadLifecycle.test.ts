@@ -2,6 +2,7 @@ import { describe, expect, it } from "bun:test";
 import {
   ACTIVATABLE_LEAD_STATUSES,
   type CheckoutLead,
+  type LeadStatus,
   activationNeedsReconciliation,
   checkoutCompletionCanAdvance,
   checkoutRequestMatchesLead,
@@ -40,7 +41,6 @@ function lead(overrides: Partial<CheckoutLead> = {}): CheckoutLead {
 describe("assisted-launch lead lifecycle", () => {
   it("only lets checkout completion advance a newly-created lead", () => {
     expect(checkoutCompletionCanAdvance("created")).toBe(true);
-    expect(checkoutCompletionCanAdvance("paid")).toBe(false);
     expect(checkoutCompletionCanAdvance("pending_review")).toBe(false);
     expect(checkoutCompletionCanAdvance("activating")).toBe(false);
     expect(checkoutCompletionCanAdvance("provisioned")).toBe(false);
@@ -48,35 +48,30 @@ describe("assisted-launch lead lifecycle", () => {
     expect(checkoutCompletionCanAdvance("cancelled")).toBe(false);
   });
 
-  it("only exposes the admin activation action for explicit launch-gate states", () => {
-    expect(ACTIVATABLE_LEAD_STATUSES.has("pending_review")).toBe(true);
-    expect(ACTIVATABLE_LEAD_STATUSES.has("activation_failed")).toBe(true);
-    expect(ACTIVATABLE_LEAD_STATUSES.has("setup_complete")).toBe(true);
-    expect(ACTIVATABLE_LEAD_STATUSES.has("cancelled")).toBe(false);
-  });
-
-  it("renders every pre-activation state as waiting", () => {
-    expect(isWaitingForActivation("setup_complete")).toBe(true);
-    expect(isWaitingForActivation("pending_review")).toBe(true);
-    expect(isWaitingForActivation("activating")).toBe(true);
-    expect(isWaitingForActivation("activation_failed")).toBe(true);
-    expect(isWaitingForActivation("provisioned")).toBe(false);
-  });
-
-  it("locks the dashboard through review and reconciliation", () => {
-    for (const status of [
-      "paid",
-      "setup_complete",
-      "pending_review",
-      "activating",
-      "activation_failed",
-      "cancellation_pending",
-    ] as const) {
-      expect(isDashboardLocked(status)).toBe(true);
+  // Exhaustive over LeadStatus on purpose: adding a status has to be a decision about all three
+  // gates, not something that silently defaults to "not waiting, not locked, not activatable".
+  it("classifies every lead status against the activation gates", () => {
+    const expected: Record<
+      LeadStatus,
+      { activatable: boolean; waiting: boolean; locked: boolean }
+    > = {
+      created: { activatable: false, waiting: false, locked: false },
+      pending_review: { activatable: true, waiting: true, locked: true },
+      activating: { activatable: false, waiting: true, locked: true },
+      activation_failed: { activatable: true, waiting: true, locked: true },
+      provisioned: { activatable: false, waiting: false, locked: false },
+      cancellation_pending: { activatable: false, waiting: false, locked: true },
+      cancelled: { activatable: false, waiting: false, locked: true },
+    };
+    for (const [status, want] of Object.entries(expected) as Array<
+      [LeadStatus, (typeof expected)[LeadStatus]]
+    >) {
+      expect({
+        activatable: ACTIVATABLE_LEAD_STATUSES.has(status),
+        waiting: isWaitingForActivation(status),
+        locked: isDashboardLocked(status),
+      }).toEqual(want);
     }
-    expect(isDashboardLocked("created")).toBe(false);
-    expect(isDashboardLocked("provisioned")).toBe(false);
-    expect(isDashboardLocked("cancelled")).toBe(true);
   });
 
   it("recognises cancellation pages without treating them as setup", () => {

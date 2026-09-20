@@ -251,7 +251,7 @@ it("distinguishes a missing lead from an unavailable KV and allows manual retry 
   await retryTeardown(db, "subscription:sub");
   await runCancellationJobs(env);
   expect((await listTeardowns(db))[0].status).toBe("blocked");
-  lead = { id: "lead", status: "paid", stripeSubscriptionId: "sub" } as CheckoutLead;
+  lead = { id: "lead", status: "pending_review", stripeSubscriptionId: "sub" } as CheckoutLead;
   await retryTeardown(db, "subscription:sub");
   await runCancellationJobs(env);
   expect(await listTeardowns(db)).toEqual([]);

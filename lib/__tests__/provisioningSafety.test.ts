@@ -1,6 +1,6 @@
 import { afterEach, describe, expect, it } from "bun:test";
 import type { CheckoutLead } from "@/lib/leads";
-import { defaultSetup } from "@/lib/onboarding";
+import { defaultSetup, fixedOnboardingPresets } from "@/lib/onboarding";
 import { deprovisionLead, deprovisionShop, provisionLead } from "@/lib/provisioning";
 
 const originalFetch = globalThis.fetch;
@@ -13,6 +13,8 @@ function lead(overrides: Partial<CheckoutLead> = {}): CheckoutLead {
   const setup = defaultSetup("grooming", ["Full groom"]);
   setup.forwardNumber = "+1 (305) 555-0100";
   setup.staff[0].name = "Ana";
+  setup.services = fixedOnboardingPresets("grooming", ["Full groom"]).slice(0, 1);
+  setup.fixedDurations = true;
   return {
     id: "lead-1",
     createdAt: "2026-09-03T12:00:00Z",
@@ -141,7 +143,7 @@ describe("provisionLead launch validation", () => {
     });
   });
 
-  it("checkpoints the number and suspended shop before activating it", async () => {
+  it("checkpoints the number and the suspended shop, and never makes either live", async () => {
     const events: string[] = [];
     globalThis.fetch = (async (input, init) => {
       const url = String(input);
@@ -153,7 +155,12 @@ describe("provisionLead launch validation", () => {
         return Response.json({ phone_number: "+13055550123", sid: "PN123" });
       }
       if (url === "https://voice.test/admin/shops" && init?.method === "POST") {
-        events.push("create-shop");
+        const body = JSON.parse(String(init?.body ?? "{}")) as {
+          status?: string;
+          service_catalog?: unknown;
+        };
+        events.push(`create-shop:${body.status}`);
+        expect(body.service_catalog).toEqual([{ name: "Full groom", duration_minutes: 75 }]);
         return Response.json({ shop: { id: "shop-1" } });
       }
       if (url === "https://voice.test/admin/accounts/account-1") {
@@ -168,93 +175,36 @@ describe("provisionLead launch validation", () => {
       }
       if (url === "https://voice.test/admin/shops/shop-1") {
         const body = JSON.parse(String(init?.body ?? "{}")) as { status?: string };
-        if (body.status === "active") events.push("activate-shop");
+        if (body.status) events.push(`patch-status:${body.status}`);
         return Response.json({ shop: { id: "shop-1" } });
       }
       return new Response(null, { status: 500 });
     }) as typeof fetch;
 
-    const checkpoints: string[] = [];
     const result = await provisionLead(
-      {
-        ...env,
-        LEADS_KV: { put: async () => {} } as unknown as KVNamespace,
-      },
+      { ...env, LEADS_KV: { put: async () => {} } as unknown as KVNamespace },
       lead({ accountId: "account-1" }),
       {
         checkpoint: async (resource) => {
-          const value = resource.shopId ? "checkpoint:shop" : "checkpoint:number";
-          checkpoints.push(value);
-          events.push(value);
+          events.push(resource.shopId ? "checkpoint:shop" : "checkpoint:number");
         },
       },
     );
 
-    expect(result.ok).toBe(true);
-    expect(checkpoints).toEqual(["checkpoint:number", "checkpoint:shop"]);
-    expect(events.indexOf("checkpoint:number")).toBeLessThan(events.indexOf("create-shop"));
-    expect(events.indexOf("checkpoint:shop")).toBeLessThan(events.indexOf("activate-shop"));
-  });
-
-  it("prepares a reviewed shop without making its number live", async () => {
-    const events: string[] = [];
-    globalThis.fetch = (async (input, init) => {
-      const url = String(input);
-      if (url.includes("AvailablePhoneNumbers"))
-        return Response.json({ available_phone_numbers: [{ phone_number: "+13055550123" }] });
-      if (url.endsWith("/IncomingPhoneNumbers.json") && init?.method === "POST") {
-        events.push("purchase");
-        return Response.json({ phone_number: "+13055550123", sid: "PN123" });
-      }
-      if (url === "https://voice.test/admin/shops" && init?.method === "POST") {
-        const body = JSON.parse(String(init.body)) as {
-          status?: string;
-          transfers_enabled?: boolean;
-        };
-        expect(body.status).toBe("suspended");
-        expect(body.transfers_enabled).toBe(false);
-        events.push("create-shop");
-        return Response.json({ shop: { id: "shop-1" } });
-      }
-      if (url === "https://voice.test/admin/accounts/account-1")
-        return Response.json({
-          account: { id: "account-1", email: "ana@example.com", shop_id: "shop-1" },
-        });
-      if (url === "https://voice.test/admin/shops/shop-1") {
-        const body = JSON.parse(String(init?.body ?? "{}")) as { status?: string };
-        if (body.status === "active") events.push("activate-shop");
-        return Response.json({ shop: { id: "shop-1" } });
-      }
-      return new Response(null, { status: 500 });
-    }) as typeof fetch;
-    const checkpoints: string[] = [];
-    const candidate = lead({ accountId: "account-1", flowVersion: 2 });
-    if (!candidate.setup) throw new Error("missing fixture setup");
-    candidate.setup.services = [
-      { name: "Full groom", durationMin: "90", durationMaxMin: "", price: "75", priceMax: "" },
-    ];
-    candidate.setup.fixedDurations = true;
-    const result = await provisionLead(
-      {
-        ...env,
-        LEADS_KV: { put: async () => {} } as unknown as KVNamespace,
-      },
-      candidate,
-      {
-        activate: false,
-        checkpoint: async (resource) => {
-          checkpoints.push(resource.shopId ? "shop" : "number");
-        },
-      },
-    );
     expect(result).toMatchObject({
       ok: true,
       shopId: "shop-1",
       number: "+13055550123",
       numberSid: "PN123",
     });
-    expect(checkpoints).toEqual(["number", "shop"]);
-    expect(events).toEqual(["purchase", "create-shop"]);
+    // Each resource is durably recorded before the next one is created, and the operator — not
+    // provisioning — is what turns the shop on, so no status PATCH appears at all.
+    expect(events).toEqual([
+      "purchase",
+      "checkpoint:number",
+      "create-shop:suspended",
+      "checkpoint:shop",
+    ]);
   });
 });
 

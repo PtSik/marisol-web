@@ -37,12 +37,3 @@ export function ThanksHeading({ title, lead }: { title: AccentTitle; lead: strin
     </div>
   );
 }
-
-export function SetupCompleteHeading({ hasNumber, t }: { hasNumber?: boolean; t: Dict["thanks"] }) {
-  return (
-    <ThanksHeading
-      title={t.completeTitle}
-      lead={hasNumber ? t.completeLead : t.completeLeadPending}
-    />
-  );
-}

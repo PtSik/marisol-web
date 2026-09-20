@@ -20,7 +20,7 @@ function lead(overrides: Partial<CheckoutLead> = {}): CheckoutLead {
       ownerMobile: "+13055550111",
       timezone: "America/New_York",
     },
-    status: "paid",
+    status: "pending_review",
     setup: defaultSetup("barbershop", ["Haircut"]),
     ...overrides,
   } as CheckoutLead;

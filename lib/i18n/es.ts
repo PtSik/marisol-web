@@ -759,14 +759,6 @@ export const es: Dict = {
     startedTitle: { before: "Ya quedaste. ", accent: "Nos ponemos manos a la obra." },
     startedLead:
       "Tu prueba de {days} días ya empezó. Nuestro equipo arranca tu configuración ahora y te contacta en un día hábil.",
-    finishTitle: { before: "Ya quedaste. ", accent: "Termina tu configuración." },
-    finishLead:
-      "Agrega abajo tus horarios, servicios y personal — tu recepcionista se configura exactamente con esto. Toma unos tres minutos.",
-    completeTitle: { before: "Configuración lista. ", accent: "Falta un paso." },
-    completeLead:
-      "Tu recepcionista quedó configurada con todo lo que nos compartiste. Desvía tu número con los códigos de abajo y empieza a contestar.",
-    completeLeadPending:
-      "Recibimos tu configuración. Nuestro equipo la está revisando; recibirás tu número y el correo de activación cuando terminemos las comprobaciones.",
     cancellationPendingTitle: {
       before: "La suscripción terminó. ",
       accent: "La limpieza está en curso.",
@@ -777,7 +769,6 @@ export const es: Dict = {
     cancelledLead:
       "Tu recepcionista fue desactivada y liberamos los recursos administrados del servicio.",
     cancellationBillingCta: "Abrir el portal de facturación",
-    dashboardCta: "Abrir tu panel",
     referralTitle: "¿Conoces a otro dueño?",
     referralBody:
       "Recomiéndalo y recibes $200 en efectivo cuando lleve 30 días pagando — él se lleva un 10% en su primer mes. Tu enlace está en el portal.",
@@ -809,26 +800,6 @@ export const es: Dict = {
     processingTitle: "El pago se está procesando…",
     processingLead:
       "Normalmente tarda unos segundos. Recarga esta página en un momento — tu formulario aparece en cuanto Stripe confirme.",
-    gate: {
-      title: { before: "Pago recibido. ", accent: "Hazla tuya." },
-      lead: "Inicia sesión con Google para que solo tú administres tu recepcionista — tus horarios, personal, calendario y facturación en un solo lugar.",
-      button: "Continuar con Google",
-      skip: "¿No tienes cuenta de Google? Continúa sin iniciar sesión",
-      conflictBefore: "Esta cuenta de Google ya está vinculada a ",
-      conflictAfter:
-        " — te iniciamos sesión en esa cuenta. Responde a tu correo de bienvenida y conectamos este pedido con el lugar correcto.",
-    },
-    gateErrors: {
-      already_claimed:
-        "Este pedido ya está vinculado a otra cuenta de Google. Responde a tu correo de bienvenida y lo resolvemos.",
-      unpaid_session:
-        "Todavía no pudimos confirmar tu pago. Espera un momento e inténtalo de nuevo.",
-      account_failed: "No pudimos crear tu cuenta ahora mismo. Inténtalo de nuevo.",
-      session_failed: "No pudimos iniciar tu sesión. Inténtalo de nuevo.",
-      oauth_failed: "El inicio de sesión con Google no se completó. Inténtalo de nuevo.",
-      rate_limited: "Demasiados intentos. Espera un minuto e inténtalo de nuevo.",
-      not_configured: "El inicio de sesión no está disponible ahora — puedes continuar sin él.",
-    },
   },
   forwarding: {
     kicker: "Tu número de Marisol",

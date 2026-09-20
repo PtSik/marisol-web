@@ -19,14 +19,13 @@ export function settledLead(lead: CheckoutLead, session: StripeCheckoutSession):
   )
     throw new Error("Checkout attempt mismatch");
   // Delayed delivery must never undo activation, cancellation, or an operator's decision.
-  if (lead.status !== "created" && lead.status !== "paid") return lead;
-  const reviewed = lead.flowVersion === 2;
-  if (reviewed && validateSetupPayload(lead.setup)) throw new Error("Reviewed setup is invalid");
+  if (lead.status !== "created") return lead;
+  if (validateSetupPayload(lead.setup)) throw new Error("Reviewed setup is invalid");
   return {
     ...lead,
-    status: reviewed ? "pending_review" : "paid",
+    status: "pending_review",
     paidAt: lead.paidAt ?? new Date().toISOString(),
-    ...(reviewed ? { setupCompletedAt: lead.setupCompletedAt ?? new Date().toISOString() } : {}),
+    setupCompletedAt: lead.setupCompletedAt ?? new Date().toISOString(),
     stripeSessionId: session.id,
     ...(typeof session.customer === "string" ? { stripeCustomerId: session.customer } : {}),
     ...(typeof session.subscription === "string"

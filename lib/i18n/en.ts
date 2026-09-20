@@ -752,14 +752,6 @@ export const en = {
     startedTitle: { before: "You’re in. ", accent: "We’re on it." },
     startedLead:
       "Your {days}-day trial has started. Our team begins your setup now and will reach out within one business day.",
-    finishTitle: { before: "You’re in. ", accent: "Finish your setup." },
-    finishLead:
-      "Add your hours, services and staff below — your receptionist is configured from exactly this. Takes about three minutes.",
-    completeTitle: { before: "Setup complete. ", accent: "One step left." },
-    completeLead:
-      "Your receptionist is configured with everything you shared. Forward your number using the codes below and she starts answering.",
-    completeLeadPending:
-      "We received your setup. Our team is reviewing it now; your number and activation email will arrive after the checks are complete.",
     cancellationPendingTitle: { before: "Subscription ended. ", accent: "Cleanup is in progress." },
     cancellationPendingLead:
       "Your receptionist is no longer being activated. We’re finishing the account and phone-number cleanup now; contact us if you need help.",
@@ -767,7 +759,6 @@ export const en = {
     cancelledLead:
       "Your receptionist has been deactivated and its managed resources have been released.",
     cancellationBillingCta: "Open billing portal",
-    dashboardCta: "Open your dashboard",
     referralTitle: "Know another shop owner?",
     referralBody:
       "Refer them and you get $200 in cash once they’ve paid for 30 days — they get 10% off their first month. Your link is in the portal.",
@@ -798,25 +789,6 @@ export const en = {
     processingTitle: "Checkout is still processing…",
     processingLead:
       "This usually takes a few seconds. Refresh this page in a moment — your setup form appears as soon as Stripe confirms.",
-    gate: {
-      title: { before: "Payment received. ", accent: "Make it yours." },
-      lead: "Sign in with Google so only you can manage your receptionist — your hours, staff, calendar and billing all live in one place.",
-      button: "Continue with Google",
-      skip: "No Google account? Continue without signing in",
-      conflictBefore: "This Google account is already linked to ",
-      conflictAfter:
-        " — we’ve signed you into that account. Reply to your welcome email and we’ll connect this order to the right place.",
-    },
-    gateErrors: {
-      already_claimed:
-        "This order is already linked to another Google account. Reply to your welcome email and we’ll sort it out.",
-      unpaid_session: "We couldn’t confirm your payment yet. Give it a moment, then try again.",
-      account_failed: "We couldn’t set up your account just now. Please try again.",
-      session_failed: "We couldn’t start your session. Please try again.",
-      oauth_failed: "Google sign-in didn’t finish. Please try again.",
-      rate_limited: "Too many attempts. Wait a minute and try again.",
-      not_configured: "Sign-in isn’t available right now — you can continue without it.",
-    },
   },
   forwarding: {
     kicker: "Your Marisol number",

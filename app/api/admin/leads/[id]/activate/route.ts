@@ -23,7 +23,7 @@ import {
   provisionLead,
   sendProvisionedWelcome,
 } from "@/lib/provisioning";
-import { UPGRADABLE_STATUSES, getSubscription, setSubscriptionExtraLocations } from "@/lib/stripe";
+import { getSubscription, setSubscriptionExtraLocations } from "@/lib/stripe";
 import { isUsAreaCode } from "@/lib/twilio";
 import { voiceAgentFetch } from "@/lib/voiceAgent";
 import { cookies } from "next/headers";
@@ -110,8 +110,7 @@ export async function POST(
   if (!form) return back(request, "invalid-area-code");
   if (validateSetupPayload(lead.setup)) return back(request, "not-ready");
   const prepared = isPreparedLead(lead);
-  if (lead.flowVersion === 2 && form.get("reviewConfirmed") !== "yes")
-    return back(request, "not-ready");
+  if (form.get("reviewConfirmed") !== "yes") return back(request, "not-ready");
   if (prepared && form.get("readinessConfirmed") !== "yes") return back(request, "not-ready");
   if (prepared) {
     const shop = lead.shopId ? await getShop(cfEnv, lead.shopId) : null;
@@ -139,13 +138,11 @@ export async function POST(
   }
   const subscription = await getSubscription(cfEnv.STRIPE_SECRET_KEY, lead.stripeSubscriptionId);
   // Review-stage preparation buys a number. Never buy one for a customer whose trial is already
-  // past due or set to cancel, even though those states can be eligible for legacy upgrades.
+  // past due or set to cancel, even though those states can be eligible for a plan upgrade.
   const billingReady =
-    lead.flowVersion === 2
-      ? !!subscription &&
-        (subscription.status === "trialing" || subscription.status === "active") &&
-        !subscription.cancel_at_period_end
-      : !!subscription && UPGRADABLE_STATUSES.has(subscription.status ?? "");
+    !!subscription &&
+    (subscription.status === "trialing" || subscription.status === "active") &&
+    !subscription.cancel_at_period_end;
   if (!billingReady) {
     return back(request, "billing-inactive");
   }
@@ -198,7 +195,6 @@ export async function POST(
           reason: "prepared shop activation failed",
         }
       : await provisionLead(cfEnv, lead, {
-          activate: lead.flowVersion !== 2,
           areaCodeOverride,
           checkpoint: async (resources) => {
             lead.assignedNumber = resources.number;
@@ -245,7 +241,7 @@ export async function POST(
       return back(request, result.cleanupComplete ? "failed" : "reconcile");
     }
 
-    if (lead.flowVersion === 2 && !prepared) {
+    if (!prepared) {
       lead.status = "pending_review";
       lead.shopId = result.shopId;
       lead.assignedNumber = result.number;
@@ -260,7 +256,7 @@ export async function POST(
       await putLead(cfEnv.LEADS_KV, lead);
       return back(request, "prepared");
     }
-    if (prepared) lead.readinessReviewedAt = new Date().toISOString();
+    lead.readinessReviewedAt = new Date().toISOString();
     lead.status = "provisioned";
     lead.shopId = result.shopId;
     lead.assignedNumber = result.number;

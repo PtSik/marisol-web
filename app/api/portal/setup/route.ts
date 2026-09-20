@@ -56,7 +56,7 @@ export async function POST(request: Request): Promise<Response> {
   const lead = activeLeadId ? await getLead(cfEnv.LEADS_KV, activeLeadId) : null;
   if (!lead) return Response.json({ error: "no setup on file" }, { status: 404 });
 
-  if (lead.flowVersion === 2 && setup.services.some((s) => s.durationMaxMin?.trim()))
+  if (setup.services.some((s) => s.durationMaxMin?.trim()))
     return Response.json({ error: "invalid services" }, { status: 400 });
   lead.setup = setup;
   if (timezone) lead.basics.timezone = timezone;
@@ -66,7 +66,7 @@ export async function POST(request: Request): Promise<Response> {
   // the client has to see that, not a green tick over stale agent config.
   const shopUpdated = activeShopId
     ? await patchShop(cfEnv, activeShopId, {
-        ...(lead.flowVersion === 2 ? { service_catalog: toServiceCatalog(setup) } : {}),
+        service_catalog: toServiceCatalog(setup),
         hours_json: JSON.stringify(toShopHours(setup.hours)),
         services_json: JSON.stringify(toShopServices(setup.services)),
         staff_json: JSON.stringify(toShopStaff(setup)),

@@ -27,7 +27,7 @@ function lead(
       timezone: "America/New_York",
       ...(overrides.address === undefined ? {} : { address: overrides.address }),
     },
-    status: "paid",
+    status: "pending_review",
     setup: { ...setup, notes: overrides.notes ?? "" },
   } as CheckoutLead;
 }

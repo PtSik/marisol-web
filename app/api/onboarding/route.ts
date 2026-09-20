@@ -75,14 +75,12 @@ interface CallRequest {
 }
 
 interface OnboardingRequest {
-  intent: "checkout" | "call" | "setup";
+  intent: "checkout" | "call";
   plan?: Plan;
   billing?: Billing;
   basics?: BusinessBasics;
   call?: CallRequest;
-  sessionId?: string;
   setup?: SetupDetails;
-  flowVersion?: 2;
   referralCode?: string;
   promoCode?: string;
   locale?: string;
@@ -91,7 +89,6 @@ interface OnboardingRequest {
 const RATE_LIMITS: Record<OnboardingRequest["intent"], number> = {
   checkout: 10,
   call: 5,
-  setup: 20,
 };
 
 function isShortString(value: unknown, max = 120): value is string {
@@ -280,7 +277,6 @@ async function handleCheckout(
     locale,
     basics,
     setup,
-    flowVersion: setup ? 2 : undefined,
     status: "created",
     accountId,
     checkoutAttempt,
@@ -400,76 +396,6 @@ async function handleCheckout(
   return Response.json({ url: session.url });
 }
 
-async function handleSetup(
-  cfEnv: OnboardingEnv,
-  accountId: string,
-  sessionId: string,
-  setup: SetupDetails,
-): Promise<Response> {
-  if (!cfEnv.STRIPE_SECRET_KEY) {
-    return Response.json({ error: "checkout not configured" }, { status: 501 });
-  }
-
-  const session = await getCheckoutSession(cfEnv.STRIPE_SECRET_KEY, sessionId);
-  if (!session) {
-    return Response.json({ error: "unknown session" }, { status: 400 });
-  }
-  // Knowing a cs_… id is not authorisation to drive someone else's setup. Checkouts from before
-  // account-first onboarding carry no account_id — those keep working for any signed-in client
-  // rather than locking their own owner out.
-  const checkoutAccountId = session.metadata?.account_id;
-  if (checkoutAccountId && checkoutAccountId !== accountId) {
-    return Response.json({ error: "not your checkout" }, { status: 403 });
-  }
-  if (!checkoutSettled(session)) {
-    return Response.json({ error: "session not paid" }, { status: 402 });
-  }
-  const leadId = session.metadata?.lead_id;
-  if (!leadId) {
-    return Response.json({ error: "unknown session" }, { status: 400 });
-  }
-
-  const lead = await getLead(cfEnv.LEADS_KV, leadId);
-  // Stripe metadata intentionally does not carry owner mobile, time zone or the complete setup.
-  // Reconstructing a missing KV record used to turn a transient read failure into a live but broken
-  // receptionist. Assisted launch fails closed and lets the client retry instead.
-  if (!lead) {
-    return Response.json({ error: "setup temporarily unavailable" }, { status: 503 });
-  }
-
-  if (lead.status === "provisioned") {
-    return Response.json({ ok: true, provisioned: true, number: lead.assignedNumber });
-  }
-
-  if (lead.status === "activating") {
-    return Response.json({ ok: true, pendingReview: true });
-  }
-  if (lead.status === "cancelled" || lead.status === "cancellation_pending") {
-    return Response.json({ error: "subscription cancelled" }, { status: 409 });
-  }
-  if (lead.status === "activation_failed" && activationNeedsReconciliation(lead)) {
-    return Response.json({ error: "activation needs reconciliation" }, { status: 409 });
-  }
-
-  const shouldNotify = lead.status !== "pending_review";
-  if (lead.flowVersion !== 2) lead.setup = setup;
-  lead.stripeSessionId = session.id;
-  if (typeof session.customer === "string") lead.stripeCustomerId = session.customer;
-  if (typeof session.subscription === "string") lead.stripeSubscriptionId = session.subscription;
-  if (lead.status === "created") lead.paidAt = lead.paidAt ?? new Date().toISOString();
-  lead.status = "pending_review";
-  lead.setupCompletedAt = lead.setupCompletedAt ?? new Date().toISOString();
-  lead.activationFailedAt = undefined;
-  lead.provisionError = undefined;
-
-  await putLead(cfEnv.LEADS_KV, lead);
-  if (shouldNotify) {
-    await notifyTeam(cfEnv, `🔎 Setup ready for review: ${lead.basics.businessName}`, lead);
-  }
-
-  return Response.json({ ok: true, pendingReview: true });
-}
-
 export async function POST(request: Request) {
   const cfEnv = env as unknown as OnboardingEnv;
 
@@ -481,7 +407,7 @@ export async function POST(request: Request) {
   }
 
   const { intent } = body;
-  if (intent !== "checkout" && intent !== "call" && intent !== "setup") {
+  if (intent !== "checkout" && intent !== "call") {
     return Response.json({ error: "invalid intent" }, { status: 400 });
   }
 
@@ -506,53 +432,38 @@ export async function POST(request: Request) {
     return Response.json({ ok: true });
   }
 
-  if (intent === "checkout") {
-    const plan: Plan = body.plan ?? "basic";
-    if (!PLAN_OPTIONS.includes(plan)) {
-      return Response.json({ error: "invalid plan" }, { status: 400 });
-    }
-    if (!BILLING_OPTIONS.includes(body.billing as Billing)) {
-      return Response.json({ error: "invalid billing" }, { status: 400 });
-    }
-    // First-salon checkout requires an existing portal login — the account already exists, so
-    // guest checkout and the post-payment Google gate both go away.
-    const session = await getSession(cfEnv.RATE_LIMIT_KV, await sessionIdFromCookies());
-    if (!session) return Response.json({ error: "not signed in" }, { status: 401 });
-    const basics: BusinessBasics = { ...(body.basics as BusinessBasics), email: session.email };
-    const error = validateBasics(basics);
-    if (error) return Response.json({ error }, { status: 400 });
-    if (body.flowVersion !== undefined && body.flowVersion !== 2)
-      return Response.json({ error: "invalid flowVersion" }, { status: 400 });
-    if (body.flowVersion === 2) {
-      const setupError = validateSetupPayload(body.setup);
-      if (setupError) return Response.json({ error: setupError }, { status: 400 });
-      if (body.setup?.services.some((s) => s.durationMaxMin?.trim()))
-        return Response.json({ error: "invalid services" }, { status: 400 });
-    }
-    return handleCheckout(
-      cfEnv,
-      request,
-      plan,
-      body.billing as Billing,
-      basics,
-      session.accountId,
-      {
-        promo: typeof body.promoCode === "string" ? body.promoCode : undefined,
-        referral: typeof body.referralCode === "string" ? body.referralCode : undefined,
-      },
-      parseLocale(body.locale),
-      body.flowVersion === 2
-        ? { ...(body.setup as SetupDetails), fixedDurations: true }
-        : undefined,
-    );
+  // Everything else is a checkout: the wizard submits the reviewed setup with it.
+  const plan: Plan = body.plan ?? "basic";
+  if (!PLAN_OPTIONS.includes(plan)) {
+    return Response.json({ error: "invalid plan" }, { status: 400 });
   }
-
-  if (!isShortString(body.sessionId, 300) || !SESSION_ID_RE.test(body.sessionId)) {
-    return Response.json({ error: "invalid sessionId" }, { status: 400 });
+  if (!BILLING_OPTIONS.includes(body.billing as Billing)) {
+    return Response.json({ error: "invalid billing" }, { status: 400 });
   }
-  const setupSession = await getSession(cfEnv.RATE_LIMIT_KV, await sessionIdFromCookies());
-  if (!setupSession) return Response.json({ error: "not signed in" }, { status: 401 });
-  const error = validateSetupPayload(body.setup);
+  // First-salon checkout requires an existing portal login — the account already exists, so
+  // guest checkout and the post-payment Google gate both go away.
+  const session = await getSession(cfEnv.RATE_LIMIT_KV, await sessionIdFromCookies());
+  if (!session) return Response.json({ error: "not signed in" }, { status: 401 });
+  const basics: BusinessBasics = { ...(body.basics as BusinessBasics), email: session.email };
+  const error = validateBasics(basics);
   if (error) return Response.json({ error }, { status: 400 });
-  return handleSetup(cfEnv, setupSession.accountId, body.sessionId, body.setup as SetupDetails);
+  // The reviewed setup is part of checkout: there is no path that pays first and configures later.
+  const setupError = validateSetupPayload(body.setup);
+  if (setupError) return Response.json({ error: setupError }, { status: 400 });
+  if (body.setup?.services.some((s) => s.durationMaxMin?.trim()))
+    return Response.json({ error: "invalid services" }, { status: 400 });
+  return handleCheckout(
+    cfEnv,
+    request,
+    plan,
+    body.billing as Billing,
+    basics,
+    session.accountId,
+    {
+      promo: typeof body.promoCode === "string" ? body.promoCode : undefined,
+      referral: typeof body.referralCode === "string" ? body.referralCode : undefined,
+    },
+    parseLocale(body.locale),
+    { ...(body.setup as SetupDetails), fixedDurations: true },
+  );
 }

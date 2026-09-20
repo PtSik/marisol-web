@@ -136,9 +136,8 @@ export function buildShopPayload(
   const ownerMobile = toUsE164(basics.ownerMobile);
   if (!ownerMobile) throw new Error("owner mobile is not a valid US phone number");
   const payload: Record<string, unknown> = {
-    ...(lead.flowVersion === 2
-      ? { transfers_enabled: false, service_catalog: toServiceCatalog(setup) }
-      : {}),
+    transfers_enabled: false,
+    service_catalog: toServiceCatalog(setup),
     name: basics.businessName,
     twilio_number: twilioNumber,
     escalation_phone: ownerMobile,
@@ -160,8 +159,8 @@ export function buildShopPayload(
     // credentials and calendar routing are saved. The voice worker uses this marker to fail closed
     // for appointment tools while still allowing the receptionist to answer calls.
     integration: setup.calendar === "google_calendar" ? "google_calendar" : "none",
-    // The shop is not callable until every critical account/linking step succeeds below. The
-    // voice-agent launch guard only serves active shops; a failed provisioning run stays suspended.
+    // Preparation never makes a shop callable: the operator launches it from the admin queue
+    // once readiness is confirmed with the owner, so a failed run leaves nothing answering.
     status: "suspended",
     reminders_enabled: normalizePlan(lead.plan) !== "basic",
     // Which language the agent opens in. A single-language mode names it outright; a bilingual one
@@ -297,8 +296,6 @@ export async function provisionLead(
   env: ProvisioningEnv,
   lead: CheckoutLead,
   options: {
-    // Preparation creates/link resources but keeps the shop suspended for calendar setup.
-    activate?: boolean;
     areaCodeOverride?: string;
     checkpoint?: (resources: ProvisioningCheckpoint) => Promise<void>;
   } = {},
@@ -403,9 +400,6 @@ export async function provisionLead(
     // it to list and switch between them, so every provisioned shop gets linked.
     if (!(await patchShop(env, shop.id, { account_id: accountId }))) {
       throw new Error("shop account link failed");
-    }
-    if (options.activate !== false && !(await patchShop(env, shop.id, { status: "active" }))) {
-      throw new Error("shop activation failed");
     }
     return {
       ok: true,

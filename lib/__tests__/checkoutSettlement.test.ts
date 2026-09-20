@@ -17,7 +17,6 @@ const lead: CheckoutLead = {
   billing: "monthly",
   basics: defaultBasics(),
   status: "created",
-  flowVersion: 2,
   setup,
 };
 const session: StripeCheckoutSession = {
@@ -38,9 +37,9 @@ describe("reviewed checkout settlement", () => {
     expect(lead.status).toBe("created");
     expect(settledLead(result, session)).toBe(result);
   });
-  it("preserves old paid-then-setup checkouts", () => {
-    expect(settledLead({ ...lead, flowVersion: undefined, setup: undefined }, session).status).toBe(
-      "paid",
+  it("refuses to settle a checkout with no reviewed setup behind it", () => {
+    expect(() => settledLead({ ...lead, setup: undefined }, session)).toThrow(
+      "Reviewed setup is invalid",
     );
   });
   it("does not resurrect cancellation or activation", () => {

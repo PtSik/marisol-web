@@ -35,8 +35,6 @@ const LEAD_TONE: Record<CheckoutLead["status"], Tone> = {
   pending_review: "amber",
   activating: "amber",
   activation_failed: "red",
-  setup_complete: "amber",
-  paid: "amber",
   created: "muted",
   cancellation_pending: "red",
   cancelled: "red",
@@ -275,11 +273,7 @@ function ActivationAction({ lead }: { lead: CheckoutLead }) {
   const prepared = isPreparedLead(lead);
   const clientAreaCode = usAreaCode(lead.setup.forwardNumber || lead.basics.businessPhone);
   return (
-    <ActionPanel
-      title={
-        prepared ? "Verify and activate" : lead.flowVersion === 2 ? "Prepare setup" : "Activation"
-      }
-    >
+    <ActionPanel title={prepared ? "Verify and activate" : "Prepare setup"}>
       <form method="post" action={`/api/admin/leads/${lead.id}/activate`} className="space-y-3">
         {!prepared && (
           <label className="block text-xs">
@@ -319,16 +313,16 @@ function ActivationAction({ lead }: { lead: CheckoutLead }) {
           </label>
         )}
         <SubmitButton>
-          {lead.flowVersion === 2 && !prepared
-            ? "Prepare number and calendar setup"
+          {prepared
+            ? "Activate receptionist"
             : lead.status === "activation_failed"
               ? "Review and retry activation"
-              : "Activate receptionist"}
+              : "Prepare number and calendar setup"}
         </SubmitButton>
         <Hint>
-          {lead.flowVersion === 2 && !prepared
-            ? "Buys and links a number, keeping the receptionist suspended. Connect and verify the calendar next."
-            : "Activates the receptionist and sends the welcome email. Complete the phone connection test with the owner."}
+          {prepared
+            ? "Activates the receptionist and sends the welcome email. Complete the phone connection test with the owner."
+            : "Buys and links a number, keeping the receptionist suspended. Connect and verify the calendar next."}
         </Hint>
       </form>
     </ActionPanel>

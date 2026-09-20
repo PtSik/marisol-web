@@ -1,8 +1,6 @@
 import { env } from "cloudflare:workers";
-import { ForwardingCard } from "@/components/onboarding/ForwardingCard";
 import { FunnelNav } from "@/components/onboarding/FunnelNav";
-import { SetupForm } from "@/components/onboarding/SetupForm";
-import { SetupCompleteHeading, ThanksHeading } from "@/components/onboarding/ThanksHeading";
+import { ThanksHeading } from "@/components/onboarding/ThanksHeading";
 import { settleCheckout } from "@/lib/checkoutSettlement";
 import {
   type Dict,
@@ -13,8 +11,7 @@ import {
   onboardingHref,
   parseLocale,
 } from "@/lib/i18n/dict";
-import { getLead, isCancellationState, isWaitingForActivation } from "@/lib/leads";
-import { VERTICAL_IDS, type Vertical } from "@/lib/onboarding";
+import { getLead, isCancellationState } from "@/lib/leads";
 import { TRIAL_DAYS } from "@/lib/plans";
 import type { PortalEnv } from "@/lib/portalApi";
 import { getSession, sessionIdFromCookies } from "@/lib/session";
@@ -40,16 +37,6 @@ interface ThanksEnv extends PortalEnv {
   STRIPE_SECRET_KEY?: string;
   LEADS_KV?: KVNamespace;
   RATE_LIMIT_KV?: KVNamespace;
-}
-
-function ConflictNote({ name, t }: { name: string; t: Dict["thanks"] }) {
-  return (
-    <p className="mb-6 rounded-[14px] border border-gold/30 bg-gold/10 px-5 py-4 t-body-sm text-gold-ink">
-      {t.gate.conflictBefore}
-      <strong>{name}</strong>
-      {t.gate.conflictAfter}
-    </p>
-  );
 }
 
 function Shell({
@@ -218,25 +205,19 @@ export default async function ThanksPage({ searchParams }: ThanksProps) {
   // First-salon setup is a logged-in-only flow: an account already exists by the time checkout
   // happens, so a stranger with a stale link gets sent to sign in rather than shown the lead.
   if (!portalSession) redirect("/login");
-  // And it has to be this account's own checkout — the setup API enforces the same rule. Checkouts
-  // from before account-first onboarding carry no account_id and fall through to the conflict notice.
+  // And it has to be this account's own checkout, the same rule the portal enforces.
   const checkoutAccountId = session.metadata?.account_id;
   if (checkoutAccountId && checkoutAccountId !== portalSession.accountId) redirect("/portal");
 
   const leadId = session.metadata?.lead_id;
   let lead = leadId ? await getLead(LEADS_KV, leadId) : null;
-  if (lead?.flowVersion === 2 && (lead.status === "created" || lead.status === "paid")) {
+  if (lead?.status === "created") {
     lead = await settleCheckout(LEADS_KV, session);
   }
   if (lead?.locale) {
     locale = lead.locale;
     t = getDict(locale).thanks;
   }
-
-  // Checkout is the last onboarding-owned screen. Once Stripe has settled the subscription,
-  // account status belongs in the portal so the client always has Overview, Calendar and Billing.
-  if (lead?.flowVersion === 2 && isWaitingForActivation(lead.status)) redirect("/portal");
-  if (lead?.flowVersion === 2 && lead.status === "provisioned") redirect("/portal");
 
   if (lead?.status && isCancellationState(lead.status)) {
     const pending = lead.status === "cancellation_pending";
@@ -256,62 +237,7 @@ export default async function ThanksPage({ searchParams }: ThanksProps) {
     );
   }
 
-  if (lead?.status && isWaitingForActivation(lead.status)) {
-    return (
-      <Shell locale={locale} email={email}>
-        <SetupCompleteHeading t={t} />
-        <NextSteps t={t} locale={locale} />
-        <ContactLine t={t} locale={locale} portal />
-      </Shell>
-    );
-  }
-
-  if (lead?.status === "provisioned") {
-    return (
-      <Shell locale={locale} email={email}>
-        <SetupCompleteHeading hasNumber={Boolean(lead.assignedNumber)} t={t} />
-        {lead.assignedNumber && (
-          <ForwardingCard
-            twilioNumber={lead.assignedNumber}
-            carrier={lead.setup?.carrier}
-            t={getDict(locale).forwarding}
-          />
-        )}
-        <a href="/portal" className="btn btn-lg btn-primary mx-auto mt-6 flex w-fit">
-          {t.dashboardCta}
-        </a>
-        <NextSteps t={t} locale={locale} />
-        <ContactLine t={t} locale={locale} portal />
-      </Shell>
-    );
-  }
-
-  const metaVertical = session.metadata?.vertical;
-  const vertical: Vertical = VERTICAL_IDS.includes(metaVertical as Vertical)
-    ? (metaVertical as Vertical)
-    : "barbershop";
-
-  // Signed into a different lead's account than this checkout: keep the form, flag the mismatch.
-  let conflictName: string | undefined;
-  if (portalSession.leadId && leadId && portalSession.leadId !== leadId) {
-    const otherLead = await getLead(LEADS_KV, portalSession.leadId);
-    conflictName = otherLead?.basics.businessName;
-  }
-
-  return (
-    <Shell locale={locale} email={email}>
-      {conflictName && <ConflictNote name={conflictName} t={t} />}
-      <SetupForm
-        sessionId={session_id}
-        vertical={vertical}
-        locale={locale}
-        completionContent={
-          <>
-            <NextSteps t={t} locale={locale} />
-            <ContactLine t={t} locale={locale} portal />
-          </>
-        }
-      />
-    </Shell>
-  );
+  // Checkout is the last onboarding-owned screen. Once Stripe has settled the subscription,
+  // account status belongs in the portal so the client always has Overview, Calendar and Billing.
+  redirect("/portal");
 }

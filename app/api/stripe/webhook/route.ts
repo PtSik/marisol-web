@@ -119,7 +119,7 @@ async function cancelSubscriptionSalons(
 }
 
 async function maybeSendReviewReceived(cfEnv: WebhookEnv, lead: CheckoutLead): Promise<void> {
-  if (lead.flowVersion !== 2 || lead.reviewEmailSentAt) return;
+  if (lead.reviewEmailSentAt) return;
   const sent = await sendReviewReceived(cfEnv, {
     email: lead.basics.email,
     businessName: lead.basics.businessName,

@@ -27,10 +27,7 @@ export async function portalAccessRedirect(
   const lead = await getLeadStrict(env.LEADS_KV, leadId);
   if (!lead) return "/account-status";
   if (lead.status === "created" && !session.shopId) return "/onboarding";
-  // "paid" waits for the portal but sits outside isWaitingForActivation: settleCheckout has
-  // not run yet, so there is no reviewed setup behind it.
-  if (options.allowPending && (isWaitingForActivation(lead.status) || lead.status === "paid"))
-    return null;
+  if (options.allowPending && isWaitingForActivation(lead.status)) return null;
   if (!isDashboardLocked(lead.status)) return null;
   if (lead.stripeSessionId) {
     const lang = lead.locale === "es" ? "&lang=es" : "";
