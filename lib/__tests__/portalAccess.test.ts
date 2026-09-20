@@ -11,6 +11,32 @@ const session: PortalSession = {
 function env(status: string, stripeSessionId?: string) {
   return { LEADS_KV: { get: async () => ({ status, stripeSessionId }) } as unknown as KVNamespace };
 }
+// The account-first branch: a login that has a salon but no lead behind it, so the shop row is the
+// only lifecycle there is. Its status list has to agree with voice-agent's CALLABLE_STATUSES, or
+// the portal opens for an owner whose number is not answering.
+function shopEnv(status: string) {
+  return {
+    LEADS_KV: { get: async () => null } as unknown as KVNamespace,
+    VOICE_AGENT_API_URL: "https://voice.test",
+    ADMIN_API_KEY: "admin-key",
+    VOICE_AGENT_API: {
+      fetch: async () => Response.json({ shop: { id: "shop-1", status } }),
+    } as unknown as Fetcher,
+  };
+}
+
+describe("portal access without a lead", () => {
+  it("opens only for the statuses that answer the phone", async () => {
+    const withShop = { ...session, leadId: undefined, shopId: "shop-1" };
+    for (const status of ["active", "demo"]) {
+      expect(await portalAccessRedirect(shopEnv(status), withShop)).toBeNull();
+    }
+    for (const status of ["suspended", "cancelled", "trial"]) {
+      expect(await portalAccessRedirect(shopEnv(status), withShop)).toBe("/account-status");
+    }
+  });
+});
+
 describe("portal lifecycle access", () => {
   it("sends an account with no lead or shop to setup after login", async () => {
     const newAccount = { ...session, leadId: undefined, shopId: undefined };

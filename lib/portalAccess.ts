@@ -20,9 +20,9 @@ export async function portalAccessRedirect(
     // valid setup account, not an inactive customer, so let it reach the wizard.
     if (!session.shopId) return "/onboarding";
     const shop = session.shopId ? await getShop(env, session.shopId) : null;
-    return shop && ["active", "trial", "demo"].includes(shop.status ?? "")
-      ? null
-      : "/account-status";
+    // The same list voice-agent's CALLABLE_STATUSES holds: a salon whose phone is not answering
+    // has nothing for its owner in the portal either. `trial` left both in migration 0021.
+    return shop && ["active", "demo"].includes(shop.status ?? "") ? null : "/account-status";
   }
   const lead = await getLeadStrict(env.LEADS_KV, leadId);
   if (!lead) return "/account-status";
