@@ -1,6 +1,7 @@
 import { afterEach, describe, expect, it } from "bun:test";
 import {
   type StripeSubscription,
+  canLaunchLocation,
   expireCheckoutSession,
   findPlanItem,
   lookupCheckoutSession,
@@ -138,5 +139,29 @@ describe("Checkout session lookup", () => {
       url: "https://api.stripe.com/v1/checkout/sessions/cs_open/expire",
       method: "POST",
     });
+  });
+});
+
+describe("canLaunchLocation", () => {
+  const sub = (over: Partial<StripeSubscription> = {}): StripeSubscription => ({
+    id: "sub_1",
+    status: "active",
+    ...over,
+  });
+
+  it("allows a subscription that is paying and staying", () => {
+    expect(canLaunchLocation(sub())).toBe(true);
+    expect(canLaunchLocation(sub({ status: "trialing" }))).toBe(true);
+  });
+
+  // The divergence from UPGRADABLE_STATUSES: a plan swap costs nothing up front, a new location
+  // buys a number. Both callers have to refuse these, or the portal takes a request activation
+  // will not honour.
+  it("refuses a subscription that is behind or on its way out", () => {
+    expect(canLaunchLocation(sub({ status: "past_due" }))).toBe(false);
+    expect(canLaunchLocation(sub({ cancel_at_period_end: true }))).toBe(false);
+    expect(canLaunchLocation(sub({ status: "canceled" }))).toBe(false);
+    expect(canLaunchLocation(sub({ status: undefined }))).toBe(false);
+    expect(canLaunchLocation(null)).toBe(false);
   });
 });

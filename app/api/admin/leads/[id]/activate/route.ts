@@ -23,7 +23,7 @@ import {
   provisionLead,
   sendProvisionedWelcome,
 } from "@/lib/provisioning";
-import { getSubscription, setSubscriptionExtraLocations } from "@/lib/stripe";
+import { canLaunchLocation, getSubscription, setSubscriptionExtraLocations } from "@/lib/stripe";
 import { isUsAreaCode } from "@/lib/twilio";
 import { voiceAgentFetch } from "@/lib/voiceAgent";
 import { cookies } from "next/headers";
@@ -139,11 +139,7 @@ export async function POST(
   const subscription = await getSubscription(cfEnv.STRIPE_SECRET_KEY, lead.stripeSubscriptionId);
   // Review-stage preparation buys a number. Never buy one for a customer whose trial is already
   // past due or set to cancel, even though those states can be eligible for a plan upgrade.
-  const billingReady =
-    !!subscription &&
-    (subscription.status === "trialing" || subscription.status === "active") &&
-    !subscription.cancel_at_period_end;
-  if (!billingReady) {
+  if (!canLaunchLocation(subscription)) {
     return back(request, "billing-inactive");
   }
 

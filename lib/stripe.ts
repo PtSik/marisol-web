@@ -111,6 +111,19 @@ export async function resumeSubscription(
 // A cancelled or never-paid subscription has nothing to prorate against, so it can't be upgraded.
 export const UPGRADABLE_STATUSES: ReadonlySet<string> = new Set(["trialing", "active", "past_due"]);
 
+// Tighter than UPGRADABLE_STATUSES because launching a location buys a number, which upgrading does
+// not. Intake and activation read the same gate — one accepting what the other refuses only strands
+// the request in the operator queue.
+export function canLaunchLocation(
+  subscription: StripeSubscription | null,
+): subscription is StripeSubscription {
+  return (
+    !!subscription &&
+    (subscription.status === "trialing" || subscription.status === "active") &&
+    !subscription.cancel_at_period_end
+  );
+}
+
 // Stripe documents no order for items.data, so the plan can never be taken by index — on an account
 // with extra locations that would swap the wrong line item's price.
 export function findPlanItem(

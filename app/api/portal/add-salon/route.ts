@@ -15,7 +15,7 @@ import { portalAccessRedirect } from "@/lib/portalAccess";
 import type { PortalEnv } from "@/lib/portalApi";
 import { overRateLimit } from "@/lib/rateLimit";
 import { getSession, sessionIdFromCookies } from "@/lib/session";
-import { UPGRADABLE_STATUSES, getSubscription } from "@/lib/stripe";
+import { canLaunchLocation, getSubscription } from "@/lib/stripe";
 
 export const dynamic = "force-dynamic";
 
@@ -75,7 +75,7 @@ export async function POST(request: Request): Promise<Response> {
     return Response.json({ error: "no active subscription" }, { status: 409 });
   }
   const subscription = await getSubscription(cfEnv.STRIPE_SECRET_KEY, primary.stripeSubscriptionId);
-  if (!subscription || !UPGRADABLE_STATUSES.has(subscription.status ?? "")) {
+  if (!canLaunchLocation(subscription)) {
     return Response.json({ error: "subscription not billable" }, { status: 409 });
   }
 
