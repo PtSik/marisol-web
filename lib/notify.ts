@@ -10,7 +10,6 @@ export interface NotifyEnv {
   LEAD_NOTIFY_EMAIL?: string;
   RESEND_FROM?: string;
   CLIENT_EMAIL_FROM?: string;
-  GCAL_SHARE_EMAIL?: string;
 }
 
 async function sendEmail(

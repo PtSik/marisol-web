@@ -31,7 +31,6 @@ export interface ProvisioningEnv extends VoiceAgentEnv {
   LEAD_NOTIFY_EMAIL?: string;
   RESEND_FROM?: string;
   CLIENT_EMAIL_FROM?: string;
-  GCAL_SHARE_EMAIL?: string;
   STRIPE_SECRET_KEY?: string;
   STRIPE_REFERRAL_COUPON?: string;
 }

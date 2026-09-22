@@ -63,7 +63,6 @@
     // sales cannot reach a paying shop. Leave the ES id empty until a Spanish-opening clone
     // exists — the pool falls back to the English one, which still switches mid-call.
     "ONBOARDING_PREVIEW_AGENT_ID": "agent_6801m2j748mpez1bvn58skcffh60",
-    "GCAL_SHARE_EMAIL": "bookings@marisol-voice.iam.gserviceaccount.com",
     // 10%-off, duration=once coupon that referred clients redeem via their referrer's code.
     "STRIPE_REFERRAL_COUPON": "marisol_referral_10off",
     // Session cookie is shared across the apex and app.callmarisol.com; unset on localhost dev.
@@ -106,7 +105,6 @@
         "GROOMING_AGENT_ID": "agent_2501ktmhtm2wf8789jqdtkbj7jdr",
         "BARBER_AGENT_ID": "agent_8301ks8brwmbedw8nv1sgnwwcdfw",
         "ONBOARDING_PREVIEW_AGENT_ID": "agent_6801m2j748mpez1bvn58skcffh60",
-        "GCAL_SHARE_EMAIL": "bookings@marisol-voice.iam.gserviceaccount.com",
         "STRIPE_REFERRAL_COUPON": "marisol_referral_10off",
         // Scoped to the preview host so a session minted on test/ never travels to the apex or the
         // app.callmarisol.com dashboard. Production's own cookies still reach this host — hence the

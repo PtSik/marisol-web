@@ -56,7 +56,6 @@ interface OnboardingEnv extends PlanPriceEnv {
   LEAD_NOTIFY_EMAIL?: string;
   RESEND_FROM?: string;
   CLIENT_EMAIL_FROM?: string;
-  GCAL_SHARE_EMAIL?: string;
   VOICE_AGENT_API?: Fetcher;
   VOICE_AGENT_API_URL?: string;
   ADMIN_API_KEY?: string;
