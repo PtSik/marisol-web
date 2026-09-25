@@ -51,6 +51,13 @@ export const canAddLocation = (plan: Plan): boolean => plan !== "basic";
 export const extraLocationCount = (plan: Plan, totalSalons: number): number =>
   Math.max(0, totalSalons - PLAN_SALON_LIMIT[plan]);
 
+// What the extra-location line item is for: a salon whose number answers. Provisioning leaves a
+// prepared shop suspended until an operator launches it, so counting everything not cancelled
+// charged an owner for a location their callers cannot reach. Every billing path derives the
+// quantity through this, so activation, upgrade and removal cannot drift apart.
+export const billableSalons = (shops: { status?: string }[]): number =>
+  shops.filter((shop) => shop.status === "active").length;
+
 const PLAN_RANK: Record<Plan, number> = { basic: 0, complete: 1, growth: 2 };
 
 // Used for labels and sales choices. The portal supports both directions by swapping the existing

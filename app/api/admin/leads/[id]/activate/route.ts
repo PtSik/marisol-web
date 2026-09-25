@@ -15,7 +15,7 @@ import {
 } from "@/lib/leads";
 import { notifyTeam } from "@/lib/notify";
 import { validateSetupPayload } from "@/lib/onboarding";
-import { extraLocationCount, normalizePlan } from "@/lib/plans";
+import { billableSalons, extraLocationCount, normalizePlan } from "@/lib/plans";
 import { getShop, listAccountShopsStrict } from "@/lib/portalApi";
 import {
   type ProvisioningEnv,
@@ -53,8 +53,7 @@ async function billAdditionalLocation(cfEnv: ActivationEnv, lead: CheckoutLead):
     });
     return;
   }
-  const activeSalons = shops.filter((shop) => shop.status !== "cancelled").length;
-  const quantity = extraLocationCount(normalizePlan(lead.plan), activeSalons);
+  const quantity = extraLocationCount(normalizePlan(lead.plan), billableSalons(shops));
   const billed =
     subscription &&
     cfEnv.STRIPE_PRICE_EXTRA_LOCATION_MONTHLY &&

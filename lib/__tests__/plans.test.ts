@@ -6,7 +6,9 @@ import {
   PRICE,
   annualSavingPerYear,
   annualTotal,
+  billableSalons,
   canAddLocation,
+  extraLocationCount,
   isUpgrade,
   maxAnnualSaving,
   normalizePlan,
@@ -94,5 +96,19 @@ describe("normalizePlan", () => {
     for (const plan of PLAN_OPTIONS) expect(normalizePlan(plan)).toBe(plan);
     expect(normalizePlan(undefined)).toBe("basic");
     expect(normalizePlan("enterprise")).toBe("basic");
+  });
+});
+
+describe("billableSalons", () => {
+  // The case that overcharged: one live salon, one just launched, one merely prepared. Preparation
+  // leaves a shop suspended, so counting everything not cancelled billed two extra locations.
+  it("counts salons that answer, not salons that exist", () => {
+    const shops = [{ status: "active" }, { status: "active" }, { status: "suspended" }];
+    expect(billableSalons(shops)).toBe(2);
+    expect(extraLocationCount("complete", billableSalons(shops))).toBe(1);
+  });
+
+  it("ignores cancelled and unknown statuses", () => {
+    expect(billableSalons([{ status: "cancelled" }, { status: undefined }, {}])).toBe(0);
   });
 });

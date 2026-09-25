@@ -1,7 +1,7 @@
 import { env } from "cloudflare:workers";
 import { getLead, getLeadIdForShop, putLead } from "@/lib/leads";
 import { notifyTeam } from "@/lib/notify";
-import { extraLocationCount, normalizePlan } from "@/lib/plans";
+import { billableSalons, extraLocationCount, normalizePlan } from "@/lib/plans";
 import { portalAccessRedirect } from "@/lib/portalAccess";
 import { type PortalEnv, listAccountShopsStrict } from "@/lib/portalApi";
 import { deprovisionLead, deprovisionShop } from "@/lib/provisioning";
@@ -85,7 +85,7 @@ export async function POST(request: Request): Promise<Response> {
     // Re-derive from what's actually left rather than assuming activeBefore-1, so a concurrent
     // add or remove can't drift the extra-location quantity off the real salon count.
     const remainingShops = await listAccountShopsStrict(cfEnv, session.accountId);
-    const remaining = remainingShops?.filter((s) => s.status !== "cancelled").length;
+    const remaining = remainingShops ? billableSalons(remainingShops) : undefined;
     const quantity =
       remaining === undefined
         ? undefined

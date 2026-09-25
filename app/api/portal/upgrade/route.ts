@@ -6,6 +6,7 @@ import {
   PLAN_LABELS,
   PLAN_OPTIONS,
   type Plan,
+  billableSalons,
   extraLocationCount,
   isUpgrade,
   normalizePlan,
@@ -112,7 +113,7 @@ export async function POST(request: Request): Promise<Response> {
 
   // Re-derived absolutely, like add and remove do — every plan covers one salon, so this is a no-op
   // on a single-salon account and keeps the quantity honest on a multi-salon one.
-  const quantity = extraLocationCount(target, activeShops.length);
+  const quantity = extraLocationCount(target, billableSalons(listedShops));
   const rebilled =
     STRIPE_PRICE_EXTRA_LOCATION_MONTHLY && STRIPE_PRICE_EXTRA_LOCATION_ANNUAL
       ? await setSubscriptionExtraLocations(cfEnv.STRIPE_SECRET_KEY, {
