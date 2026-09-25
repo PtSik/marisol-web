@@ -160,9 +160,7 @@ function serviceRows(lead: CheckoutLead): ServiceRow[] {
       const priced = Boolean(service.price.trim());
       return {
         name: service.name.trim(),
-        duration: service.durationMaxMin?.trim()
-          ? `${service.durationMin}–${service.durationMaxMin} min`
-          : `${service.durationMin} min`,
+        duration: `${service.durationMin} min`,
         price: service.priceMax?.trim()
           ? `$${service.price}–$${service.priceMax}`
           : priced

@@ -60,7 +60,10 @@ export function isOnboardingDraft(value: unknown): value is OnboardingDraft {
         str(v.name, 120) &&
         str(v.durationMin, 5) &&
         str(v.price, 10) &&
-        (v.durationMaxMin == null || str(v.durationMaxMin, 5)) &&
+        // A draft written before durations became a single number still carries this key. Tolerate
+        // it on read — the wizard collapses it — rather than rejecting the owner's saved work.
+        ((v as { durationMaxMin?: unknown }).durationMaxMin == null ||
+          str((v as { durationMaxMin?: unknown }).durationMaxMin, 5)) &&
         (v.priceMax == null || str(v.priceMax, 10)),
     ) &&
     Array.isArray(s.staff) &&
@@ -68,7 +71,6 @@ export function isOnboardingDraft(value: unknown): value is OnboardingDraft {
     s.staff.every(
       (v) => v && str(v.id, 40) && str(v.name, 120) && (v.hours == null || hours(v.hours)),
     ) &&
-    (s.fixedDurations === undefined || typeof s.fixedDurations === "boolean") &&
     typeof s.staffCustomHours === "boolean" &&
     (s.calendar === "google_calendar" || s.calendar === "none") &&
     str(s.forwardNumber, 120) &&

@@ -63,7 +63,6 @@ export function importServices(raw: string | null, confidence: string | null): S
       name: text(v.name, 120),
       durationMin: text(v.durationMin, 5),
       price: text(v.price, 10),
-      durationMaxMin: text(v.durationMaxMin, 5),
       priceMax: text(v.priceMax, 10),
     }));
 }

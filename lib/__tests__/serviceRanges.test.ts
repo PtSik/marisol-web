@@ -10,7 +10,6 @@ function base() {
     name: string;
     durationMin: string;
     price: string;
-    durationMaxMin?: string;
     priceMax?: string;
   };
 }
@@ -24,35 +23,20 @@ describe("toServiceCatalog", () => {
     expect(catalog([svc()])).toEqual([{ name: "Full Groom", duration_minutes: 90, price: 65 }]);
   });
 
-  it("sends both bounds when the owner gave an upper one", () => {
-    expect(catalog([svc({ durationMaxMin: "210", priceMax: "110" })])).toEqual([
-      {
-        name: "Full Groom",
-        duration_minutes: 90,
-        duration_max_minutes: 210,
-        price: 65,
-        price_max: 110,
-      },
-    ]);
-  });
-
-  it("ranges duration and price independently", () => {
-    expect(catalog([svc({ durationMaxMin: "210" })])).toEqual([
-      { name: "Full Groom", duration_minutes: 90, duration_max_minutes: 210, price: 65 },
-    ]);
+  it("sends the price ceiling when the owner gave one", () => {
     expect(catalog([svc({ priceMax: "110" })])).toEqual([
       { name: "Full Groom", duration_minutes: 90, price: 65, price_max: 110 },
     ]);
   });
 
-  it("omits an upper bound equal to the lower one", () => {
-    expect(catalog([svc({ durationMaxMin: "90", priceMax: "65" })])).toEqual([
+  it("omits a price ceiling equal to the price", () => {
+    expect(catalog([svc({ priceMax: "65" })])).toEqual([
       { name: "Full Groom", duration_minutes: 90, price: 65 },
     ]);
   });
 
-  it("treats a blank upper bound as no range", () => {
-    expect(catalog([svc({ durationMaxMin: "  ", priceMax: "" })])).toEqual([
+  it("treats a blank price ceiling as no range", () => {
+    expect(catalog([svc({ priceMax: "" })])).toEqual([
       { name: "Full Groom", duration_minutes: 90, price: 65 },
     ]);
   });
@@ -69,7 +53,7 @@ describe("toServiceCatalog", () => {
   });
 });
 
-describe("validateSetupPayload — service ranges", () => {
+describe("validateSetupPayload — price ranges", () => {
   // Mirrors the fixture in onboarding.test.ts: a setup both sides already accept, so each case
   // changes exactly one thing — the services.
   const setup = (services: ReturnType<typeof svc>[]) => ({
@@ -83,21 +67,15 @@ describe("validateSetupPayload — service ranges", () => {
     expect(validateSetupPayload(setup([svc()]))).toBeNull();
   });
 
-  it("accepts well-formed ranges", () => {
-    expect(
-      validateSetupPayload(setup([svc({ durationMaxMin: "210", priceMax: "110" })])),
-    ).toBeNull();
+  it("accepts a well-formed price range", () => {
+    expect(validateSetupPayload(setup([svc({ priceMax: "110" })]))).toBeNull();
   });
 
-  it("rejects a duration whose upper bound is below its lower bound", () => {
-    expect(validateSetupPayload(setup([svc({ durationMaxMin: "30" })]))).toBe("invalid services");
-  });
-
-  it("rejects a price whose upper bound is below its lower bound", () => {
+  it("rejects a price whose ceiling is below its floor", () => {
     expect(validateSetupPayload(setup([svc({ priceMax: "10" })]))).toBe("invalid services");
   });
 
-  it("allows an upper bound equal to the lower bound", () => {
-    expect(validateSetupPayload(setup([svc({ durationMaxMin: "90", priceMax: "65" })]))).toBeNull();
+  it("allows a ceiling equal to the price", () => {
+    expect(validateSetupPayload(setup([svc({ priceMax: "65" })]))).toBeNull();
   });
 });

@@ -154,7 +154,7 @@ export function SetupFields({
         </fieldset>
       )}
 
-      {(section === "services" || (!section && setup.fixedDurations)) && (
+      {(section === "services" || !section) && (
         <ServiceFields
           setup={setup}
           patch={patch}
@@ -164,132 +164,6 @@ export function SetupFields({
           error={errors.services}
           namePlaceholder={fill(t.serviceNameExample, { name: t.servicePresets[vertical][0] })}
         />
-      )}
-      {!section && !setup.fixedDurations && (
-        <fieldset className="m-0 border-0 p-0">
-          <legend className="mb-1 t-body-sm font-medium text-ink">{t.servicesLegend}</legend>
-          <p className="mb-[10px] t-caption text-muted-2">
-            {fill(t.servicesHint, { kind: t.verticalKind[vertical] })}
-          </p>
-          <div className="flex flex-col gap-2">
-            {setup.services.map((svc, i) => {
-              const setSvc = (partial: Partial<typeof svc>) =>
-                patch({
-                  services: setup.services.map((s, j) => (j === i ? { ...s, ...partial } : s)),
-                });
-              return (
-                // biome-ignore lint/suspicious/noArrayIndexKey: rows are positional and editable
-                <div key={i} className="flex flex-wrap items-center gap-2">
-                  <label className="sr-only" htmlFor={`ob-svc-name-${i}`}>
-                    {fill(t.serviceNameAria, { n: i + 1 })}
-                  </label>
-                  <input
-                    id={`ob-svc-name-${i}`}
-                    className={`${inputCls} min-w-[160px] flex-1`}
-                    value={svc.name}
-                    onChange={(e) => setSvc({ name: e.target.value })}
-                    placeholder={t.serviceNamePlaceholder}
-                  />
-                  <label className="sr-only" htmlFor={`ob-svc-dur-${i}`}>
-                    {fill(t.serviceDurationAria, { n: i + 1 })}
-                  </label>
-                  <div className="flex items-center gap-1">
-                    <input
-                      id={`ob-svc-dur-${i}`}
-                      type="number"
-                      min="5"
-                      step="5"
-                      className={`${inputCls} w-[74px]`}
-                      value={svc.durationMin}
-                      onChange={(e) => setSvc({ durationMin: e.target.value })}
-                    />
-                    <span aria-hidden="true" className="t-caption text-muted-2">
-                      –
-                    </span>
-                    <label className="sr-only" htmlFor={`ob-svc-dur-max-${i}`}>
-                      {fill(t.serviceDurationMaxAria, { n: i + 1 })}
-                    </label>
-                    <div className="relative">
-                      <input
-                        id={`ob-svc-dur-max-${i}`}
-                        type="number"
-                        min="5"
-                        step="5"
-                        className={`${inputCls} w-[96px] pr-11`}
-                        value={svc.durationMaxMin ?? ""}
-                        onChange={(e) => setSvc({ durationMaxMin: e.target.value })}
-                        placeholder={t.serviceRangeOptional}
-                      />
-                      <span className="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 t-caption text-muted-2">
-                        {t.serviceMinAbbr}
-                      </span>
-                    </div>
-                  </div>
-                  <label className="sr-only" htmlFor={`ob-svc-price-${i}`}>
-                    {fill(t.servicePriceAria, { n: i + 1 })}
-                  </label>
-                  <div className="flex items-center gap-1">
-                    <div className="relative">
-                      <span className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 t-body-sm text-muted-2">
-                        $
-                      </span>
-                      <input
-                        id={`ob-svc-price-${i}`}
-                        type="number"
-                        min="0"
-                        className={`${inputCls} w-[86px] pl-7`}
-                        value={svc.price}
-                        onChange={(e) => setSvc({ price: e.target.value })}
-                      />
-                    </div>
-                    <span aria-hidden="true" className="t-caption text-muted-2">
-                      –
-                    </span>
-                    <label className="sr-only" htmlFor={`ob-svc-price-max-${i}`}>
-                      {fill(t.servicePriceMaxAria, { n: i + 1 })}
-                    </label>
-                    <div className="relative">
-                      <span className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 t-body-sm text-muted-2">
-                        $
-                      </span>
-                      <input
-                        id={`ob-svc-price-max-${i}`}
-                        type="number"
-                        min="0"
-                        className={`${inputCls} w-[92px] pl-7`}
-                        value={svc.priceMax ?? ""}
-                        onChange={(e) => setSvc({ priceMax: e.target.value })}
-                        placeholder={t.serviceRangeOptional}
-                      />
-                    </div>
-                  </div>
-                  <button
-                    type="button"
-                    aria-label={fill(t.removeService, { name: svc.name || i + 1 })}
-                    onClick={() => patch({ services: setup.services.filter((_, j) => j !== i) })}
-                    className="flex h-11 w-11 items-center justify-center rounded-[10px] text-muted-2 transition-colors hover:bg-cream-200"
-                  >
-                    ✕
-                  </button>
-                </div>
-              );
-            })}
-          </div>
-          <button
-            type="button"
-            onClick={() =>
-              patch({ services: [...setup.services, { name: "", durationMin: "30", price: "" }] })
-            }
-            className="mt-3 min-h-[44px] t-body-sm font-medium text-teal"
-          >
-            {t.addService}
-          </button>
-          {errors.services && (
-            <p role="alert" className="mt-2 t-caption font-medium text-danger">
-              {errors.services}
-            </p>
-          )}
-        </fieldset>
       )}
 
       {(!section || section === "staff") && (

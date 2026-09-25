@@ -1,6 +1,6 @@
 import { afterEach, describe, expect, it } from "bun:test";
 import type { CheckoutLead } from "@/lib/leads";
-import { defaultSetup, fixedOnboardingPresets } from "@/lib/onboarding";
+import { defaultSetup } from "@/lib/onboarding";
 import { deprovisionLead, deprovisionShop, provisionLead } from "@/lib/provisioning";
 
 const originalFetch = globalThis.fetch;
@@ -13,8 +13,7 @@ function lead(overrides: Partial<CheckoutLead> = {}): CheckoutLead {
   const setup = defaultSetup("grooming", ["Full groom"]);
   setup.forwardNumber = "+1 (305) 555-0100";
   setup.staff[0].name = "Ana";
-  setup.services = fixedOnboardingPresets("grooming", ["Full groom"]).slice(0, 1);
-  setup.fixedDurations = true;
+  setup.services = defaultSetup("grooming", ["Full groom"]).services.slice(0, 1);
   return {
     id: "lead-1",
     createdAt: "2026-09-03T12:00:00Z",

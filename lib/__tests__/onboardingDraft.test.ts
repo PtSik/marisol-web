@@ -92,7 +92,6 @@ describe("safe business imports and previews", () => {
       name: "Groom",
       durationMin: "",
       price: "",
-      durationMaxMin: "",
       priceMax: "",
     });
     expect(importServices('[{"name":"Groom","price":"50"}]', "low")).toEqual([]);

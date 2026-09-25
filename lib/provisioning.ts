@@ -95,8 +95,6 @@ export function toServiceCatalog(setup: SetupDetails) {
         name: s.name.trim(),
         duration_minutes: Number(s.durationMin),
       };
-      const durationMax = upper(s.durationMin, s.durationMaxMin);
-      if (durationMax !== undefined) entry.duration_max_minutes = durationMax;
       const price = num(s.price);
       if (price !== undefined) {
         entry.price = price;

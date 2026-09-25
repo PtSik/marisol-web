@@ -6,7 +6,7 @@ import {
   type ServiceEntry,
   type SetupDetails,
   type Vertical,
-  fixedOnboardingPresets,
+  defaultSetup,
 } from "@/lib/onboarding";
 
 export function ServiceFields({
@@ -27,21 +27,19 @@ export function ServiceFields({
   namePlaceholder: string;
 }) {
   const t = getDict(locale).setup.serviceEditor;
-  const ranged = setup.services.filter((service) => service.durationMaxMin?.trim());
   const isEmptyRow = (service: ServiceEntry) =>
     !service.name.trim() &&
     (!service.durationMin.trim() || service.durationMin === "30") &&
-    !service.durationMaxMin?.trim() &&
     !service.price.trim() &&
     !service.priceMax?.trim();
   const existing = setup.services.filter((service) => !isEmptyRow(service));
   const existingNames = new Set(existing.map((service) => service.name.trim().toLowerCase()));
   const namesEn = getDict("en").setup.servicePresets[vertical];
   const namesEs = getDict("es").setup.servicePresets[vertical];
-  const examples = fixedOnboardingPresets(
+  const examples = defaultSetup(
     vertical,
     getDict(locale).setup.servicePresets[vertical],
-  ).filter(
+  ).services.filter(
     (_, index) =>
       !existingNames.has(namesEn[index].toLowerCase()) &&
       !existingNames.has(namesEs[index].toLowerCase()),
@@ -72,27 +70,6 @@ export function ServiceFields({
             {t.examplesCta}
           </button>
         </div>
-      )}
-      {ranged.length > 0 && (
-        <button
-          type="button"
-          className="t-body-sm font-medium text-teal underline"
-          onClick={() =>
-            patch({
-              services: setup.services.map((service) =>
-                service.durationMaxMin?.trim()
-                  ? {
-                      ...service,
-                      durationMin: service.durationMaxMin,
-                      durationMaxMin: "",
-                    }
-                  : service,
-              ),
-            })
-          }
-        >
-          {fill(ranged.length === 1 ? t.useLongestOne : t.useLongestMany, { n: ranged.length })}
-        </button>
       )}
       {setup.services.map((service, i) => {
         const update = (value: Partial<ServiceEntry>) =>
@@ -136,7 +113,7 @@ export function ServiceFields({
                   max={1440}
                   step={5}
                   value={service.durationMin}
-                  onChange={(e) => update({ durationMin: e.target.value, durationMaxMin: "" })}
+                  onChange={(e) => update({ durationMin: e.target.value })}
                 />
               </Field>
               <Field label={t.price} htmlFor={`service-price-${i}`} hint={t.priceHint}>
@@ -152,25 +129,6 @@ export function ServiceFields({
                 />
               </Field>
             </div>
-            {service.durationMaxMin?.trim() && (
-              <div role="alert" className="mt-3 rounded-xl bg-cream p-3 t-body-sm">
-                <p>
-                  {fill(t.rangeNote, {
-                    min: service.durationMin,
-                    max: service.durationMaxMin ?? "",
-                  })}
-                </p>
-                <button
-                  type="button"
-                  className="mt-2 font-medium text-teal underline"
-                  onClick={() =>
-                    update({ durationMin: service.durationMaxMin ?? "", durationMaxMin: "" })
-                  }
-                >
-                  {fill(t.rangeCta, { max: service.durationMaxMin ?? "" })}
-                </button>
-              </div>
-            )}
             <details className="mt-3" open={service.priceMax?.trim() ? true : undefined}>
               <summary className="cursor-pointer t-caption text-teal">{t.priceVaries}</summary>
               <div className="mt-3">

@@ -589,9 +589,6 @@ export const es: Dict = {
     openTimeAria: "Hora de apertura del {day}",
     closeTimeAria: "Hora de cierre del {day}",
     forStaff: " de {name}",
-    servicesLegend: "Servicios",
-    servicesHint:
-      "Precargados para una {kind} — edita nombres, duraciones y precios para que coincidan con los tuyos. Si un servicio varía, agrega también el máximo y el agente dará el rango.",
     verticalKind: { barbershop: "barbería", grooming: "peluquería canina" },
     servicePresets: {
       barbershop: ["Corte de pelo", "Recorte de barba", "Corte + barba"],
@@ -602,16 +599,7 @@ export const es: Dict = {
         "Corte de uñas",
       ],
     },
-    serviceNameAria: "Nombre del servicio {n}",
-    serviceNamePlaceholder: "Nombre del servicio",
     serviceNameExample: "Ej. {name}",
-    serviceDurationAria: "Duración en minutos del servicio {n}, mínima",
-    serviceDurationMaxAria: "Duración en minutos del servicio {n}, máxima (opcional)",
-    serviceMinAbbr: "min",
-    servicePriceAria: "Precio en dólares del servicio {n}, mínimo",
-    servicePriceMaxAria: "Precio en dólares del servicio {n}, máximo (opcional)",
-    serviceRangeOptional: "cualq.",
-    removeService: "Quitar el servicio {name}",
     addService: "+ Agregar servicio",
     serviceEditor: {
       intro:
@@ -619,17 +607,12 @@ export const es: Dict = {
       examplesLead:
         "A\u00f1ade opciones de ejemplo junto a tus servicios. Los nombres y tiempos son sugerencias; los precios quedan vac\u00edos.",
       examplesCta: "A\u00f1adir servicios de ejemplo",
-      useLongestOne: "Usar el tiempo m\u00e1ximo en {n} servicio",
-      useLongestMany: "Usar el tiempo m\u00e1ximo en {n} servicios",
       rowLabel: "Servicio",
       remove: "Eliminar",
       name: "Nombre del servicio",
       duration: "Duraci\u00f3n (minutos)",
       price: "Precio ($)",
       priceHint: "Opcional si a\u00fan no se sabe",
-      rangeNote:
-        "Este servicio muestra un rango estimado de {min}\u2013{max} minutos. Si eliges {max}, cada cita bloquear\u00e1 ese tiempo en el calendario. Puedes escribir otro tiempo arriba.",
-      rangeCta: "Usar {max} minutos para este servicio",
       priceVaries: "El precio var\u00eda",
       priceMax: "Precio m\u00e1ximo ($)",
       priceMaxHint: "El cliente escucha un rango, p. ej. $75\u2013$110.",

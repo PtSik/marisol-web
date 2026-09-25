@@ -1,23 +1,15 @@
 import { describe, expect, it } from "bun:test";
 import { getDict } from "@/lib/i18n/dict";
-import {
-  defaultSetup,
-  fixedOnboardingPresets,
-  upgradeUneditedPresetRanges,
-  validateSetupPayload,
-} from "@/lib/onboarding";
+import { collapseLegacyDurationRanges, defaultSetup, validateSetupPayload } from "@/lib/onboarding";
 
 const en = getDict("en").setup.servicePresets.grooming;
-const es = getDict("es").setup.servicePresets.grooming;
 
 describe("onboarding service examples", () => {
-  it("offers fixed booking lengths that can advance without hidden range errors", () => {
-    const services = fixedOnboardingPresets("grooming", en);
+  it("offers one appointment length per grooming example, the longest the job runs", () => {
+    const services = defaultSetup("grooming", en).services;
     expect(services.map((s) => s.durationMin)).toEqual(["75", "120", "210", "15"]);
-    expect(services.every((s) => !s.durationMaxMin)).toBe(true);
     const setup = {
       ...defaultSetup("grooming", en),
-      fixedDurations: true,
       services,
       forwardNumber: "+13055550100",
       staff: [{ id: "ana", name: "Ana", hours: null }],
@@ -25,16 +17,28 @@ describe("onboarding service examples", () => {
     expect(validateSetupPayload(setup)).toBeNull();
   });
 
-  it("repairs saved untouched EN/ES examples while retaining owner edits", () => {
-    const old = defaultSetup("grooming", en).services;
-    const edited = { ...old[0], name: "Custom bath", durationMin: "60" };
-    const restored = [edited, old[1], old[2], old[3]];
-    const upgraded = upgradeUneditedPresetRanges(restored, "grooming", [en, es]);
-    expect(upgraded[0]).toBe(edited);
-    expect(upgraded[1]).toEqual({ ...old[1], durationMin: "120", durationMaxMin: "" });
-    expect(upgraded[2].durationMin).toBe("210");
-    expect(upgradeUneditedPresetRanges(upgraded, "grooming", [en, es])).toBe(upgraded);
-    const spanish = defaultSetup("grooming", es).services;
-    expect(upgradeUneditedPresetRanges(spanish, "grooming", [en, es])[0].durationMin).toBe("75");
+  it("keeps the price spread, which is the one range grooming still needs", () => {
+    const services = defaultSetup("grooming", en).services;
+    expect(services.map((s) => s.priceMax ?? "")).toEqual(["55", "75", "110", ""]);
+  });
+});
+
+describe("collapseLegacyDurationRanges", () => {
+  // A draft saved before durations became a single number. The upper bound is the slot the
+  // receptionist now reserves, so keeping the short end would quietly shorten every appointment.
+  const legacy = (over: Record<string, string> = {}) =>
+    [
+      { name: "Full Groom", durationMin: "45", durationMaxMin: "75", price: "40", ...over },
+    ] as unknown as ReturnType<typeof defaultSetup>["services"];
+
+  it("collapses a stale range to its upper bound and drops the key", () => {
+    expect(collapseLegacyDurationRanges(legacy())).toEqual([
+      { name: "Full Groom", durationMin: "75", price: "40" },
+    ]);
+  });
+
+  it("returns the same array when there is nothing to collapse", () => {
+    const services = defaultSetup("grooming", en).services;
+    expect(collapseLegacyDurationRanges(services)).toBe(services);
   });
 });

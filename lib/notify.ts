@@ -74,9 +74,7 @@ function formatServices(services: ServiceEntry[]): string {
   return services
     .filter((s) => s.name.trim())
     .map((s) => {
-      const dur = s.durationMaxMin?.trim()
-        ? `${s.durationMin.trim()}-${s.durationMaxMin.trim()}`
-        : s.durationMin.trim();
+      const dur = s.durationMin.trim();
       const price = s.priceMax?.trim() ? `${s.price.trim()}-${s.priceMax.trim()}` : s.price.trim();
       const extra = [dur && `${dur} min`, price && `$${price}`].filter(Boolean).join(", ");
       return extra ? `${s.name} (${extra})` : s.name;

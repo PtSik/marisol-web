@@ -31,12 +31,12 @@ export function openingLanguage(setup: SetupDetails, fallback: Locale): Locale {
 
 export interface ServiceEntry {
   name: string;
+  // One number: it is the slot the receptionist reserves, and the answer to "when can I collect".
   durationMin: string;
   price: string;
-  // Optional upper bounds. A grooming full groom is 60 minutes on a Yorkie and 3 hours on a matted
-  // Bernedoodle, and the price moves with it — one number is always a lie for those shops. Left blank
-  // (the barbershop case, and every shop onboarded before these existed) the entry stays a flat value.
-  durationMaxMin?: string;
+  // Price alone may be a range. Nothing computes with it — it is only spoken — and a groomer cannot
+  // quote one figure for a job that is $40 on a Yorkie and $55 on a matted Bernedoodle. Left blank
+  // (the barbershop case) the entry reads as a flat price.
   priceMax?: string;
 }
 
@@ -47,12 +47,13 @@ export const SERVICE_PRESETS: Record<Vertical, Omit<ServiceEntry, "name">[]> = {
     { durationMin: "20", price: "20" },
     { durationMin: "45", price: "50" },
   ],
-  // Grooming ships with ranges filled in: the spread is the point for this vertical, and a pre-filled
-  // example teaches it faster than help text. A nail trim stays flat — it doesn't vary by dog.
+  // Grooming ships with price ranges filled in: the spread is the point for this vertical, and a
+  // pre-filled example teaches it faster than help text. Durations are the slot to reserve, so they
+  // carry the longest the job runs. A nail trim stays flat — it doesn't vary by dog.
   grooming: [
-    { durationMin: "45", durationMaxMin: "75", price: "40", priceMax: "55" },
-    { durationMin: "75", durationMaxMin: "120", price: "55", priceMax: "75" },
-    { durationMin: "120", durationMaxMin: "210", price: "75", priceMax: "110" },
+    { durationMin: "75", price: "40", priceMax: "55" },
+    { durationMin: "120", price: "55", priceMax: "75" },
+    { durationMin: "210", price: "75", priceMax: "110" },
     { durationMin: "15", price: "15" },
   ],
 };
@@ -117,7 +118,6 @@ export interface StaffEntry {
 }
 
 export interface SetupDetails {
-  fixedDurations?: boolean;
   hours: WeekHours;
   services: ServiceEntry[];
   staff: StaffEntry[];
@@ -180,20 +180,6 @@ export function defaultSetup(vertical: Vertical, serviceNames: readonly string[]
   };
 }
 
-// This wizard books with a fixed server-owned duration. The legacy example catalog uses ranges
-// for grooming, so convert its upper bound to the proposed reserved slot before showing it.
-// An owner must still review those example lengths and prices before Checkout.
-export function fixedOnboardingPresets(
-  vertical: Vertical,
-  serviceNames: readonly string[],
-): ServiceEntry[] {
-  return defaultSetup(vertical, serviceNames).services.map((service) => ({
-    ...service,
-    durationMin: service.durationMaxMin?.trim() || service.durationMin,
-    durationMaxMin: "",
-  }));
-}
-
 // True only while the menu is still, row for row, this vertical's untouched example set in either
 // language. That is what lets a change of vertical swap the examples out: anything the owner typed
 // over is their data and outranks the switch.
@@ -202,41 +188,30 @@ export function isExampleMenu(
   vertical: Vertical,
   localizedNames: ReadonlyArray<readonly string[]>,
 ): boolean {
-  const presets = fixedOnboardingPresets(vertical, []);
+  const presets = defaultSetup(vertical, []).services;
   if (!services.length || services.length !== presets.length) return false;
   return services.every((service, index) => {
     const preset = presets[index];
     return (
       localizedNames.some((names) => names[index] === service.name) &&
       service.durationMin === preset.durationMin &&
-      (service.durationMaxMin ?? "") === (preset.durationMaxMin ?? "") &&
       service.price === preset.price &&
       (service.priceMax ?? "") === (preset.priceMax ?? "")
     );
   });
 }
 
-// Drafts saved while the wizard used the legacy presets already contain ranges. Upgrade only a
-// row still identical to an untouched EN/ES example; a changed service remains the owner's data.
-export function upgradeUneditedPresetRanges(
-  services: ServiceEntry[],
-  vertical: Vertical,
-  localizedNames: ReadonlyArray<readonly string[]>,
-): ServiceEntry[] {
+// A draft saved while services still had a duration range carries an upper bound the model no
+// longer has. Collapse it to the longest the job runs — that is the slot now reserved — rather
+// than silently keeping the short end on a shop that goes live without revisiting this step.
+export function collapseLegacyDurationRanges(services: ServiceEntry[]): ServiceEntry[] {
   let changed = false;
-  const next = services.map((service, index) => {
-    const preset = SERVICE_PRESETS[vertical][index];
-    if (
-      !preset?.durationMaxMin ||
-      !localizedNames.some((names) => names[index] === service.name) ||
-      service.durationMin !== preset.durationMin ||
-      service.durationMaxMin !== preset.durationMaxMin ||
-      service.price !== preset.price ||
-      service.priceMax !== preset.priceMax
-    )
-      return service;
+  const next = services.map((service) => {
+    const { durationMaxMin, ...rest } = service as ServiceEntry & { durationMaxMin?: string };
+    const upper = durationMaxMin?.trim();
+    if (!upper) return service;
     changed = true;
-    return { ...service, durationMin: preset.durationMaxMin, durationMaxMin: "" };
+    return { ...rest, durationMin: upper };
   });
   return changed ? next : services;
 }
@@ -302,12 +277,8 @@ export function isValidService(value: unknown): boolean {
     !!svc.name.trim() &&
     duration(svc.durationMin) &&
     price(svc.price) &&
-    (svc.durationMaxMin == null ||
-      (typeof svc.durationMaxMin === "string" && svc.durationMaxMin.trim() === "") ||
-      duration(svc.durationMaxMin)) &&
     (svc.priceMax == null || price(svc.priceMax)) &&
     !(typeof svc.priceMax === "string" && svc.priceMax.trim() && !svc.price.trim()) &&
-    !aboveIsBelow(svc.durationMin, svc.durationMaxMin) &&
     !aboveIsBelow(svc.price, svc.priceMax)
   );
 }
@@ -334,22 +305,11 @@ export function validateSetupPayload(setup: unknown): string | null {
 
   if (!Array.isArray(s.services) || s.services.length === 0 || s.services.length > 30)
     return "invalid services";
-  if (s.fixedDurations !== undefined && typeof s.fixedDurations !== "boolean")
-    return "invalid services";
   if (!s.services.every(isValidService)) return "invalid services";
   if (new Set(s.services.map((v) => v.name.trim().toLowerCase())).size !== s.services.length)
     return "invalid services";
-  if (s.fixedDurations && s.services.some((v) => v.durationMaxMin?.trim()))
-    return "invalid services";
-  // An upper bound below its lower bound would be spoken to callers as "ninety to sixty dollars".
-  if (
-    s.services.some(
-      (svc) =>
-        aboveIsBelow(svc?.durationMin, svc?.durationMaxMin) ||
-        aboveIsBelow(svc?.price, svc?.priceMax),
-    )
-  )
-    return "invalid services";
+  // A ceiling below its floor would be spoken to callers as "ninety to sixty dollars".
+  if (s.services.some((svc) => aboveIsBelow(svc?.price, svc?.priceMax))) return "invalid services";
 
   if (typeof s.staffCustomHours !== "boolean") return "invalid staff";
   if (!Array.isArray(s.staff) || s.staff.length === 0 || s.staff.length > 30)

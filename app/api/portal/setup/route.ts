@@ -49,9 +49,6 @@ export async function POST(request: Request): Promise<Response> {
   const { activeShopId, activeLeadId } = await resolveAccountShops(cfEnv, session);
   const lead = activeLeadId ? await getLead(cfEnv.LEADS_KV, activeLeadId) : null;
   if (!lead) return Response.json({ error: "no setup on file" }, { status: 404 });
-
-  if (setup.services.some((s) => s.durationMaxMin?.trim()))
-    return Response.json({ error: "invalid services" }, { status: 400 });
   lead.setup = setup;
   if (timezone) lead.basics.timezone = timezone;
   await putLead(cfEnv.LEADS_KV, lead);

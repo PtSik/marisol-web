@@ -583,9 +583,6 @@ export const en = {
     openTimeAria: "{day} opening time",
     closeTimeAria: "{day} closing time",
     forStaff: " for {name}",
-    servicesLegend: "Services",
-    servicesHint:
-      "Pre-filled for a {kind} — edit names, durations and prices to match yours. If a service varies, add the upper end too and the agent will quote the range.",
     verticalKind: { barbershop: "barbershop", grooming: "grooming salon" },
     servicePresets: {
       barbershop: ["Haircut", "Beard trim", "Haircut + beard"],
@@ -596,16 +593,7 @@ export const en = {
         "Nail trim",
       ],
     },
-    serviceNameAria: "Service {n} name",
-    serviceNamePlaceholder: "Service name",
     serviceNameExample: "e.g. {name}",
-    serviceDurationAria: "Service {n} duration in minutes, shortest",
-    serviceDurationMaxAria: "Service {n} duration in minutes, longest (optional)",
-    serviceMinAbbr: "min",
-    servicePriceAria: "Service {n} price in dollars, lowest",
-    servicePriceMaxAria: "Service {n} price in dollars, highest (optional)",
-    serviceRangeOptional: "any",
-    removeService: "Remove service {name}",
     addService: "+ Add service",
     serviceEditor: {
       intro:
@@ -613,17 +601,12 @@ export const en = {
       examplesLead:
         "Add example options alongside your services. Names and lengths are suggestions; prices stay blank.",
       examplesCta: "Add example services",
-      useLongestOne: "Use the longest estimate for {n} service",
-      useLongestMany: "Use the longest estimate for {n} services",
       rowLabel: "Service",
       remove: "Remove",
       name: "Service name",
       duration: "Appointment length (minutes)",
       price: "Price ($)",
       priceHint: "Leave blank if unknown",
-      rangeNote:
-        "This service shows a {min}\u2013{max} minute estimate. Choosing {max} blocks that time on the calendar for every appointment. You can enter another length above.",
-      rangeCta: "Use {max} minutes for this service",
       priceVaries: "Price varies",
       priceMax: "Highest price ($)",
       priceMaxHint: "Callers hear a range \u2014 e.g. $75\u2013$110.",

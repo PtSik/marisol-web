@@ -15,13 +15,12 @@ import {
   DAYS,
   type SetupDetails,
   type Vertical,
+  collapseLegacyDurationRanges,
   defaultBasics,
   defaultSetup,
-  fixedOnboardingPresets,
   isExampleMenu,
   isUsPhone,
   normalizeSetup,
-  upgradeUneditedPresetRanges,
   validateSetupPayload,
 } from "@/lib/onboarding";
 import { type Billing, PRICE, type Plan, TRIAL_DAYS } from "@/lib/plans";
@@ -191,7 +190,6 @@ export function OnboardingWizard({
     basics: { ...defaultBasics(), email: accountEmail },
     setup: {
       ...defaultSetup("grooming", []),
-      fixedDurations: true,
       services: [{ name: "", durationMin: "", price: "" }],
     },
     step: 0,
@@ -261,10 +259,7 @@ export function OnboardingWizard({
     if (!sections[step].includes("services") || !ready) return;
     setDraft((d) => {
       const current = d.setup.services;
-      const services = upgradeUneditedPresetRanges(current, d.basics.vertical, [
-        getDict("en").setup.servicePresets[d.basics.vertical],
-        getDict("es").setup.servicePresets[d.basics.vertical],
-      ]);
+      const services = collapseLegacyDurationRanges(current);
       return services === current ? d : { ...d, setup: { ...d.setup, services } };
     });
   }, [step, basics.vertical, locale, ready]);
@@ -308,7 +303,7 @@ export function OnboardingWizard({
         ? {
             setup: {
               ...d.setup,
-              services: fixedOnboardingPresets(to, dict.setup.servicePresets[to]),
+              services: defaultSetup(to, dict.setup.servicePresets[to]).services,
             },
           }
         : {}),
@@ -340,11 +335,6 @@ export function OnboardingWizard({
     if (advancing) return;
     const all = step === 0 ? basicsErrors() : validateSetup(normalizeSetup(setup), dict.setup);
     const keys = step === 0 ? Object.keys(all) : sections[step].flatMap((s) => sectionErrorKeys[s]);
-    if (step === 1 && setup.services.some((s) => s.durationMaxMin?.trim()))
-      all.services =
-        locale === "es"
-          ? "Algunos servicios todavía muestran un rango de tiempo. Elige una duración fija para cada uno o usa el tiempo máximo en todos."
-          : "Some services still show a time range. Choose one length in each marked service, or use the longest estimate for all.";
     const relevant = Object.fromEntries(Object.entries(all).filter(([key]) => keys.includes(key)));
     setErrors(relevant);
     if (Object.keys(relevant).length) {
@@ -727,8 +717,7 @@ export function OnboardingWizard({
                         <ul className="space-y-2">
                           {setup.services.map((s, i) => (
                             <li key={`${i}:${s.name}`}>
-                              {s.name} · {s.durationMin}
-                              {s.durationMaxMin ? `–${s.durationMaxMin}` : ""} {c.minutes} ·{" "}
+                              {s.name} · {s.durationMin} {c.minutes} ·{" "}
                               {s.price
                                 ? `$${s.price}${s.priceMax ? `–$${s.priceMax}` : ""}`
                                 : c.priceUnknown}

@@ -180,7 +180,6 @@ describe("complete operational configuration", () => {
       { name: "", durationMin: "30", price: "" },
       { name: "Bad", durationMin: "Infinity", price: "20" },
       { name: "Bad", durationMin: "30", price: "-2" },
-      { name: "Bad", durationMin: "30", price: "20", durationMaxMin: 40 },
     ]) {
       expect(validateSetupPayload({ ...base, services: [...base.services, service] })).toBe(
         "invalid services",

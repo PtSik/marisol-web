@@ -449,8 +449,6 @@ export async function POST(request: Request) {
   // The reviewed setup is part of checkout: there is no path that pays first and configures later.
   const setupError = validateSetupPayload(body.setup);
   if (setupError) return Response.json({ error: setupError }, { status: 400 });
-  if (body.setup?.services.some((s) => s.durationMaxMin?.trim()))
-    return Response.json({ error: "invalid services" }, { status: 400 });
   return handleCheckout(
     cfEnv,
     request,
@@ -463,6 +461,6 @@ export async function POST(request: Request) {
       referral: typeof body.referralCode === "string" ? body.referralCode : undefined,
     },
     parseLocale(body.locale),
-    { ...(body.setup as SetupDetails), fixedDurations: true },
+    body.setup as SetupDetails,
   );
 }
