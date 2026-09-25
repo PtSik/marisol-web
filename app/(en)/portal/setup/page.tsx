@@ -3,7 +3,7 @@ import { PortalHeading, PortalNotice } from "@/components/portal/PortalHeading";
 import { PortalSetupForm } from "@/components/portal/PortalSetupForm";
 import { en } from "@/lib/i18n/en";
 import { getLead } from "@/lib/leads";
-import { coerceTimezone, defaultSetup } from "@/lib/onboarding";
+import { coerceTimezone, defaultSetup, normalizeSetup } from "@/lib/onboarding";
 import type { PortalEnv } from "@/lib/portalApi";
 import { getPortalContext } from "@/lib/portalContext";
 import { SALES_EMAIL_HREF } from "@/lib/site";
@@ -39,7 +39,11 @@ export default async function PortalSetupPage() {
         lead="Services, hours, staff and business notes. Save and Marisol uses the new details on the very next call."
       />
       <PortalSetupForm
-        initialSetup={lead.setup ?? defaultSetup(vertical, en.setup.servicePresets[vertical])}
+        // Normalised before it is shown, not only before it is sent — otherwise the form displays
+        // the short end of a retired range while the save collapses to the long one.
+        initialSetup={normalizeSetup(
+          lead.setup ?? defaultSetup(vertical, en.setup.servicePresets[vertical]),
+        )}
         initialTimezone={coerceTimezone(lead.basics.timezone)}
         vertical={vertical}
       />

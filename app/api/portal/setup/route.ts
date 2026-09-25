@@ -1,6 +1,11 @@
 import { env } from "cloudflare:workers";
 import { getLead, putLead } from "@/lib/leads";
-import { type SetupDetails, TIMEZONE_IDS, validateSetupPayload } from "@/lib/onboarding";
+import {
+  type SetupDetails,
+  TIMEZONE_IDS,
+  normalizeSetup,
+  validateSetupPayload,
+} from "@/lib/onboarding";
 import { portalAccessRedirect } from "@/lib/portalAccess";
 import type { PortalEnv } from "@/lib/portalApi";
 import { resolveAccountShops } from "@/lib/portalContext";
@@ -37,7 +42,9 @@ export async function POST(request: Request): Promise<Response> {
 
   const error = validateSetupPayload(body.setup);
   if (error) return Response.json({ error }, { status: 400 });
-  const setup = body.setup as SetupDetails;
+  // Server-side too: this writes the lead the form is rendered from next time, so a stale upper
+  // bound left in the payload would survive every save instead of being spent on the first one.
+  const setup = normalizeSetup(body.setup as SetupDetails);
 
   const timezone = body.timezone;
   if (timezone !== undefined && !TIMEZONE_IDS.some((id) => id === timezone)) {

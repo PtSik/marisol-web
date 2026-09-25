@@ -2,6 +2,7 @@ import { describe, expect, it } from "bun:test";
 import { validateSetup } from "@/components/onboarding/SetupFields";
 import { en } from "@/lib/i18n/en";
 import {
+  type ServiceEntry,
   type SetupDetails,
   type WeekHours,
   coerceTimezone,
@@ -31,6 +32,18 @@ function setupWith(patch: Partial<SetupDetails> = {}): SetupDetails {
     staff: [{ ...newStaffEntry(), name: "Luis", hours: null }],
     ...patch,
   };
+}
+
+// The upper bound retired in 2e4f212 — still on drafts and leads saved before it went.
+type LegacyService = ServiceEntry & { durationMaxMin?: string };
+
+function ranged(): ServiceEntry {
+  return {
+    name: "Full groom",
+    durationMin: "75",
+    durationMaxMin: "180",
+    price: "80",
+  } as LegacyService;
 }
 
 const basics = {
@@ -118,6 +131,26 @@ describe("normalizeSetup", () => {
       staff: [{ ...newStaffEntry(), name: "Luis", hours }],
     });
     expect(normalizeSetup(setup).staff[0].hours).toEqual(hours);
+  });
+
+  it("collapses a stored duration range whether or not the staff toggle is on", () => {
+    for (const staffCustomHours of [true, false]) {
+      const setup = setupWith({ staffCustomHours, services: [ranged()] });
+      const [service] = normalizeSetup(setup).services as LegacyService[];
+      expect(service?.durationMin).toBe("180");
+      expect(service?.durationMaxMin).toBeUndefined();
+    }
+  });
+
+  // What the portal renders is what the portal saves. Show the short end with the long one still
+  // hidden on the object and the owner edits a number that never takes effect.
+  it("leaves nothing hidden for the portal form to save back", () => {
+    const rendered = normalizeSetup(setupWith({ services: [ranged()] }));
+    const edited = {
+      ...rendered,
+      services: rendered.services.map((s) => ({ ...s, durationMin: "120" })),
+    };
+    expect(normalizeSetup(edited).services[0]?.durationMin).toBe("120");
   });
 });
 

@@ -257,11 +257,14 @@ export function invalidWeekHours(hours: unknown): boolean {
 // so anything still sitting in them is invisible and uneditable — it must not be able to block a
 // save. Both setup forms send the normalised copy and validate that same copy.
 export function normalizeSetup(setup: SetupDetails): SetupDetails {
-  if (setup.staffCustomHours) return setup;
-  return {
-    ...setup,
-    staff: setup.staff.map((m) => (m.hours === null ? m : { ...m, hours: null })),
-  };
+  // The collapse lives here, not only where a draft is restored: the portal edits a saved setup,
+  // and a hidden upper bound on one would otherwise ride along into the shop untouched.
+  const services = collapseLegacyDurationRanges(setup.services);
+  const staff = setup.staffCustomHours
+    ? setup.staff
+    : setup.staff.map((m) => (m.hours === null ? m : { ...m, hours: null }));
+  if (services === setup.services && staff === setup.staff) return setup;
+  return { ...setup, services, staff };
 }
 
 export function isValidService(value: unknown): boolean {

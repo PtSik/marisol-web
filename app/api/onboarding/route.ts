@@ -19,6 +19,7 @@ import {
   VERTICAL_IDS,
   isTimezoneId,
   isUsPhone,
+  normalizeSetup,
   validateSetupPayload,
 } from "@/lib/onboarding";
 import {
@@ -449,6 +450,9 @@ export async function POST(request: Request) {
   // The reviewed setup is part of checkout: there is no path that pays first and configures later.
   const setupError = validateSetupPayload(body.setup);
   if (setupError) return Response.json({ error: setupError }, { status: 400 });
+  // Replaces the `fixedDurations` flag this endpoint used to force: a stale duration range is now
+  // collapsed rather than rejected, so no lead is stored with an upper bound the form cannot show.
+  const setup = normalizeSetup(body.setup as SetupDetails);
   return handleCheckout(
     cfEnv,
     request,
@@ -461,6 +465,6 @@ export async function POST(request: Request) {
       referral: typeof body.referralCode === "string" ? body.referralCode : undefined,
     },
     parseLocale(body.locale),
-    body.setup as SetupDetails,
+    setup,
   );
 }
