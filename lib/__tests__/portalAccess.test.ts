@@ -28,10 +28,10 @@ function shopEnv(status: string) {
 describe("portal access without a lead", () => {
   it("opens only for the statuses that answer the phone", async () => {
     const withShop = { ...session, leadId: undefined, shopId: "shop-1" };
-    for (const status of ["active", "demo"]) {
+    for (const status of ["active"]) {
       expect(await portalAccessRedirect(shopEnv(status), withShop)).toBeNull();
     }
-    for (const status of ["suspended", "cancelled", "trial"]) {
+    for (const status of ["suspended", "cancelled", "trial", "demo"]) {
       expect(await portalAccessRedirect(shopEnv(status), withShop)).toBe("/account-status");
     }
   });

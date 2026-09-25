@@ -21,8 +21,9 @@ export async function portalAccessRedirect(
     if (!session.shopId) return "/onboarding";
     const shop = session.shopId ? await getShop(env, session.shopId) : null;
     // The same list voice-agent's CALLABLE_STATUSES holds: a salon whose phone is not answering
-    // has nothing for its owner in the portal either. `trial` left both in migration 0021.
-    return shop && ["active", "demo"].includes(shop.status ?? "") ? null : "/account-status";
+    // has nothing for its owner in the portal either. `trial` left both in migration 0021 and
+    // `demo` in 0028 — a demo line is marked by `is_demo`, not by a status of its own.
+    return shop && shop.status === "active" ? null : "/account-status";
   }
   const lead = await getLeadStrict(env.LEADS_KV, leadId);
   if (!lead) return "/account-status";
