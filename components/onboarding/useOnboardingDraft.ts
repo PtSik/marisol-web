@@ -1,4 +1,5 @@
 "use client";
+import { collapseLegacyDurationRanges } from "@/lib/onboarding";
 import {
   type DraftRecord,
   type OnboardingDraft,
@@ -90,6 +91,13 @@ export function useOnboardingDraft(initial: OnboardingDraft, accountEmail: strin
           ...restored,
           basics: { ...restored.basics, email: accountEmail },
           step: Math.min(restored.step, REVIEW_STEP),
+          // Here rather than on the services step: a draft saved past it resumes straight at Review,
+          // and `?cancelled=1` lands there too. Left to the step, a stale duration range would reach
+          // checkout as its short end and book appointments shorter than the job runs.
+          setup: {
+            ...restored.setup,
+            services: collapseLegacyDurationRanges(restored.setup.services),
+          },
         };
         // Same reasoning as `planPicked`: a draft that never reached the picker carries whatever
         // the wizard defaulted to, not a decision. Annual is where the pricing section opens, so

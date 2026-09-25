@@ -6,6 +6,7 @@ import {
   type SetupDetails,
   type WeekHours,
   coerceTimezone,
+  collapseLegacyDurationRanges,
   openingLanguage,
 } from "@/lib/onboarding";
 import { normalizePlan } from "@/lib/plans";
@@ -84,11 +85,15 @@ export function toShopStaff(setup: SetupDetails): Array<Record<string, unknown>>
     });
 }
 
-// The shop's only record of what it sells. voice-agent books the top of a spread and reads the
-// whole range out to the caller, so both bounds ship — an upper bound equal to the lower one, or
-// left blank by a barbershop, simply renders as a single number.
+// The shop's only record of what it sells: one duration, which is the slot voice-agent reserves,
+// and a price that may be a spread the agent reads out whole — a bound equal to the other, or left
+// blank by a barbershop, simply renders as a single number.
+//
+// Collapsed first because a setup persisted before durations became a single number can still carry
+// the retired upper bound, and not every route into here passes the wizard's services step. This is
+// the last place that can stop such a setup from booking the short end.
 export function toServiceCatalog(setup: SetupDetails) {
-  return setup.services
+  return collapseLegacyDurationRanges(setup.services)
     .filter((s) => s.name.trim())
     .map((s) => {
       const entry: Record<string, unknown> = {

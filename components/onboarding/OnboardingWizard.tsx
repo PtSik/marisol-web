@@ -15,7 +15,6 @@ import {
   DAYS,
   type SetupDetails,
   type Vertical,
-  collapseLegacyDurationRanges,
   defaultBasics,
   defaultSetup,
   isExampleMenu,
@@ -252,18 +251,6 @@ export function OnboardingWizard({
   useEffect(() => {
     if (saveBlocked) saveAlert.current?.focus();
   }, [saveBlocked]);
-  // Existing drafts from the earlier prefill may still carry legacy duration ranges. Repair only
-  // unchanged preset rows; new accounts start blank and examples are an explicit customer action.
-  // biome-ignore lint/correctness/useExhaustiveDependencies: migration must not re-run as rows are edited
-  useEffect(() => {
-    if (!sections[step].includes("services") || !ready) return;
-    setDraft((d) => {
-      const current = d.setup.services;
-      const services = collapseLegacyDurationRanges(current);
-      return services === current ? d : { ...d, setup: { ...d.setup, services } };
-    });
-  }, [step, basics.vertical, locale, ready]);
-
   const basicsErrorsOf = (b: BusinessBasics): FieldErrors => {
     const e: FieldErrors = {};
     if (!b.businessName.trim()) e.businessName = t.errBusinessName;

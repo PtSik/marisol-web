@@ -87,6 +87,14 @@ describe("safe business imports and previews", () => {
     ])
       expect(importHours(bad)).toBeNull();
   });
+  // Enrichment rows still carry the retired upper bound. Importing the lower one would hand the
+  // owner a prefilled 75-minute groom for a job that runs to 180, with nothing on screen to say so.
+  it("imports the top of an enriched duration range", () => {
+    expect(
+      importServices('[{"name":"Full Groom","durationMin":"75","durationMaxMin":"180"}]', "high"),
+    ).toEqual([{ name: "Full Groom", durationMin: "180", price: "", priceMax: "" }]);
+  });
+
   it("does not fill unknown prices, durations or low-confidence menus", () => {
     expect(importServices('[{"name":"Groom"}]', "high")[0]).toEqual({
       name: "Groom",

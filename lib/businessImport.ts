@@ -61,7 +61,11 @@ export function importServices(raw: string | null, confidence: string | null): S
     .slice(0, 30)
     .map((v) => ({
       name: text(v.name, 120),
-      durationMin: text(v.durationMin, 5),
+      // Enrichment rows predate the single duration and may still carry an upper bound (see the
+      // contract in d1/migrations/0003). That bound is the slot now reserved, so it is what gets
+      // imported; keeping the lower one would quietly shorten every appointment for an owner who
+      // accepts the prefill unchanged.
+      durationMin: text(v.durationMaxMin, 5) || text(v.durationMin, 5),
       price: text(v.price, 10),
       priceMax: text(v.priceMax, 10),
     }));

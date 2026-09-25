@@ -23,6 +23,15 @@ describe("toServiceCatalog", () => {
     expect(catalog([svc()])).toEqual([{ name: "Full Groom", duration_minutes: 90, price: 65 }]);
   });
 
+  // A setup saved before durations became a single number can reach here without passing the
+  // wizard's services step — resumed at Review, or edited in the portal. The slot booked has to
+  // stay the longest the job runs.
+  it("books the top of a duration range left over in a saved setup", () => {
+    expect(catalog([svc({ durationMaxMin: "180" } as Partial<ReturnType<typeof base>>)])).toEqual([
+      { name: "Full Groom", duration_minutes: 180, price: 65 },
+    ]);
+  });
+
   it("sends the price ceiling when the owner gave one", () => {
     expect(catalog([svc({ priceMax: "110" })])).toEqual([
       { name: "Full Groom", duration_minutes: 90, price: 65, price_max: 110 },
