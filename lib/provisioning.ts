@@ -62,36 +62,6 @@ export function toShopHours(hours: WeekHours): Record<string, string> {
   return out;
 }
 
-// personalization.ts renders services_json via `array.join(', ')`, so store readable
-// strings (an array of objects would render as "[object Object]").
-//
-// Fields within one service are joined with " / " rather than ", " on purpose: the array join uses
-// commas too, so a comma here made the whole list ambiguous to the agent — "Haircut — 30 min, $25,
-// Beard Trim — 20 min, $15" gives it no way to see where one service ends.
-export function toShopServices(services: ServiceEntry[]): string[] {
-  return services
-    .filter((s) => s.name.trim())
-    .map((s) => {
-      const parts = [s.name.trim()];
-      const dur = range(s.durationMin, s.durationMaxMin);
-      const price = range(s.price, s.priceMax);
-      if (dur) parts.push(`${dur} min`);
-      if (price) parts.push(`$${price}`);
-      return dur || price ? `${parts[0]} — ${parts.slice(1).join(" / ")}` : parts[0];
-    });
-}
-
-// "60-180" when the owner gave an upper bound, "90" when they left it blank. Grooming needs the
-// spread (a full groom is a different job on a Yorkie and a matted Bernedoodle); a barbershop
-// doesn't, and gets the flat value it always had.
-function range(lower: string, upper?: string): string {
-  const lo = lower.trim();
-  const hi = (upper ?? "").trim();
-  if (!lo) return hi;
-  if (!hi || hi === lo) return lo;
-  return `${lo}-${hi}`;
-}
-
 // staff_json carries a stable id per member so voice-agent can key per-staff config on it
 // instead of the name. `hours` is only sent when the owner opted into split schedules —
 // omitting it means "inherit the shop's hours" on the voice-agent side.
@@ -114,13 +84,42 @@ export function toShopStaff(setup: SetupDetails): Array<Record<string, unknown>>
     });
 }
 
+// The shop's only record of what it sells. voice-agent books the top of a spread and reads the
+// whole range out to the caller, so both bounds ship — an upper bound equal to the lower one, or
+// left blank by a barbershop, simply renders as a single number.
 export function toServiceCatalog(setup: SetupDetails) {
-  if (setup.services.some((s) => s.durationMaxMin?.trim()))
-    throw new Error("Choose a fixed duration for each service");
-  return setup.services.map((s) => ({
-    name: s.name.trim(),
-    duration_minutes: Number(s.durationMin),
-  }));
+  return setup.services
+    .filter((s) => s.name.trim())
+    .map((s) => {
+      const entry: Record<string, unknown> = {
+        name: s.name.trim(),
+        duration_minutes: Number(s.durationMin),
+      };
+      const durationMax = upper(s.durationMin, s.durationMaxMin);
+      if (durationMax !== undefined) entry.duration_max_minutes = durationMax;
+      const price = num(s.price);
+      if (price !== undefined) {
+        entry.price = price;
+        const priceMax = upper(s.price, s.priceMax);
+        if (priceMax !== undefined) entry.price_max = priceMax;
+      }
+      return entry;
+    });
+}
+
+function num(value: string | undefined): number | undefined {
+  const trimmed = (value ?? "").trim();
+  if (!trimmed) return undefined;
+  const parsed = Number(trimmed);
+  return Number.isFinite(parsed) ? parsed : undefined;
+}
+
+// An upper bound is only worth sending when the owner gave one and it is above the lower bound.
+function upper(lower: string, value: string | undefined): number | undefined {
+  const hi = num(value);
+  const lo = num(lower);
+  if (hi === undefined || lo === undefined || hi <= lo) return undefined;
+  return hi;
 }
 
 export function buildShopPayload(
@@ -144,7 +143,6 @@ export function buildShopPayload(
     // can also render, so its setup stays editable.
     timezone: coerceTimezone(basics.timezone),
     hours_json: JSON.stringify(toShopHours(setup.hours)),
-    services_json: JSON.stringify(toShopServices(setup.services)),
     staff_json: JSON.stringify(toShopStaff(setup)),
     // The agent answers "where are you?" and "do you take walk-ins?" from these. `notes` has been
     // collected by the wizard since day one — its placeholder literally says "Parking info, walk-in

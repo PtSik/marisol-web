@@ -160,7 +160,11 @@ describe("provisionLead launch validation", () => {
           service_catalog?: unknown;
         };
         events.push(`create-shop:${body.status}`);
-        expect(body.service_catalog).toEqual([{ name: "Full groom", duration_minutes: 75 }]);
+        // The catalog is the shop's only record of what it sells, so the price the owner
+        // reviewed has to be on it — voice-agent reads the spoken list from here.
+        expect(body.service_catalog).toEqual([
+          { name: "Full groom", duration_minutes: 75, price: 40, price_max: 55 },
+        ]);
         return Response.json({ shop: { id: "shop-1" } });
       }
       if (url === "https://voice.test/admin/accounts/account-1") {

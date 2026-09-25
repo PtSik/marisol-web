@@ -1,52 +1,71 @@
 import { describe, expect, it } from "bun:test";
 import { defaultSetup, newStaffEntry, validateSetupPayload } from "@/lib/onboarding";
-import { toShopServices } from "@/lib/provisioning";
+import { toServiceCatalog } from "@/lib/provisioning";
 
-function svc(over: Partial<Parameters<typeof toShopServices>[0][number]> = {}) {
-  return { name: "Full Groom", durationMin: "90", price: "65", ...over };
+function svc(over: Partial<ReturnType<typeof base>> = {}) {
+  return { ...base(), ...over };
 }
+function base() {
+  return { name: "Full Groom", durationMin: "90", price: "65" } as {
+    name: string;
+    durationMin: string;
+    price: string;
+    durationMaxMin?: string;
+    priceMax?: string;
+  };
+}
+const catalog = (services: ReturnType<typeof svc>[]) =>
+  toServiceCatalog({ services } as Parameters<typeof toServiceCatalog>[0]);
 
-describe("toShopServices", () => {
-  it("keeps a flat value when no upper bound is given", () => {
-    expect(toShopServices([svc()])).toEqual(["Full Groom — 90 min / $65"]);
+// This is the shop's only record of what it sells: voice-agent books from it and reads it out, so
+// anything dropped here is knowledge the receptionist no longer has.
+describe("toServiceCatalog", () => {
+  it("sends a flat service as a single duration and price", () => {
+    expect(catalog([svc()])).toEqual([{ name: "Full Groom", duration_minutes: 90, price: 65 }]);
   });
 
-  it("renders a range when the owner gave an upper bound", () => {
-    expect(toShopServices([svc({ durationMaxMin: "210", priceMax: "110" })])).toEqual([
-      "Full Groom — 90-210 min / $65-110",
+  it("sends both bounds when the owner gave an upper one", () => {
+    expect(catalog([svc({ durationMaxMin: "210", priceMax: "110" })])).toEqual([
+      {
+        name: "Full Groom",
+        duration_minutes: 90,
+        duration_max_minutes: 210,
+        price: 65,
+        price_max: 110,
+      },
     ]);
   });
 
   it("ranges duration and price independently", () => {
-    expect(toShopServices([svc({ durationMaxMin: "210" })])).toEqual([
-      "Full Groom — 90-210 min / $65",
+    expect(catalog([svc({ durationMaxMin: "210" })])).toEqual([
+      { name: "Full Groom", duration_minutes: 90, duration_max_minutes: 210, price: 65 },
     ]);
-    expect(toShopServices([svc({ priceMax: "110" })])).toEqual(["Full Groom — 90 min / $65-110"]);
+    expect(catalog([svc({ priceMax: "110" })])).toEqual([
+      { name: "Full Groom", duration_minutes: 90, price: 65, price_max: 110 },
+    ]);
   });
 
-  it("collapses an upper bound equal to the lower one", () => {
-    expect(toShopServices([svc({ durationMaxMin: "90", priceMax: "65" })])).toEqual([
-      "Full Groom — 90 min / $65",
+  it("omits an upper bound equal to the lower one", () => {
+    expect(catalog([svc({ durationMaxMin: "90", priceMax: "65" })])).toEqual([
+      { name: "Full Groom", duration_minutes: 90, price: 65 },
     ]);
   });
 
   it("treats a blank upper bound as no range", () => {
-    expect(toShopServices([svc({ durationMaxMin: "  ", priceMax: "" })])).toEqual([
-      "Full Groom — 90 min / $65",
+    expect(catalog([svc({ durationMaxMin: "  ", priceMax: "" })])).toEqual([
+      { name: "Full Groom", duration_minutes: 90, price: 65 },
     ]);
   });
 
-  // personalization.ts joins the array with ", ", so a comma inside an entry left the agent unable to
-  // tell where one service ended — which is why it hedged on pricing instead of quoting.
-  it("separates fields with a delimiter the array join does not reuse", () => {
-    const line = toShopServices([svc({ durationMaxMin: "210", priceMax: "110" })])[0];
-    expect(line).not.toContain(",");
+  it("omits a blank price rather than sending zero", () => {
+    const entry = catalog([svc({ price: "" })])[0];
+    expect(entry).toEqual({ name: "Full Groom", duration_minutes: 90 });
   });
 
-  it("drops unnamed rows and keeps name-only ones intact", () => {
-    expect(
-      toShopServices([svc({ name: "  " }), { name: "Consult", durationMin: "", price: "" }]),
-    ).toEqual(["Consult"]);
+  it("drops unnamed rows", () => {
+    expect(catalog([svc({ name: "  " }), svc({ name: "Consult" })])).toEqual([
+      { name: "Consult", duration_minutes: 90, price: 65 },
+    ]);
   });
 });
 

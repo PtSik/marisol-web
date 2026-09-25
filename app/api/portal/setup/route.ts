@@ -4,13 +4,7 @@ import { type SetupDetails, TIMEZONE_IDS, validateSetupPayload } from "@/lib/onb
 import { portalAccessRedirect } from "@/lib/portalAccess";
 import type { PortalEnv } from "@/lib/portalApi";
 import { resolveAccountShops } from "@/lib/portalContext";
-import {
-  patchShop,
-  toServiceCatalog,
-  toShopHours,
-  toShopServices,
-  toShopStaff,
-} from "@/lib/provisioning";
+import { patchShop, toServiceCatalog, toShopHours, toShopStaff } from "@/lib/provisioning";
 import { overRateLimit } from "@/lib/rateLimit";
 import { getSession, sessionIdFromCookies } from "@/lib/session";
 
@@ -68,7 +62,6 @@ export async function POST(request: Request): Promise<Response> {
     ? await patchShop(cfEnv, activeShopId, {
         service_catalog: toServiceCatalog(setup),
         hours_json: JSON.stringify(toShopHours(setup.hours)),
-        services_json: JSON.stringify(toShopServices(setup.services)),
         staff_json: JSON.stringify(toShopStaff(setup)),
         // Editable after onboarding too, otherwise a client who moves premises or changes their
         // walk-in policy has no way to tell the agent.
