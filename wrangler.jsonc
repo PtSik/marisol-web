@@ -59,9 +59,8 @@
     // Pinned per vertical so provisioning never leans on voice-agent's ELEVENLABS_TEMPLATE_AGENT_ID
     // fallback, which quietly handed every non-grooming shop the barber agent.
     "BARBER_AGENT_ID": "agent_8301ks8brwmbedw8nv1sgnwwcdfw",
-    // Demo pool runs on the grooming DEMO clone, never the client agent, so prompt tuning for
-    // sales cannot reach a paying shop. Leave the ES id empty until a Spanish-opening clone
-    // exists — the pool falls back to the English one, which still switches mid-call.
+    // The onboarding preview runs on the grooming DEMO clone, never the client agent, so prompt
+    // tuning for the preview cannot reach a paying shop.
     "ONBOARDING_PREVIEW_AGENT_ID": "agent_6801m2j748mpez1bvn58skcffh60",
     // 10%-off, duration=once coupon that referred clients redeem via their referrer's code.
     "STRIPE_REFERRAL_COUPON": "marisol_referral_10off",

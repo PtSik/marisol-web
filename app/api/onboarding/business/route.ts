@@ -25,7 +25,7 @@ export async function GET(request: Request) {
   try {
     if (id) {
       if (id.length > 80) return Response.json({ error: "invalid business" }, { status: 400 });
-      // Only public business facts. Never select sales notes, call outcomes, owners or demo leases.
+      // Only public business facts. Never select sales notes, call outcomes or owners.
       const row =
         await e.OUTREACH_DB.prepare(`SELECT l.shop_name, l.phone_e164, l.address, l.hours, l.website,
         e.services, e.service_confidence, e.source_url, e.fetched_at
