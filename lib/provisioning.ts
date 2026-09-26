@@ -176,6 +176,17 @@ export function buildShopPayload(
   return payload;
 }
 
+// What launching a prepared shop changes. Transfers go on here: preparation creates the shop with
+// them off so nothing can ring the owner before launch, and escalation_phone — the owner's mobile —
+// is always set by then, so a live salon's agent can hand a caller to a person from the first call.
+export function launchShopUpdate(lead: CheckoutLead): Record<string, unknown> {
+  return {
+    status: "active",
+    transfers_enabled: true,
+    ...(lead.setup?.calendar === "google_calendar" ? { integration: "google_calendar" } : {}),
+  };
+}
+
 async function createShop(
   env: ProvisioningEnv,
   payload: Record<string, unknown>,

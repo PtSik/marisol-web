@@ -19,6 +19,7 @@ import { billableSalons, extraLocationCount, normalizePlan } from "@/lib/plans";
 import { getShop, listAccountShopsStrict } from "@/lib/portalApi";
 import {
   type ProvisioningEnv,
+  launchShopUpdate,
   patchShop,
   provisionLead,
   sendProvisionedWelcome,
@@ -177,12 +178,7 @@ export async function POST(
   try {
     const result = prepared
       ? {
-          ok: await patchShop(cfEnv, lead.shopId as string, {
-            status: "active",
-            ...(lead.setup?.calendar === "google_calendar"
-              ? { integration: "google_calendar" }
-              : {}),
-          }),
+          ok: await patchShop(cfEnv, lead.shopId as string, launchShopUpdate(lead)),
           shopId: lead.shopId,
           number: lead.assignedNumber,
           numberSid: lead.twilioNumberSid,

@@ -1,7 +1,7 @@
 import { describe, expect, it } from "bun:test";
 import type { CheckoutLead } from "@/lib/leads";
 import { defaultSetup, isBusinessBasics } from "@/lib/onboarding";
-import { buildShopPayload } from "@/lib/provisioning";
+import { buildShopPayload, launchShopUpdate } from "@/lib/provisioning";
 
 const AGENTS = { grooming: "agent_grooming", barber: "agent_barber" };
 
@@ -110,5 +110,19 @@ describe("isBusinessBasics — address", () => {
 
   it("rejects an address longer than the column expects", () => {
     expect(isBusinessBasics(basics("x".repeat(301)))).toBe(false);
+  });
+});
+
+describe("launchShopUpdate", () => {
+  it("makes the shop callable and lets it transfer to the owner from the first call", () => {
+    const l = lead();
+    if (l.setup) l.setup.calendar = "none";
+    expect(launchShopUpdate(l)).toEqual({ status: "active", transfers_enabled: true });
+  });
+
+  it("marks a Google shop's integration at launch", () => {
+    const l = lead();
+    if (l.setup) l.setup.calendar = "google_calendar";
+    expect(launchShopUpdate(l)).toMatchObject({ integration: "google_calendar" });
   });
 });
