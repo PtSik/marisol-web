@@ -283,7 +283,6 @@ export const en = {
     billedYearly: "${total} billed annually",
     savePerYear: "Save ${amount}/yr",
     wasPrice: "Monthly plan price: ${price} per month",
-    cancelAnytime: "no cancellation fee",
     popularTag: "With reminders",
     pickerTitle: "Choose your plan",
     pickerSubtitle: "Every plan starts with a {days}-day free trial.",
@@ -331,14 +330,8 @@ export const en = {
     multiLocation: {
       name: "Multi-location",
       desc: "Need coverage for several locations?",
-      highlights: [
-        "A number and a voice per location",
-        "Centralized reporting",
-        "Dedicated account manager",
-      ],
       cta: "Talk to sales",
     },
-    guarantee: "Flat rate. No per-minute charges.",
     extraLocationNote: "Add a location for ${price}/month on Complete or Growth.",
     extraLocationAnnualNote: "Add a location for ${total}/year on Complete or Growth.",
     detailsLink: "Trial & cancellation details",
@@ -346,28 +339,9 @@ export const en = {
     locationsNote: "Running a chain? ",
     salesLink: "Talk to sales",
     approximate: "approx.",
-    sharedTitle: "Every plan includes",
-    sharedFeatures: [
-      "24/7 answering in English and Spanish",
-      "Appointment booking and Google Calendar connection",
-      "Call summaries and transcripts",
-      "Messages or transfer to a person",
-    ],
     smsNote: "SMS features require carrier approval.",
     billingNote:
       "Cancellation stops renewal. Service continues through the paid period; payments already made are not refunded.",
-  },
-  referralBand: {
-    title: { before: "Refer a shop. ", accent: "Earn $200.", after: "" },
-    body: "Send another owner your link. Once they’ve been a paying client for 30 days, you claim $200 in cash — and their first month is 10% off.",
-    ctaPrimary: "How it works",
-    ctaTerms: "Read the terms",
-    specs: [
-      { label: "Reward", value: "$200 in cash" },
-      { label: "Maturity", value: "30 days paid" },
-      { label: "Their discount", value: "10% first month" },
-    ],
-    note: "Paid by PayPal, Venmo or Zelle · no limit on referrals",
   },
   faq: {
     badge: "FAQ",
@@ -500,10 +474,6 @@ export const en = {
     },
     metaTitle: "Get started — Marisol",
     metaDescription: "Tell us about your shop and we set up your AI receptionist for you.",
-    badge: "Get started",
-    title: "Tell us about your shop — we set up the rest.",
-    subtitle: "Just the basics now — you’ll add hours, services and staff right after checkout.",
-    cancelled: "Payment was cancelled — your details are saved below whenever you’re ready.",
     verticalLegend: "What kind of business is it?",
     verticals: {
       barbershop: {
@@ -524,14 +494,10 @@ export const en = {
     businessNamePlaceholder: "Fade District",
     ownerName: "Your name",
     ownerNamePlaceholder: "Alex Rivera",
-    email: "Email",
-    emailPlaceholder: "alex@fadedistrict.com",
     businessPhone: "Business phone",
-    businessPhoneHint: "Where we transfer callers who ask for a human.",
     businessPhoneKeepHint: "The number your customers call today. You keep this number.",
     businessPhonePlaceholder: "+1 (555) 210-4890",
     ownerMobile: "Your mobile",
-    ownerMobileHint: "For urgent escalations only.",
     ownerMobileSetupHint:
       "Private contact for setup help. This does not automatically enable call transfers.",
     ownerMobilePlaceholder: "+1 (555) 902-3311",
@@ -542,23 +508,13 @@ export const en = {
     planSummary: "Your plan",
     changePlan: "Change plan",
     promoCode: "Promo code (optional)",
-    promoCodeHint: "From a Marisol rep or a campaign — the discount is applied at checkout.",
-    // Never an example: campaign codes are live, and one printed here is one every visitor can
-    // redeem without ever speaking to a rep. The hint above already says where a code comes from.
-    promoCodePlaceholder: "Enter your code",
     referral: "Referred by (optional)",
-    referralHint:
-      "A friend’s code. Without a promo code above it also gives you 10% off your first month.",
-    referralEarn: "Once you’re live, you earn $200 in cash for every shop you refer.",
-    referralPlaceholder: "e.g. A7K3M9QP",
-    back: "← Back to site",
     submit: "Start {days} days free — then ${price}/mo",
     submitting: "Redirecting to Stripe…",
     trialNote:
       "Free {days}-day trial. We save your card now but don’t charge it until day {days} — cancel any time before then and you pay nothing.",
     errBusinessName: "Enter your business name.",
     errOwnerName: "Enter your name.",
-    errEmail: "Enter a valid email address.",
     errBusinessPhone: "Enter a valid phone number.",
     errOwnerMobile: "Enter a valid mobile number.",
     errSubmit: "Something went wrong starting checkout. Please try again.",
@@ -583,7 +539,6 @@ export const en = {
     openTimeAria: "{day} opening time",
     closeTimeAria: "{day} closing time",
     forStaff: " for {name}",
-    verticalKind: { barbershop: "barbershop", grooming: "grooming salon" },
     servicePresets: {
       barbershop: ["Haircut", "Beard trim", "Haircut + beard"],
       grooming: [
@@ -594,7 +549,6 @@ export const en = {
       ],
     },
     serviceNameExample: "e.g. {name}",
-    addService: "+ Add service",
     serviceEditor: {
       intro:
         "Check the suggested names, prices and lengths against your business. Each service needs one fixed appointment length. If it varies by size or type, add separate variants.",
@@ -714,18 +668,7 @@ export const en = {
       "no setup on file": "We couldn’t find this salon’s setup. Email us and we’ll sort it out.",
       "too many requests": "That’s a lot of saves in a row. Wait a minute and try again.",
       "not signed in": "Your session expired. Sign in again, then save.",
-      // Only the onboarding form can hit these — it carries a Stripe checkout id.
-      "invalid sessionId": "This setup link is incomplete. Open it again from your email.",
-      "unknown session": "We couldn’t find that checkout. Open the link from your email again.",
-      "not your checkout": "This setup belongs to a different account. Sign out and sign back in.",
-      "session not paid": "Your payment hasn’t confirmed yet. Give it a minute and try again.",
       "checkout not configured": "Setup isn’t available right now. Email us and we’ll finish it.",
-      "setup temporarily unavailable":
-        "We couldn’t safely save your setup just now. Wait a moment and try again.",
-      "subscription cancelled":
-        "This subscription has been cancelled and cannot be activated. Email us if that looks wrong.",
-      "activation needs reconciliation":
-        "We saved your previous setup. Our team needs to check the phone number before anything can be retried.",
     },
   },
   thanks: {

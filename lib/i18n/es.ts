@@ -289,7 +289,6 @@ export const es: Dict = {
     billedYearly: "${total} facturados al año",
     savePerYear: "Ahorra ${amount}/año",
     wasPrice: "Precio del plan mensual: ${price} al mes",
-    cancelAnytime: "cancelación sin penalización",
     popularTag: "Con recordatorios",
     pickerTitle: "Elige tu plan",
     pickerSubtitle: "Todos los planes empiezan con {days} días de prueba gratis.",
@@ -337,14 +336,8 @@ export const es: Dict = {
     multiLocation: {
       name: "Multi-local",
       desc: "¿Necesitas cubrir varios locales?",
-      highlights: [
-        "Un número y una voz por local",
-        "Reportes centralizados",
-        "Ejecutivo de cuenta dedicado",
-      ],
       cta: "Habla con ventas",
     },
-    guarantee: "Precio fijo. Sin cobros por minuto.",
     extraLocationNote: "Añade un local por ${price}/mes con Complete o Growth.",
     extraLocationAnnualNote: "Añade un local por ${total}/año con Complete o Growth.",
     detailsLink: "Detalles de la prueba y cancelación",
@@ -353,28 +346,9 @@ export const es: Dict = {
     locationsNote: "¿Tienes una cadena? ",
     salesLink: "Habla con ventas",
     approximate: "aprox.",
-    sharedTitle: "Todos los planes incluyen",
-    sharedFeatures: [
-      "Atención 24/7 en inglés y español",
-      "Reserva de citas y conexión con Google Calendar",
-      "Resúmenes y transcripciones",
-      "Mensajes o transferencia a una persona",
-    ],
     smsNote: "Los SMS requieren la aprobación del operador.",
     billingNote:
       "La cancelación detiene la renovación. Conservas el servicio hasta el fin del periodo pagado; no hay reembolsos por pagos realizados.",
-  },
-  referralBand: {
-    title: { before: "Recomienda un negocio. ", accent: "Gana $200.", after: "" },
-    body: "Envía tu enlace a otro dueño. Cuando lleve 30 días como cliente de pago, reclamas $200 en efectivo — y su primer mes tiene un 10% de descuento.",
-    ctaPrimary: "Cómo funciona",
-    ctaTerms: "Lee las condiciones",
-    specs: [
-      { label: "Recompensa", value: "$200 en efectivo" },
-      { label: "Maduración", value: "30 días pagados" },
-      { label: "Su descuento", value: "10% primer mes" },
-    ],
-    note: "Pago por PayPal, Venmo o Zelle · sin límite de recomendaciones",
   },
   faq: {
     badge: "Preguntas",
@@ -506,11 +480,6 @@ export const es: Dict = {
     },
     metaTitle: "Empieza ahora — Marisol",
     metaDescription: "Cuéntanos de tu negocio y configuramos tu recepcionista con IA por ti.",
-    badge: "Empieza ahora",
-    title: "Cuéntanos de tu negocio — nosotros configuramos lo demás.",
-    subtitle:
-      "Por ahora solo lo básico — los horarios, servicios y personal los agregas justo después de pagar.",
-    cancelled: "El pago se canceló — tus datos quedaron guardados aquí abajo para cuando quieras.",
     verticalLegend: "¿Qué tipo de negocio es?",
     verticals: {
       barbershop: {
@@ -531,14 +500,10 @@ export const es: Dict = {
     businessNamePlaceholder: "Fade District",
     ownerName: "Tu nombre",
     ownerNamePlaceholder: "Alex Rivera",
-    email: "Correo",
-    emailPlaceholder: "alex@fadedistrict.com",
     businessPhone: "Teléfono del negocio",
-    businessPhoneHint: "Ahí transferimos a quien pida hablar con una persona.",
     businessPhoneKeepHint: "El número que usan tus clientes. Lo conservarás.",
     businessPhonePlaceholder: "+1 (555) 210-4890",
     ownerMobile: "Tu celular",
-    ownerMobileHint: "Solo para casos urgentes.",
     ownerMobileSetupHint:
       "Contacto privado para configurar el servicio. No se activa ninguna transferencia automáticamente.",
     ownerMobilePlaceholder: "+1 (555) 902-3311",
@@ -549,22 +514,13 @@ export const es: Dict = {
     planSummary: "Tu plan",
     changePlan: "Cambiar plan",
     promoCode: "Código promocional (opcional)",
-    promoCodeHint: "De un asesor de Marisol o de una campaña — el descuento se aplica al pagar.",
-    promoCodePlaceholder: "Escribe tu código",
     referral: "Te recomendó (opcional)",
-    referralHint:
-      "El código de un amigo. Sin código promocional arriba, también te da 10% de descuento el primer mes.",
-    referralEarn:
-      "Cuando estés en marcha, ganas $200 en efectivo por cada negocio que recomiendes.",
-    referralPlaceholder: "ej. A7K3M9QP",
-    back: "← Volver al sitio",
     submit: "Empieza {days} días gratis — luego ${price}/mes",
     submitting: "Redirigiendo a Stripe…",
     trialNote:
       "{days} días de prueba gratis. Guardamos tu tarjeta ahora, pero no la cobramos hasta el día {days} — cancela antes y no pagas nada.",
     errBusinessName: "Escribe el nombre de tu negocio.",
     errOwnerName: "Escribe tu nombre.",
-    errEmail: "Escribe un correo válido.",
     errBusinessPhone: "Escribe un número de teléfono válido.",
     errOwnerMobile: "Escribe un número de celular válido.",
     errSubmit: "Algo salió mal al iniciar el pago. Inténtalo de nuevo.",
@@ -589,7 +545,6 @@ export const es: Dict = {
     openTimeAria: "Hora de apertura del {day}",
     closeTimeAria: "Hora de cierre del {day}",
     forStaff: " de {name}",
-    verticalKind: { barbershop: "barbería", grooming: "peluquería canina" },
     servicePresets: {
       barbershop: ["Corte de pelo", "Recorte de barba", "Corte + barba"],
       grooming: [
@@ -600,7 +555,6 @@ export const es: Dict = {
       ],
     },
     serviceNameExample: "Ej. {name}",
-    addService: "+ Agregar servicio",
     serviceEditor: {
       intro:
         "Revisa los nombres, precios y tiempos sugeridos: deben coincidir con tu negocio. Cada servicio necesita una duraci\u00f3n fija. Si var\u00eda seg\u00fan el tama\u00f1o o tipo, crea variantes separadas.",
@@ -719,20 +673,8 @@ export const es: Dict = {
         "No encontramos la configuración de este salón. Escríbenos y lo resolvemos.",
       "too many requests": "Son muchos intentos seguidos. Espera un minuto e inténtalo de nuevo.",
       "not signed in": "Tu sesión expiró. Inicia sesión otra vez y vuelve a guardar.",
-      "invalid sessionId":
-        "Este enlace de configuración está incompleto. Ábrelo de nuevo desde tu correo.",
-      "unknown session": "No encontramos ese pago. Abre otra vez el enlace de tu correo.",
-      "not your checkout":
-        "Esta configuración es de otra cuenta. Cierra sesión y vuelve a iniciarla.",
-      "session not paid": "Tu pago aún no se confirma. Espera un minuto e inténtalo de nuevo.",
       "checkout not configured":
         "La configuración no está disponible ahora. Escríbenos y la terminamos.",
-      "setup temporarily unavailable":
-        "No pudimos guardar tu configuración de forma segura. Espera un momento e inténtalo de nuevo.",
-      "subscription cancelled":
-        "Esta suscripción fue cancelada y no puede activarse. Escríbenos si crees que es un error.",
-      "activation needs reconciliation":
-        "Guardamos tu configuración anterior. Nuestro equipo debe revisar el número antes de volver a intentarlo.",
     },
   },
   thanks: {

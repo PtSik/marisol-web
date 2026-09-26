@@ -196,7 +196,6 @@ describe("setup error copy", () => {
       "invalid calendar",
       "invalid notes",
       "invalid timezone",
-      "activation needs reconciliation",
     ];
     for (const code of codes) {
       expect(Object.keys(en.setup.errServer)).toContain(code);
