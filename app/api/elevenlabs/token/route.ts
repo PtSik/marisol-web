@@ -1,11 +1,12 @@
 import { env } from "cloudflare:workers";
+import { hmacSha256Hex } from "@/lib/crypto";
 import { DEMO_AGENTS, type DemoAgent } from "@/lib/demoAgents";
+import { overRateLimit } from "@/lib/rateLimit";
 
 export const dynamic = "force-dynamic";
 
 const MAX_DURATION_SECONDS = 180;
 
-const RATE_LIMIT_ENABLED = true;
 const RATE_LIMIT = 4;
 const WINDOW_SECONDS = 3600;
 
@@ -17,30 +18,9 @@ interface TokenEnv {
   RATE_LIMIT_KV?: KVNamespace;
 }
 
-async function overRateLimit(kv: KVNamespace | undefined, ip: string): Promise<boolean> {
-  if (!RATE_LIMIT_ENABLED || !kv || !ip) return false;
-  const key = `tok:${ip}`;
-  const count = Number((await kv.get(key)) ?? 0);
-  if (count >= RATE_LIMIT) return true;
-  await kv.put(key, String(count + 1), { expirationTtl: WINDOW_SECONDS });
-  return false;
-}
-
 async function signWebhook(secret: string, body: string): Promise<string> {
   const timestamp = Math.floor(Date.now() / 1000);
-  const enc = new TextEncoder();
-  const key = await crypto.subtle.importKey(
-    "raw",
-    enc.encode(secret),
-    { name: "HMAC", hash: "SHA-256" },
-    false,
-    ["sign"],
-  );
-  const sig = await crypto.subtle.sign("HMAC", key, enc.encode(`${timestamp}.${body}`));
-  const hex = Array.from(new Uint8Array(sig))
-    .map((b) => b.toString(16).padStart(2, "0"))
-    .join("");
-  return `t=${timestamp},v0=${hex}`;
+  return `t=${timestamp},v0=${await hmacSha256Hex(secret, `${timestamp}.${body}`)}`;
 }
 
 // Web sessions skip the Twilio flow, so the personalization webhook (which normally
@@ -94,7 +74,7 @@ export async function GET(request: Request) {
   }
 
   const ip = request.headers.get("CF-Connecting-IP") ?? "";
-  if (await overRateLimit(RATE_LIMIT_KV, ip)) {
+  if (await overRateLimit(RATE_LIMIT_KV, ip && `tok:${ip}`, RATE_LIMIT, WINDOW_SECONDS)) {
     return Response.json({ error: "rate limit exceeded" }, { status: 429 });
   }
 

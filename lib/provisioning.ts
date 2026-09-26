@@ -1,3 +1,4 @@
+import { hmacSha256Hex } from "@/lib/crypto";
 import { type CheckoutLead, putLeadIdForShop } from "@/lib/leads";
 import { notifyTeam, sendClientWelcome, sendProvisionAlert } from "@/lib/notify";
 import {
@@ -211,26 +212,12 @@ export async function patchShop(
   return res?.ok ?? false;
 }
 
-async function hmacV0(secret: string, message: string): Promise<string> {
-  const key = await crypto.subtle.importKey(
-    "raw",
-    new TextEncoder().encode(secret),
-    { name: "HMAC", hash: "SHA-256" },
-    false,
-    ["sign"],
-  );
-  const sig = await crypto.subtle.sign("HMAC", key, new TextEncoder().encode(message));
-  return `v0=${Array.from(new Uint8Array(sig))
-    .map((b) => b.toString(16).padStart(2, "0"))
-    .join("")}`;
-}
-
 export async function buildCalendarConnectUrl(
   env: ProvisioningEnv,
   shopId: string,
 ): Promise<string | undefined> {
   if (!env.VOICE_AGENT_API_URL || !env.ADMIN_API_KEY) return undefined;
-  const sig = await hmacV0(env.ADMIN_API_KEY, `gcal-connect:${shopId}`);
+  const sig = `v0=${await hmacSha256Hex(env.ADMIN_API_KEY, `gcal-connect:${shopId}`)}`;
   const url = new URL(`${env.VOICE_AGENT_API_URL}/integrations/google/start`);
   url.searchParams.set("shop_id", shopId);
   url.searchParams.set("sig", sig);

@@ -1,11 +1,10 @@
+import { toHex } from "@/lib/crypto";
+
 // Shared primitives for the key-gated internal dashboards (/admin for clients, /sales for outreach).
 // Each dashboard has its own key and its own cookie so access to one never grants the other.
 
 export async function sha256Hex(value: string): Promise<string> {
-  const digest = await crypto.subtle.digest("SHA-256", new TextEncoder().encode(value));
-  return Array.from(new Uint8Array(digest))
-    .map((b) => b.toString(16).padStart(2, "0"))
-    .join("");
+  return toHex(await crypto.subtle.digest("SHA-256", new TextEncoder().encode(value)));
 }
 
 export function timingSafeEqualStr(a: string, b: string): boolean {
