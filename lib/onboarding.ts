@@ -218,7 +218,7 @@ export function collapseLegacyDurationRanges(services: ServiceEntry[]): ServiceE
 
 const TIME_RE = /^(?:[01]\d|2[0-3]):[0-5]\d$/;
 
-function isShortString(value: unknown, max = 120): value is string {
+export function isShortString(value: unknown, max = 120): value is string {
   return typeof value === "string" && value.length <= max;
 }
 

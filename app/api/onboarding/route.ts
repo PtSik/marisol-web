@@ -16,6 +16,7 @@ import {
   PHONE_RE,
   type SetupDetails,
   VERTICAL_IDS,
+  isShortString,
   isTimezoneId,
   isUsPhone,
   normalizeSetup,
@@ -79,10 +80,6 @@ const RATE_LIMITS: Record<OnboardingRequest["intent"], number> = {
   checkout: 10,
   call: 5,
 };
-
-function isShortString(value: unknown, max = 120): value is string {
-  return typeof value === "string" && value.length <= max;
-}
 
 function validateCall(call: unknown): string | null {
   if (typeof call !== "object" || call === null) return "invalid call";

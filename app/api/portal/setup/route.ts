@@ -2,7 +2,7 @@ import { env } from "cloudflare:workers";
 import { getLead, putLead } from "@/lib/leads";
 import {
   type SetupDetails,
-  TIMEZONE_IDS,
+  isTimezoneId,
   normalizeSetup,
   validateSetupPayload,
 } from "@/lib/onboarding";
@@ -47,7 +47,7 @@ export async function POST(request: Request): Promise<Response> {
   const setup = normalizeSetup(body.setup as SetupDetails);
 
   const timezone = body.timezone;
-  if (timezone !== undefined && !TIMEZONE_IDS.some((id) => id === timezone)) {
+  if (timezone !== undefined && !isTimezoneId(timezone)) {
     return Response.json({ error: "invalid timezone" }, { status: 400 });
   }
 

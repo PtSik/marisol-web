@@ -5,9 +5,10 @@ import {
   type BusinessBasics,
   PHONE_RE,
   type SetupDetails,
-  TIMEZONE_IDS,
   VERTICAL_IDS,
   type Vertical,
+  isShortString,
+  isTimezoneId,
   validateSetupPayload,
 } from "@/lib/onboarding";
 import { type Billing, canAddLocation, normalizePlan } from "@/lib/plans";
@@ -27,10 +28,6 @@ interface AddSalonRequest {
   timezone?: string;
   vertical?: string;
   setup?: SetupDetails;
-}
-
-function isShortString(value: unknown, max = 120): value is string {
-  return typeof value === "string" && value.length <= max;
 }
 
 export async function POST(request: Request): Promise<Response> {
@@ -59,7 +56,7 @@ export async function POST(request: Request): Promise<Response> {
   if (!isShortString(body.businessPhone) || !PHONE_RE.test(body.businessPhone)) {
     return Response.json({ error: "invalid businessPhone" }, { status: 400 });
   }
-  if (!isShortString(body.timezone, 60) || !TIMEZONE_IDS.some((id) => id === body.timezone)) {
+  if (!isTimezoneId(body.timezone)) {
     return Response.json({ error: "invalid timezone" }, { status: 400 });
   }
   if (!VERTICAL_IDS.includes(body.vertical as Vertical)) {
