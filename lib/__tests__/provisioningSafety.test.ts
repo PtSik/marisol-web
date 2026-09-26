@@ -60,6 +60,21 @@ describe("provisionLead launch validation", () => {
     expect(fetches).toBe(0);
   });
 
+  it("refuses a setup that cannot become a shop before buying a number", async () => {
+    let fetches = 0;
+    globalThis.fetch = (async () => {
+      fetches += 1;
+      return new Response(null, { status: 500 });
+    }) as unknown as typeof fetch;
+
+    await expect(provisionLead(env, lead({ setup: undefined }))).resolves.toEqual({
+      ok: false,
+      reason: "lead has no setup details",
+      cleanupComplete: true,
+    });
+    expect(fetches).toBe(0);
+  });
+
   it("rejects an invalid admin area-code override before any external side effect", async () => {
     let fetches = 0;
     globalThis.fetch = (async () => {

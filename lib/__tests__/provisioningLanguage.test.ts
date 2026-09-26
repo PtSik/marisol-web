@@ -28,19 +28,19 @@ function lead(overrides: Partial<CheckoutLead> = {}): CheckoutLead {
 
 describe("buildShopPayload — primary_language", () => {
   it("defaults to English for a lead with no locale and no pick", () => {
-    const p = buildShopPayload(lead(), "+18336596941", AGENTS);
+    const p = buildShopPayload(lead(), AGENTS);
     expect(p.primary_language).toBe("en");
   });
 
   // The /es funnel is the strongest signal we have before the client answers the question.
   it("inherits the funnel locale when the client did not pick", () => {
-    const p = buildShopPayload(lead({ locale: "es" }), "+18336596941", AGENTS);
+    const p = buildShopPayload(lead({ locale: "es" }), AGENTS);
     expect(p.primary_language).toBe("es");
   });
 
   it("lets an explicit pick beat the funnel locale", () => {
     const setup = { ...defaultSetup("barbershop", ["Haircut"]), primaryLanguage: "en" as const };
-    const p = buildShopPayload(lead({ locale: "es", setup }), "+18336596941", AGENTS);
+    const p = buildShopPayload(lead({ locale: "es", setup }), AGENTS);
     expect(p.primary_language).toBe("en");
   });
 
@@ -52,7 +52,7 @@ describe("buildShopPayload — primary_language", () => {
       languageMode: "es" as const,
       primaryLanguage: "en" as const,
     };
-    const p = buildShopPayload(lead({ locale: "en", setup }), "+18336596941", AGENTS);
+    const p = buildShopPayload(lead({ locale: "en", setup }), AGENTS);
     expect(p.primary_language).toBe("es");
   });
 
@@ -62,36 +62,32 @@ describe("buildShopPayload — primary_language", () => {
       languageMode: "bilingual" as const,
       primaryLanguage: "es" as const,
     };
-    const p = buildShopPayload(lead({ locale: "en", setup }), "+18336596941", AGENTS);
+    const p = buildShopPayload(lead({ locale: "en", setup }), AGENTS);
     expect(p.primary_language).toBe("es");
   });
 
   // Every lead created before the mode existed behaves exactly as it did before.
   it("treats a missing mode as bilingual", () => {
     const setup = { ...defaultSetup("barbershop", ["Haircut"]), primaryLanguage: "es" as const };
-    const p = buildShopPayload(lead({ locale: "en", setup }), "+18336596941", AGENTS);
+    const p = buildShopPayload(lead({ locale: "en", setup }), AGENTS);
     expect(p.primary_language).toBe("es");
   });
 });
 
 describe("buildShopPayload — agent per vertical", () => {
   it("pins the barber agent so the shop never relies on the env fallback", () => {
-    const p = buildShopPayload(lead(), "+18336596941", AGENTS);
+    const p = buildShopPayload(lead(), AGENTS);
     expect(p.elevenlabs_agent_id).toBe("agent_barber");
   });
 
   it("pins the grooming agent for a grooming lead", () => {
     const l = lead();
-    const p = buildShopPayload(
-      { ...l, basics: { ...l.basics, vertical: "grooming" } },
-      "+18336596941",
-      AGENTS,
-    );
+    const p = buildShopPayload({ ...l, basics: { ...l.basics, vertical: "grooming" } }, AGENTS);
     expect(p.elevenlabs_agent_id).toBe("agent_grooming");
   });
 
   it("omits the agent id when the vertical has none configured", () => {
-    const p = buildShopPayload(lead(), "+18336596941", { grooming: "agent_grooming" });
+    const p = buildShopPayload(lead(), { grooming: "agent_grooming" });
     expect(p.elevenlabs_agent_id).toBeUndefined();
   });
 });

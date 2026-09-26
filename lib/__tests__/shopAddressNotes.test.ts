@@ -34,17 +34,17 @@ function lead(
 
 describe("buildShopPayload — address", () => {
   it("carries the address the owner typed", () => {
-    const p = buildShopPayload(lead({ address: "1420 Bedford Ave, Brooklyn NY" }), "+1833", AGENTS);
+    const p = buildShopPayload(lead({ address: "1420 Bedford Ave, Brooklyn NY" }), AGENTS);
     expect(p.address).toBe("1420 Bedford Ave, Brooklyn NY");
   });
 
   it("sends null when the owner left it blank", () => {
-    expect(buildShopPayload(lead({ address: "   " }), "+1833", AGENTS).address).toBeNull();
+    expect(buildShopPayload(lead({ address: "   " }), AGENTS).address).toBeNull();
   });
 
   // Leads created before the field existed have no `address` key at all.
   it("sends null when the lead predates the field", () => {
-    expect(buildShopPayload(lead(), "+1833", AGENTS).address).toBeNull();
+    expect(buildShopPayload(lead(), AGENTS).address).toBeNull();
   });
 });
 
@@ -53,16 +53,12 @@ describe("buildShopPayload — notes", () => {
   // the team notification email only — never the shop row, so the agent escalated on questions the
   // owner had already answered. This test is the regression guard for that silent drop.
   it("carries the owner's notes through to the shop", () => {
-    const p = buildShopPayload(
-      lead({ notes: "Walk-ins welcome. Free lot out back." }),
-      "+1833",
-      AGENTS,
-    );
+    const p = buildShopPayload(lead({ notes: "Walk-ins welcome. Free lot out back." }), AGENTS);
     expect(p.notes).toBe("Walk-ins welcome. Free lot out back.");
   });
 
   it("sends null for empty notes rather than an empty string", () => {
-    expect(buildShopPayload(lead({ notes: "  " }), "+1833", AGENTS).notes).toBeNull();
+    expect(buildShopPayload(lead({ notes: "  " }), AGENTS).notes).toBeNull();
   });
 });
 
@@ -70,19 +66,19 @@ describe("buildShopPayload — launch safety", () => {
   it("canonicalizes the owner's transfer and alert phone", () => {
     const l = lead();
     l.basics.ownerMobile = "+1 (305) 555-0111";
-    const payload = buildShopPayload(l, "+13055550123", AGENTS);
+    const payload = buildShopPayload(l, AGENTS);
     expect(payload.escalation_phone).toBe("+13055550111");
     expect(payload.owner_escalation_phone).toBe("+13055550111");
   });
 
   it("creates the shop suspended until provisioning finishes its critical links", () => {
-    expect(buildShopPayload(lead(), "+13055550123", AGENTS).status).toBe("suspended");
+    expect(buildShopPayload(lead(), AGENTS).status).toBe("suspended");
   });
 
   it("rejects an invalid owner phone before it reaches the voice agent", () => {
     const l = lead();
     l.basics.ownerMobile = "555-0111";
-    expect(() => buildShopPayload(l, "+13055550123", AGENTS)).toThrow(
+    expect(() => buildShopPayload(l, AGENTS)).toThrow(
       "owner mobile is not a valid US phone number",
     );
   });

@@ -125,9 +125,9 @@ function upper(lower: string, value: string | undefined): number | undefined {
   return hi;
 }
 
+// Everything but the number, so it is built — and can refuse — before a number is bought.
 export function buildShopPayload(
   lead: CheckoutLead,
-  twilioNumber: string,
   agentIds: { grooming?: string; barber?: string },
 ): Record<string, unknown> {
   const { basics, setup } = lead;
@@ -138,7 +138,6 @@ export function buildShopPayload(
     transfers_enabled: false,
     service_catalog: toServiceCatalog(setup),
     name: basics.businessName,
-    twilio_number: twilioNumber,
     escalation_phone: ownerMobile,
     owner_escalation_phone: ownerMobile,
     owner_email: basics.email,
@@ -334,6 +333,18 @@ export async function provisionLead(
   lead.basics.ownerMobile = ownerMobile;
   if (lead.setup) lead.setup.forwardNumber = clientNumber;
 
+  let payload: Record<string, unknown>;
+  try {
+    payload = buildShopPayload(lead, {
+      grooming: env.GROOMING_AGENT_ID,
+      barber: env.BARBER_AGENT_ID,
+    });
+  } catch (err) {
+    const reason = err instanceof Error ? err.message : "shop payload could not be built";
+    await sendProvisionAlert(env, lead, reason);
+    return { ok: false, reason, cleanupComplete: true };
+  }
+
   const voiceUrl = `${env.VOICE_AGENT_API_URL}/twilio/inbound`;
   const bought = await buyLocalNumber(
     env,
@@ -364,11 +375,7 @@ export async function provisionLead(
     // Persist the paid resource before creating anything else. If the worker stops between steps,
     // Stripe cancellation and the admin reconciliation path can still find and release the number.
     await options.checkpoint?.({ number: bought.number, numberSid: bought.sid });
-    const payload = buildShopPayload(lead, bought.number, {
-      grooming: env.GROOMING_AGENT_ID,
-      barber: env.BARBER_AGENT_ID,
-    });
-    const shop = await createShop(env, payload);
+    const shop = await createShop(env, { ...payload, twilio_number: bought.number });
     if (!shop) {
       const released = await releaseTwilioNumber(env, bought.sid);
       await sendProvisionAlert(env, lead, "admin POST /shops failed");
