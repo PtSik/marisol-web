@@ -101,7 +101,6 @@ const copy = {
       "You’ll connect Google Calendar after checkout, then pick which calendar Marisol books into. One calendar is enough for one person; teams can give each person their own.",
     otherCalendar:
       "Using Booksy, Fresha, Boulevard or another booking app? Tell us its name in the notes on the next step. Our team must confirm compatibility before you start a trial.",
-    assisted: "Please ask our team to confirm your existing booking workflow before checkout.",
     timezone: "Business time zone",
     services: "Services",
     phone: "Existing business number",
@@ -156,8 +155,6 @@ const copy = {
       "Conectarás Google Calendar después del pago y luego elegirás en qué calendario reserva Marisol. Para una persona basta uno; en equipos cada persona puede tener el suyo.",
     otherCalendar:
       "¿Usas Booksy, Fresha, Boulevard u otra aplicación? Indica su nombre en las notas del siguiente paso. Debemos confirmar la compatibilidad antes de iniciar la prueba.",
-    assisted:
-      "Pide a nuestro equipo que confirme tu sistema de reservas antes de continuar al pago.",
     timezone: "Zona horaria del negocio",
     services: "Servicios",
     phone: "Número actual del negocio",
@@ -385,7 +382,6 @@ export function OnboardingWizard({
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           intent: "checkout",
-          flowVersion: 2,
           plan,
           billing,
           basics,

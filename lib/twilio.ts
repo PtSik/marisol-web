@@ -235,39 +235,6 @@ export async function lookupLineType(
   };
 }
 
-export interface InboundCall {
-  startedAt: string;
-  endedAt: string | null;
-}
-
-// Twilio's call log is the cheapest way to learn that a demo number rang: the landing worker owns
-// the account already, so nothing has to change in voice-agent to detect it. Dates come back as
-// RFC 2822; `since` filters day-granularity server-side and exactly client-side.
-export async function listInboundCalls(
-  env: TwilioEnv,
-  to: string,
-  since: Date,
-): Promise<InboundCall[]> {
-  if (!env.TWILIO_ACCOUNT_SID || !env.TWILIO_AUTH_TOKEN) return [];
-  const query = new URLSearchParams({ To: to, PageSize: "20" });
-  query.set("StartTime>", since.toISOString().slice(0, 10));
-  const res = await fetch(
-    `https://api.twilio.com/2010-04-01/Accounts/${env.TWILIO_ACCOUNT_SID}/Calls.json?${query}`,
-    { headers: { Authorization: auth(env) } },
-  ).catch(() => null);
-  if (!res?.ok) return [];
-  const data = (await res.json().catch(() => null)) as {
-    calls?: { start_time?: string; end_time?: string | null }[];
-  } | null;
-
-  return (data?.calls ?? [])
-    .map((call) => ({
-      startedAt: call.start_time ? new Date(call.start_time).toISOString() : "",
-      endedAt: call.end_time ? new Date(call.end_time).toISOString() : null,
-    }))
-    .filter((call) => call.startedAt && call.startedAt >= since.toISOString());
-}
-
 export async function releaseTwilioNumber(env: TwilioEnv, sid: string): Promise<boolean> {
   if (!env.TWILIO_ACCOUNT_SID || !env.TWILIO_AUTH_TOKEN) return false;
   const res = await fetch(

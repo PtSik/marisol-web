@@ -54,17 +54,6 @@ const WALK_LABELS: Partial<Record<Outcome, string>> = {
 export const outcomeLabel = (outcome: Outcome, channel: Channel = "call"): string =>
   (channel === "walk" ? WALK_LABELS[outcome] : undefined) ?? OUTCOME_LABELS[outcome];
 
-// Outcomes that mean the rep actually got through to a person — these do not raise the attempt
-// counter a second time on an edit, and they take the lead out of the default queue.
-export const CONTACTED: ReadonlySet<Outcome> = new Set([
-  "gatekeeper",
-  "interested",
-  "demo_sent",
-  "not_interested",
-  "wrong_number",
-  "dead",
-]);
-
 export function isOutcome(value: unknown): value is Outcome {
   return typeof value === "string" && (OUTCOMES as readonly string[]).includes(value);
 }

@@ -138,10 +138,7 @@ async function cleanResource(env: CancellationEnv, task: ResourceTask): Promise<
   }
 }
 
-export async function processCancellationJob(
-  env: CancellationEnv,
-  job: TeardownJob,
-): Promise<void> {
+async function processCancellationJob(env: CancellationEnv, job: TeardownJob): Promise<void> {
   if (job.kind === "subscription") await discoverResources(env, JSON.parse(job.payload));
   else await cleanResource(env, JSON.parse(job.payload));
 }
