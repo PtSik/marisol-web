@@ -3,6 +3,7 @@ import { ADMIN_COOKIE, isAdminCookieValid } from "@/lib/adminAuth";
 import { getLead, isPreparedLead, putLead } from "@/lib/leads";
 import { sendCalendarInvite } from "@/lib/notify";
 import { buildCalendarConnectUrl, patchShop } from "@/lib/provisioning";
+import { redirectWithParam } from "@/lib/redirect";
 import { cookies } from "next/headers";
 
 export const dynamic = "force-dynamic";
@@ -18,11 +19,8 @@ interface CalendarEmailEnv {
   CLIENT_EMAIL_FROM?: string;
 }
 
-function back(request: Request, status: string): Response {
-  const url = new URL("/admin", request.url);
-  url.searchParams.set("calendar", status);
-  return Response.redirect(url.toString(), 303);
-}
+const back = (request: Request, status: string) =>
+  redirectWithParam(request, "/admin", "calendar", status);
 
 export async function POST(
   request: Request,

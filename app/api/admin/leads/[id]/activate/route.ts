@@ -24,6 +24,7 @@ import {
   provisionLead,
   sendProvisionedWelcome,
 } from "@/lib/provisioning";
+import { redirectWithParam } from "@/lib/redirect";
 import { canLaunchLocation, getSubscription, setSubscriptionExtraLocations } from "@/lib/stripe";
 import { isUsAreaCode } from "@/lib/twilio";
 import { cookies } from "next/headers";
@@ -75,11 +76,8 @@ async function billAdditionalLocation(cfEnv: ActivationEnv, lead: CheckoutLead):
   }
 }
 
-function back(request: Request, status: string): Response {
-  const url = new URL("/admin", request.url);
-  url.searchParams.set("activation", status);
-  return Response.redirect(url.toString(), 303);
-}
+const back = (request: Request, status: string) =>
+  redirectWithParam(request, "/admin", "activation", status);
 
 export async function POST(
   request: Request,

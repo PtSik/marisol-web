@@ -15,6 +15,7 @@ import { portalAccessRedirect } from "@/lib/portalAccess";
 import { type PortalEnv, listAccountShopsStrict } from "@/lib/portalApi";
 import { patchShop } from "@/lib/provisioning";
 import { overRateLimit } from "@/lib/rateLimit";
+import { redirectWithParam } from "@/lib/redirect";
 import { getSession, sessionIdFromCookies } from "@/lib/session";
 import {
   type PlanPriceEnv,
@@ -33,11 +34,8 @@ interface UpgradeEnv extends PortalEnv, PlanPriceEnv {
   STRIPE_PRICE_EXTRA_LOCATION_ANNUAL?: string;
 }
 
-function back(request: Request, status: string): Response {
-  const url = new URL("/portal/billing", request.url);
-  url.searchParams.set("upgrade", status);
-  return Response.redirect(url.toString(), 303);
-}
+const back = (request: Request, status: string) =>
+  redirectWithParam(request, "/portal/billing", "upgrade", status);
 
 async function requestedPlan(request: Request): Promise<Plan | null> {
   const form = await request.formData().catch(() => null);

@@ -3,16 +3,14 @@ import { getLead, getLeadIdForAccount } from "@/lib/leads";
 import { portalAccessRedirect } from "@/lib/portalAccess";
 import type { PortalEnv } from "@/lib/portalApi";
 import { overRateLimit } from "@/lib/rateLimit";
+import { redirectWithParam } from "@/lib/redirect";
 import { getSession, sessionIdFromCookies } from "@/lib/session";
 import { getSubscription, resumeSubscription } from "@/lib/stripe";
 
 export const dynamic = "force-dynamic";
 
-function back(request: Request, result: string): Response {
-  const url = new URL("/portal/billing", request.url);
-  url.searchParams.set("resume", result);
-  return Response.redirect(url.toString(), 303);
-}
+const back = (request: Request, result: string) =>
+  redirectWithParam(request, "/portal/billing", "resume", result);
 
 export async function POST(request: Request): Promise<Response> {
   const cfEnv = env as unknown as PortalEnv;

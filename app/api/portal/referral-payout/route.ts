@@ -2,16 +2,14 @@ import { env } from "cloudflare:workers";
 import { isPayoutMethod, normalisePayoutHandle } from "@/lib/payout";
 import { type PortalEnv, findAccountByEmail } from "@/lib/portalApi";
 import { overRateLimit } from "@/lib/rateLimit";
+import { redirectWithParam } from "@/lib/redirect";
 import { claimReferralPayout } from "@/lib/referrals";
 import { getSession, sessionIdFromCookies } from "@/lib/session";
 
 export const dynamic = "force-dynamic";
 
-function back(request: Request, status: string): Response {
-  const url = new URL("/portal/referrals", request.url);
-  url.searchParams.set("payout", status);
-  return Response.redirect(url.toString(), 303);
-}
+const back = (request: Request, status: string) =>
+  redirectWithParam(request, "/portal/referrals", "payout", status);
 
 export async function POST(request: Request): Promise<Response> {
   const cfEnv = env as unknown as PortalEnv;

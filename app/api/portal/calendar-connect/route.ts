@@ -4,15 +4,13 @@ import type { PortalEnv } from "@/lib/portalApi";
 import { resolveAccountShops } from "@/lib/portalContext";
 import { buildCalendarConnectUrl, patchShop } from "@/lib/provisioning";
 import { overRateLimit } from "@/lib/rateLimit";
+import { redirectWithParam } from "@/lib/redirect";
 import { getSession, sessionIdFromCookies } from "@/lib/session";
 
 export const dynamic = "force-dynamic";
 
-function back(request: Request, result: string): Response {
-  const url = new URL("/portal/calendar", request.url);
-  url.searchParams.set("connect", result);
-  return Response.redirect(url.toString(), 303);
-}
+const back = (request: Request, result: string) =>
+  redirectWithParam(request, "/portal/calendar", "connect", result);
 
 export async function POST(request: Request): Promise<Response> {
   const cfEnv = env as unknown as PortalEnv;

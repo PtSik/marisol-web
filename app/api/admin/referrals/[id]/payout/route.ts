@@ -1,5 +1,6 @@
 import { env } from "cloudflare:workers";
 import { ADMIN_COOKIE, isAdminCookieValid } from "@/lib/adminAuth";
+import { redirectWithParam } from "@/lib/redirect";
 import { markPaidOut } from "@/lib/referrals";
 import type { VoiceAgentEnv } from "@/lib/voiceAgent";
 import { cookies } from "next/headers";
@@ -10,11 +11,8 @@ interface PayoutEnv extends VoiceAgentEnv {
   ADMIN_DASH_KEY?: string;
 }
 
-function back(request: Request, status: string): Response {
-  const url = new URL("/admin", request.url);
-  url.searchParams.set("payout", status);
-  return Response.redirect(url.toString(), 303);
-}
+const back = (request: Request, status: string) =>
+  redirectWithParam(request, "/admin", "payout", status);
 
 export async function POST(
   request: Request,

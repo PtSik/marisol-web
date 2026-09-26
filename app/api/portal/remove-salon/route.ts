@@ -6,6 +6,7 @@ import { portalAccessRedirect } from "@/lib/portalAccess";
 import { type PortalEnv, listAccountShopsStrict } from "@/lib/portalApi";
 import { deprovisionLead, deprovisionShop } from "@/lib/provisioning";
 import { overRateLimit } from "@/lib/rateLimit";
+import { redirectWithParam } from "@/lib/redirect";
 import { getSession, sessionIdFromCookies } from "@/lib/session";
 import { getSubscription, setSubscriptionExtraLocations } from "@/lib/stripe";
 
@@ -18,11 +19,8 @@ interface RemoveSalonEnv extends PortalEnv {
   TWILIO_AUTH_TOKEN?: string;
 }
 
-function back(request: Request, status: string): Response {
-  const url = new URL("/portal/salons", request.url);
-  url.searchParams.set("removed", status);
-  return Response.redirect(url.toString(), 303);
-}
+const back = (request: Request, status: string) =>
+  redirectWithParam(request, "/portal/salons", "removed", status);
 
 export async function POST(request: Request): Promise<Response> {
   const cfEnv = env as unknown as RemoveSalonEnv;
