@@ -44,7 +44,6 @@ function Shell({
   email,
   children,
 }: { locale: Locale; email?: string; children: ReactNode }) {
-  const home = LOCALE_PATH[locale];
   return (
     // The route lives under the English layout, so the Spanish funnel marks its own language here.
     <div lang={locale}>

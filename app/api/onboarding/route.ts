@@ -2,7 +2,6 @@ import { env } from "cloudflare:workers";
 import { type Locale, parseLocale } from "@/lib/i18n/dict";
 import {
   type CheckoutLead,
-  activationNeedsReconciliation,
   checkoutRequestMatchesLead,
   getLead,
   getLeadIdForAccount,
@@ -22,14 +21,7 @@ import {
   normalizeSetup,
   validateSetupPayload,
 } from "@/lib/onboarding";
-import {
-  BILLING_OPTIONS,
-  type Billing,
-  PLAN_OPTIONS,
-  type Plan,
-  TRIAL_DAYS,
-  normalizePlan,
-} from "@/lib/plans";
+import { BILLING_OPTIONS, type Billing, PLAN_OPTIONS, type Plan, TRIAL_DAYS } from "@/lib/plans";
 import { listAccountShopsStrict } from "@/lib/portalApi";
 import { overRateLimit } from "@/lib/rateLimit";
 import { REF_CODE_RE, refCodeFromCookie } from "@/lib/referrals";
@@ -37,11 +29,8 @@ import { getSession, sessionIdFromCookies } from "@/lib/session";
 import { APP_URL } from "@/lib/site";
 import {
   type PlanPriceEnv,
-  SESSION_ID_RE,
-  checkoutSettled,
   expireCheckoutSession,
   findPromotionCode,
-  getCheckoutSession,
   lookupCheckoutSession,
   planPriceId,
 } from "@/lib/stripe";

@@ -8,7 +8,7 @@ interface LogoutEnv {
   RATE_LIMIT_KV?: KVNamespace;
 }
 
-export async function POST(request: Request): Promise<Response> {
+export async function POST(): Promise<Response> {
   const cfEnv = env as unknown as LogoutEnv;
   await destroySession(cfEnv.RATE_LIMIT_KV, await sessionIdFromCookies());
 

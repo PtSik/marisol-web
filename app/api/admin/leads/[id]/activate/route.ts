@@ -26,7 +26,6 @@ import {
 } from "@/lib/provisioning";
 import { canLaunchLocation, getSubscription, setSubscriptionExtraLocations } from "@/lib/stripe";
 import { isUsAreaCode } from "@/lib/twilio";
-import { voiceAgentFetch } from "@/lib/voiceAgent";
 import { cookies } from "next/headers";
 
 export const dynamic = "force-dynamic";

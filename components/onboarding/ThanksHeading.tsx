@@ -1,5 +1,3 @@
-import type { Dict } from "@/lib/i18n/dict";
-
 function CheckIcon() {
   return (
     <span className="inline-flex h-[54px] w-[54px] items-center justify-center rounded-full bg-success/10 text-success">

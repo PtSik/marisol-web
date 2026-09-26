@@ -21,7 +21,7 @@ import {
 import { Notice, Section, Stat, type Tone } from "@/components/admin/ui";
 import { ADMIN_COOKIE, isAdminCookieValid } from "@/lib/adminAuth";
 import { type CallLead, type CheckoutLead, listLeads } from "@/lib/leads";
-import { type Referral, listReferrals } from "@/lib/referrals";
+import { listReferrals } from "@/lib/referrals";
 import { siteHref } from "@/lib/site";
 import { listTeardowns } from "@/lib/teardownQueue";
 import { voiceAgentFetch } from "@/lib/voiceAgent";

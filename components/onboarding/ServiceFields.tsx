@@ -1,7 +1,7 @@
 "use client";
 import { Field } from "@/components/onboarding/Field";
 import { inputCls } from "@/components/onboarding/fieldStyles";
-import { type Locale, fill, getDict } from "@/lib/i18n/dict";
+import { type Locale, getDict } from "@/lib/i18n/dict";
 import {
   type ServiceEntry,
   type SetupDetails,

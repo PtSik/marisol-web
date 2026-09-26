@@ -2,7 +2,6 @@ import { type CheckoutLead, putLeadIdForShop } from "@/lib/leads";
 import { notifyTeam, sendClientWelcome, sendProvisionAlert } from "@/lib/notify";
 import {
   type DayId,
-  type ServiceEntry,
   type SetupDetails,
   type WeekHours,
   coerceTimezone,
