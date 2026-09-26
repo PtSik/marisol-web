@@ -50,10 +50,6 @@ interface OnboardingEnv extends PlanPriceEnv {
   VOICE_AGENT_API?: Fetcher;
   VOICE_AGENT_API_URL?: string;
   ADMIN_API_KEY?: string;
-  GROOMING_AGENT_ID?: string;
-  BARBER_AGENT_ID?: string;
-  TWILIO_ACCOUNT_SID?: string;
-  TWILIO_AUTH_TOKEN?: string;
 }
 
 interface CallRequest {
@@ -182,6 +178,15 @@ async function handleCheckout(
   }
 
   const { discount, attribution } = await resolveCodes(cfEnv, request, codes);
+  const checkoutRequest = {
+    plan,
+    billing,
+    locale,
+    basics,
+    setup,
+    promotionId: discount?.promoId,
+    referralCode: attribution?.code,
+  };
   // An earlier Stripe POST may have succeeded even when the KV write of its session id failed.
   // Replaying the same immutable request recovers the idempotent result. A changed request cannot
   // reuse that attempt key with a different reviewed setup or price.
@@ -189,15 +194,7 @@ async function handleCheckout(
     existingLead?.status === "created" &&
     existingLead.checkoutRequestSentAt &&
     !existingLead.stripeSessionId &&
-    !checkoutRequestMatchesLead(existingLead, {
-      plan,
-      billing,
-      locale,
-      basics,
-      setup,
-      promotionId: discount?.promoId,
-      referralCode: attribution?.code,
-    })
+    !checkoutRequestMatchesLead(existingLead, checkoutRequest)
   ) {
     return Response.json({ error: "could not verify previous checkout" }, { status: 503 });
   }
@@ -218,16 +215,7 @@ async function handleCheckout(
       );
     } else if (lookup.session.status === "open") {
       const reusable =
-        Boolean(lookup.session.url) &&
-        checkoutRequestMatchesLead(existingLead, {
-          plan,
-          billing,
-          locale,
-          basics,
-          setup,
-          promotionId: discount?.promoId,
-          referralCode: attribution?.code,
-        });
+        Boolean(lookup.session.url) && checkoutRequestMatchesLead(existingLead, checkoutRequest);
       if (reusable) return Response.json({ url: lookup.session.url });
 
       // The customer changed a price-, discount- or business-defining input. The old Checkout must
@@ -345,12 +333,9 @@ async function handleCheckout(
   }
 
   const session = (await res.json()) as { id?: string; url?: string };
-  if (!session.url) {
+  if (!session.url || !session.id) {
     return Response.json({ error: "failed to create checkout session" }, { status: 502 });
   }
-
-  if (!session.id)
-    return Response.json({ error: "failed to create checkout session" }, { status: 502 });
   const latest = await getLeadStrict(cfEnv.LEADS_KV, lead.id);
   if (
     !latest ||
@@ -360,17 +345,7 @@ async function handleCheckout(
     return Response.json({ error: "could not verify previous checkout" }, { status: 503 });
   }
   if (latest.status === "created") {
-    if (
-      !checkoutRequestMatchesLead(latest, {
-        plan,
-        billing,
-        locale,
-        basics,
-        setup,
-        promotionId: discount?.promoId,
-        referralCode: attribution?.code,
-      })
-    ) {
+    if (!checkoutRequestMatchesLead(latest, checkoutRequest)) {
       return Response.json({ error: "could not verify previous checkout" }, { status: 503 });
     }
     // Preserve any state written by a faster webhook instead of writing the pre-Stripe snapshot.
