@@ -6,8 +6,7 @@ subscription billing, an operator-reviewed activation flow and a multi-location 
 The repository retains its original name, `kaijiro-voice-landing`.
 
 [Product website](https://callmarisol.com) ·
-[Voice API repository](https://github.com/PtSik/marisol-voice-api) ·
-[Flow diagrams](./docs/diagrams/README.md)
+[Voice API repository](https://github.com/PtSik/marisol-voice-api)
 
 ## What is implemented
 
@@ -73,8 +72,8 @@ bun run dev
 Public pages can be inspected separately from provider-backed flows. To exercise the complete
 application, configure your own development KV and D1 resources, apply the D1 migrations, connect
 a development voice worker and supply sandbox credentials. See `wrangler.jsonc` for bindings,
-`.env.example` for credential names and [onboarding documentation](./docs/onboarding/README.md)
-for the product flow. The checked-in deployment configuration describes the existing product;
+`.env.example` for credential names. The onboarding implementation starts in
+`components/onboarding/OnboardingWizard.tsx`. The checked-in deployment configuration describes the existing product;
 replace its resource IDs, domains, service bindings and price IDs before deploying a fork.
 
 The existing hosted preview shares some production integrations. Do not use it for checkout or
